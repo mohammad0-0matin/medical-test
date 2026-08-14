@@ -1,7 +1,11 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import (
-    Patient,
-    UserPatientAccess,
+    User,
+    PatientProfile,
+    DoctorProfile,
+    LabStaffProfile,
+    PatientAccess,
     TestCategory,
     TestType,
     TestResult,
@@ -10,16 +14,44 @@ from .models import (
 )
 
 
-@admin.register(Patient)
-class PatientAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'user', 'birth_date')
-    search_fields = ('first_name', 'last_name', 'user__username')
+# Custom User Admin
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = ('username', 'email', 'national_code', 'mobile', 'role', 'is_staff')
+    list_filter = ('role', 'is_staff', 'is_superuser', 'is_active', 'date_joined')
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ('Additional Info', {'fields': ('national_code', 'mobile', 'role')}),
+    )
+    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+        ('Additional Info', {'fields': ('national_code', 'mobile', 'role')}),
+    )
 
 
-@admin.register(UserPatientAccess)
-class UserPatientAccessAdmin(admin.ModelAdmin):
-    list_display = ('user', 'patient', 'access_level', 'granted_at', 'granted_by')
-    list_filter = ('access_level',)
+@admin.register(PatientProfile)
+class PatientProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'blood_type', 'insurance_number')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'insurance_number')
+
+
+@admin.register(PatientAccess)
+class PatientAccessAdmin(admin.ModelAdmin):
+    list_display = ('patient', 'guardian', 'relationship', 'access_level', 'is_active')
+    list_filter = ('relationship', 'access_level', 'is_active')
+    search_fields = ('patient__user__username', 'guardian__username')
+
+
+@admin.register(DoctorProfile)
+class DoctorProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'medical_council_code', 'specialty')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'medical_council_code')
+    list_filter = ('specialty',)
+
+
+@admin.register(LabStaffProfile)
+class LabStaffProfileAdmin(admin.ModelAdmin):
+    list_display = ('user', 'lab_name', 'personnel_code')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'lab_name', 'personnel_code')
+    list_filter = ('lab_name',)
 
 
 @admin.register(TestCategory)
@@ -36,9 +68,10 @@ class TestTypeAdmin(admin.ModelAdmin):
 
 @admin.register(TestResult)
 class TestResultAdmin(admin.ModelAdmin):
-    list_display = ('patient', 'test_type', 'result_value', 'test_date', 'is_archived')
+    list_display = ('title', 'patient', 'prescribing_doctor', 'recorded_by', 'test_type', 'test_date', 'is_archived')
     list_filter = ('is_archived', 'test_type__category', 'test_date')
-    search_fields = ('patient__first_name', 'patient__last_name', 'test_type__name')
+    search_fields = ('title', 'patient__user__first_name', 'patient__user__last_name',
+                     'prescribing_doctor__username', 'recorded_by__username', 'test_type__name')
 
 
 @admin.register(Attachment)

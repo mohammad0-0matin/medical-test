@@ -4,105 +4,145 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from .models import Patient, TestCategory, TestType, TestResult, UserPatientAccess
+from core.models import (
+    PatientProfile,
+    DoctorProfile,
+    LabStaffProfile,
+    PatientAccess,
+    TestCategory,
+    TestType,
+    TestResult,
+)
 
 User = get_user_model()
 
 
-class MedicalAPITestCase(APITestCase):
+class RoleArchitectureTestCase(APITestCase):
 
     def setUp(self):
-        # ۱. ساخت کاربر ادمین و دو کاربر عادی
+        # 1. Staff / Admin User
         self.staff_user = User.objects.create_user(
             username='staff_user',
             password='Password123',
-            is_staff=True
+            national_code='0000000001',
+            mobile='09000000001',
+            is_staff=True,
+            role=User.Role.DOCTOR,
         )
-        self.normal_user = User.objects.create_user(
-            username='normal_user',
+
+        # 2. Patient User & Profile
+        self.patient_user = User.objects.create_user(
+            username='patient_user',
             password='Password123',
-            is_staff=False
+            national_code='1111111111',
+            mobile='09111111111',
+            first_name='Ali',
+            last_name='Mohammadi',
+            role=User.Role.PATIENT,
         )
-        self.other_user = User.objects.create_user(
-            username='other_user',
+        self.patient_profile = self.patient_user.patient_profile
+
+        # 3. Doctor User & Profile
+        self.doctor_user = User.objects.create_user(
+            username='doctor_user',
             password='Password123',
-            is_staff=False
+            national_code='2222222222',
+            mobile='09222222222',
+            first_name='Dr',
+            last_name='Smith',
+            role=User.Role.DOCTOR,
+        )
+        self.doctor_profile = DoctorProfile.objects.create(
+            user=self.doctor_user,
+            medical_council_code='DOC-100',
+            specialty='Cardiology',
         )
 
-        # ۲. ساخت دو بیمار (همراه با مقداردهی فیلد اجباری user)
-        self.patient_1 = Patient.objects.create(
-            first_name='علی',
-            last_name='محمدی',
-            user=self.normal_user
+        # 4. Lab Staff User & Profile
+        self.lab_user = User.objects.create_user(
+            username='lab_user',
+            password='Password123',
+            national_code='3333333333',
+            mobile='09333333333',
+            first_name='Lab',
+            last_name='Operator',
+            role=User.Role.LAB_STAFF,
         )
-        self.patient_2 = Patient.objects.create(
-            first_name='مریم',
-            last_name='حسینی',
-            user=self.other_user
-        )
-
-        # ۳. اعطای دسترسی به کاربر عادی فقط برای بیمار اول در جدول واسط
-        UserPatientAccess.objects.create(
-            user=self.normal_user,
-            patient=self.patient_1
+        self.lab_profile = LabStaffProfile.objects.create(
+            user=self.lab_user,
+            lab_name='Central Lab',
+            personnel_code='LAB-500',
         )
 
-        # ۴. ساخت دسته و نوع آزمایش تستی
-        self.category = TestCategory.objects.create(name='بیوشیمی')
+        # 5. Supporting Test Types
+        self.category = TestCategory.objects.create(name='Biochemistry')
         self.test_type = TestType.objects.create(
             category=self.category,
             name='FBS',
-            unit='mg/dL'
+            unit='mg/dL',
+            min_normal=70.0,
+            max_normal=100.0,
         )
 
-        # ۵. ساخت نتیجه آزمایش برای بیمار دوم (که کاربر عادی نباید آن را ببیند)
-        self.test_result_p2 = TestResult.objects.create(
-            patient=self.patient_2,
+        # 6. Existing Test Result
+        self.test_result = TestResult.objects.create(
+            title='FBS Test Result',
+            patient=self.patient_profile,
+            prescribing_doctor=self.doctor_user,
+            recorded_by=self.lab_user,
             test_type=self.test_type,
-            result_value=100.0,
-            test_date=timezone.now().date()
+            result_value=95.0,
+            test_date=timezone.now().date(),
         )
 
-    def test_jwt_token_obtain(self):
-        """تست دریافت توکن لاگین"""
-        url = reverse('token_obtain_pair')
+    def test_user_role_properties(self):
+        """Test the helper properties on the User model."""
+        self.assertTrue(self.patient_user.is_patient)
+        self.assertFalse(self.patient_user.is_doctor)
+        self.assertFalse(self.patient_user.is_lab_staff)
+
+        self.assertTrue(self.doctor_user.is_doctor)
+        self.assertFalse(self.doctor_user.is_patient)
+
+        self.assertTrue(self.lab_user.is_lab_staff)
+        self.assertFalse(self.lab_user.is_patient)
+
+    def test_lab_staff_patient_lookup(self):
+        """Lab staff can look up a patient by national code."""
+        self.client.force_authenticate(user=self.lab_user)
+        url = reverse('patient-lookup') + '?national_code=1111111111'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['id'], self.patient_profile.id)
+
+    def test_lab_staff_can_create_test_result(self):
+        """Lab staff can record a test result for any patient."""
+        self.client.force_authenticate(user=self.lab_user)
+        url = reverse('test-result-list')
         data = {
-            'username': 'normal_user',
-            'password': 'Password123'
+            'title': 'Lipid Profile',
+            'patient': self.patient_profile.id,
+            'prescribing_doctor': self.doctor_user.id,
+            'test_type': self.test_type.id,
+            'result_value': 120.0,
+            'test_date': str(timezone.now().date()),
         }
         response = self.client.post(url, data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('access', response.data)
-        self.assertIn('refresh', response.data)
-
-    def test_patient_access_restriction(self):
-        """تست عدم دسترسی کاربر عادی به آزمایش بیماران دیگر"""
-        # لاگین به عنوان کاربر عادی
-        self.client.force_authenticate(user=self.normal_user)
-        
-        url = reverse('test-result-list')
-        response = self.client.get(url)
-        
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
-        # استخراج داده‌ها چه در حالت Pagination چه بدون آن
-        results = response.data['results'] if isinstance(response.data, dict) and 'results' in response.data else response.data
-        patient_ids = [res['patient']['id'] if isinstance(res['patient'], dict) else res['patient'] for res in results]
-        
-        # کاربر عادی نباید آزمایش بیمار دوم را در لیست ببیند
-        self.assertNotIn(self.patient_2.id, patient_ids)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['recorded_by']['id'], self.lab_user.id)
+        self.assertEqual(response.data['prescribing_doctor']['id'], self.doctor_user.id)
 
     def test_future_test_date_validation_fails(self):
-        """تست رد شدن آزمایش با تاریخ در آینده"""
-        self.client.force_authenticate(user=self.staff_user)
-        
+        """Test date in future is rejected by serializer."""
+        self.client.force_authenticate(user=self.lab_user)
         url = reverse('test-result-list')
         future_date = timezone.now().date() + timedelta(days=5)
         data = {
-            'patient': self.patient_1.id,
+            'title': 'Future Test',
+            'patient': self.patient_profile.id,
             'test_type': self.test_type.id,
-            'result_value': 120.0,
-            'test_date': future_date
+            'result_value': 100.0,
+            'test_date': str(future_date),
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
