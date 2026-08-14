@@ -1,0 +1,82 @@
+[
+  {
+    "model": "core.testcategory",
+    "pk": 1,
+    "fields": {
+      "name": "Biochemistry",
+      "description": "Blood sugar, lipids, and liver enzymes"
+    }
+  },
+  {
+    "model": "core.testcategory",
+    "pk": 2,
+    "fields": {
+      "name": "Hematology",
+      "description": "Complete blood count and blood cells"
+    }
+  },
+  {
+    "model": "core.testtype",
+    "pk": 1,
+    "fields": {
+      "category": 1,
+      "name": "Fasting Blood Sugar (FBS)",
+      "unit": "mg/dL",
+      "min_normal": 70.0,
+      "max_normal": 100.0
+    }
+  },
+  {
+    "model": "core.testtype",
+    "pk": 2,
+    "fields": {
+      "category": 1,
+      "name": "Total Cholesterol",
+      "unit": "mg/dL",
+      "min_normal": 120.0,
+      "max_normal": 200.0
+    }
+  },
+  {
+    "model": "core.patient",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "first_name": "Ali",
+      "last_name": "Mohammadi",
+      "birth_date": "1985-03-15"
+    }
+  },
+  {
+    "model": "core.testresult",
+    "pk": 1,
+    "fields": {
+      "patient": 1,
+      "test_type": 1,
+      "result_value": "95.00",
+      "result_text": null,
+      "lab_min_range": 70.0,
+      "lab_max_range": 100.0,
+      "test_date": "2026-01-10",
+      "recorded_at": "2026-01-10T10:00:00Z",
+      "notes": "Fasting result",
+      "is_archived": false
+    }
+  },
+  {
+    "model": "core.testresult",
+    "pk": 2,
+    "fields": {
+      "patient": 1,
+      "test_type": 1,
+      "result_value": "105.00",
+      "result_text": null,
+      "lab_min_range": 70.0,
+      "lab_max_range": 100.0,
+      "test_date": "2026-04-15",
+      "recorded_at": "2026-04-15T10:00:00Z",
+      "notes": "Slightly high",
+      "is_archived": false
+    }
+  }
+]
