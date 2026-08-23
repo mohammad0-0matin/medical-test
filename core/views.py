@@ -155,8 +155,6 @@ class TestResultViewSet(ModelViewSet):
             patient__user=user,
             status='pending'
         ).select_related('created_by', 'test_type')
-        print(f"🕵️‍♂️ یوزر لاگین شده: {user.username} | آیدی: {user.id}")
-        print(f"📦 تعداد پیام‌های در انتظار: {pending_tests.count()}")
         serializer = TestResultReadSerializer(pending_tests, many=True)
         return Response(serializer.data)
     @action(detail=True, methods=['post'], url_path='review')

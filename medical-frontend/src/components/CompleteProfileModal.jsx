@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import './AddTestModal.css'; // استفاده از همان استایل‌های زیبای قبلی
+import { toast } from 'react-toastify'; // 👈 کتابخانه توست اضافه شد
+import './AddTestModal.css'; 
 
 const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const [formData, setFormData] = useState({
@@ -9,7 +10,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     });
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    // استیت قدیمی پیام‌ها حذف شد تا توست جایگزین آن شود
 
     // وقتی فرم باز می‌شود، چک می‌کند آیا قبلاً اطلاعاتی ثبت شده یا نه
     useEffect(() => {
@@ -45,7 +46,6 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage({ type: '', text: '' });
         
         const token = localStorage.getItem('access_token');
         try {
@@ -59,17 +59,14 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
             });
 
             if (response.ok) {
-                setMessage({ type: 'success', text: '✅ پرونده شما با موفقیت تکمیل شد!' });
+                toast.success('🩺 پرونده سلامت شما با موفقیت تکمیل شد!'); // 👈 جادوی توست
                 if (onProfileUpdated) onProfileUpdated();
-                setTimeout(() => {
-                    onClose();
-                    setMessage({ type: '', text: '' });
-                }, 1500);
+                onClose(); // 👈 فرم بلافاصله بسته می‌شود چون توست روی صفحه اصلی شناور می‌ماند
             } else {
-                setMessage({ type: 'error', text: '❌ خطا در ثبت اطلاعات. لطفاً دوباره تلاش کنید.' });
+                toast.error('❌ خطا در ثبت اطلاعات. لطفاً کدملی را بررسی کنید.');
             }
         } catch (error) {
-            setMessage({ type: 'error', text: '❌ خطای ارتباط با سرور' });
+            toast.error('❌ خطای ارتباط با سرور');
         } finally {
             setLoading(false);
         }
@@ -90,11 +87,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                         برای اینکه دیگران بتوانند برای شما نتیجه آزمایش ارسال کنند، لطفاً کدملی خود را با دقت وارد کنید.
                     </div>
 
-                    {message.text && (
-                        <div className={`message-box ${message.type === 'success' ? 'message-success' : 'message-error'}`}>
-                            {message.text}
-                        </div>
-                    )}
+                    {/* کدهای قدیمی نمایش ارور از اینجا حذف شد */}
 
                     <form onSubmit={handleSubmit}>
                         <div className="form-row">

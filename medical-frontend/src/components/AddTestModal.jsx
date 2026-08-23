@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify'; // 👈 اضافه شدن توست
 import './AddTestModal.css';
 
 const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     const [testTypes, setTestTypes] = useState([]);
     const [patients, setPatients] = useState([]);
     
-    // استیت‌های جدید برای سیستم جستجو
+    // استیت‌های سیستم جستجو
     const [searchQuery, setSearchQuery] = useState('');
     const [searchedPatient, setSearchedPatient] = useState(null);
     const [searchError, setSearchError] = useState('');
@@ -20,7 +21,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     });
 
     const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState({ type: '', text: '' });
+    // 👈 استیت پیام‌های لوکال حذف شد
 
     useEffect(() => {
         if (!isOpen) return;
@@ -50,7 +51,6 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
         fetchData();
     }, [isOpen]);
 
-    // تابع ارسال کدملی به بک‌اند و قفل کردن فرم
     const handleSearch = async () => {
         if (!searchQuery) return;
         setIsSearching(true);
@@ -68,7 +68,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                 if (data.length > 0) {
                     const found = data[0];
                     setSearchedPatient(found);
-                    setFormData({ ...formData, patient: found.id }); // آیدی بیمار روی فرم ست می‌شود
+                    setFormData({ ...formData, patient: found.id }); 
                 } else {
                     setSearchError('بیماری با این کدملی یافت نشد.');
                 }
@@ -89,7 +89,6 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setMessage({ type: '', text: '' });
         
         const token = localStorage.getItem('access_token');
         try {
@@ -100,20 +99,20 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
             });
 
             if (response.ok) {
-                setMessage({ type: 'success', text: '✅ آزمایش با موفقیت ثبت شد!' });
+                toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!'); // 👈 جادوی توست
                 setFormData({ ...formData, result_value: '', notes: '' });
+                
                 if (onTestAdded) onTestAdded();
-                setTimeout(() => {
-                    onClose();
-                    setMessage({ type: '', text: '' });
-                    setSearchedPatient(null); // ریست کردن جستجو برای دفعه بعد
-                    setSearchQuery('');
-                }, 1500);
+                
+                // فرم بلافاصله بسته و ریست می‌شود
+                onClose();
+                setSearchedPatient(null);
+                setSearchQuery('');
             } else {
-                setMessage({ type: 'error', text: '❌ خطا در ثبت آزمایش. اطلاعات را بررسی کنید.' });
+                toast.error('❌ خطا در ثبت آزمایش. اطلاعات را بررسی کنید.');
             }
         } catch (error) {
-            setMessage({ type: 'error', text: '❌ خطای ارتباط با سرور' });
+            toast.error('❌ خطای ارتباط با سرور');
         } finally {
             setLoading(false);
         }
@@ -130,20 +129,13 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                 </div>
 
                 <div className="modal-body">
-                    {message.text && (
-                        <div className={`message-box ${message.type === 'success' ? 'message-success' : 'message-error'}`}>
-                            {message.text}
-                        </div>
-                    )}
+                    {/* 👈 باکس پیام خطای قدیمی از اینجا حذف شد */}
 
                     <form onSubmit={handleSubmit}>
-                        
-                        {/* بخش هیبرید: انتخاب از لیست یا جستجو */}
                         <div className="form-group" style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
                             <label className="form-label" style={{ marginBottom: '12px' }}>بیمار (انتخاب از لیست یا جستجو):</label>
                             
                             {searchedPatient ? (
-                                // حالت قفل شده روی بیمار پیدا شده
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#dcfce7', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
                                     <span style={{ color: '#15803d', fontWeight: 'bold' }}>
                                         ✅ {searchedPatient.first_name} {searchedPatient.last_name}
@@ -153,7 +145,6 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                                     </button>
                                 </div>
                             ) : (
-                                // حالت عادی (لیست + کادر جستجو)
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     <select name="patient" value={formData.patient} onChange={handleChange} className="form-input">
                                         {patients.map(p => (

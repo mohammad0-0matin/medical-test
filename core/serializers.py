@@ -49,6 +49,8 @@ class TestResultReadSerializer(serializers.ModelSerializer):
     attachments = AttachmentSerializer(many=True, read_only=True)
     patient_name = serializers.SerializerMethodField()
     creator_name = serializers.SerializerMethodField()
+    min_range = serializers.FloatField(source='test_type.min_normal', read_only=True)
+    max_range = serializers.FloatField(source='test_type.max_normal', read_only=True)
     class Meta:
         model = TestResult
         fields = [
@@ -59,8 +61,8 @@ class TestResultReadSerializer(serializers.ModelSerializer):
             'test_type_name',
             'result_value',
             'result_text',
-            'lab_min_range',
-            'lab_max_range',
+            'min_range',
+            'max_range',
             'test_date',
             'recorded_at',
             'notes',
@@ -97,8 +99,6 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
             'test_type',
             'result_value',
             'result_text',
-            'lab_min_range',
-            'lab_max_range',
             'test_date',
             'notes',
             'is_archived',
