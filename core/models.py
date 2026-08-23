@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 
 # 1. Patients Table
@@ -8,6 +10,7 @@ class Patient(models.Model):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     birth_date = models.DateField(null=True, blank=True)
+    national_code = models.CharField(max_length=10, unique=True, null=True, blank=True, verbose_name="کد ملی")
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -73,7 +76,13 @@ class TestResult(models.Model):
     recorded_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(max_length=500, null=True, blank=True)
     is_archived = models.BooleanField(default=False)
-
+    STATUS_CHOICES = (
+        ('pending', 'در انتظار تایید'),
+        ('approved', 'تایید شده'),
+        ('rejected', 'رد شده'),
+    )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='submitted_tests')
     class Meta:
         # ایندکس ترکیبی برای افزایش سرعت رسم نمودارها بر اساس تاریخ و بیمار
         indexes = [
@@ -107,3 +116,21 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} at {self.created_at}"
+    class AccessRequest(models.Model):
+        STATUS_CHOICES = (
+            ('pending', 'در انتظار تایید'),
+            ('approved', 'تایید شده'),
+            ('rejected', 'رد شده'),
+        )
+
+        # کسی که درخواست داده (مثلاً متصدی آزمایشگاه یا یک پزشک)
+        requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_requests')
+        
+        # بیماری که درخواست برایش ارسال شده
+        target_patient = models.ForeignKey('Patient', on_delete=models.CASCADE, related_name='received_requests')
+        
+        status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+        created_at = models.DateTimeField(auto_now_add=True)
+
+        def __str__(self):
+            return f"درخواست {self.requester} برای دیدن پرونده {self.target_patient} - {self.status}"

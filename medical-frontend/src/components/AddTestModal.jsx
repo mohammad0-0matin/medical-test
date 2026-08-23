@@ -1,294 +1,215 @@
-import { useState, useEffect } from 'react';
-import API from '../api';
+import React, { useState, useEffect } from 'react';
+import './AddTestModal.css';
 
 const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
-  const [patients, setPatients] = useState([]);
-  const [formData, setFormData] = useState({
-    patient: '',
-    test_type: '1', // مقدار پیش‌فرض
-    result_value: '',
-    result_text: '',
-    lab_min_range: '',
-    lab_max_range: '',
-    test_date: new Date().toISOString().split('T')[0], // تاریخ امروز
-    notes: '',
-  });
+    const [testTypes, setTestTypes] = useState([]);
+    const [patients, setPatients] = useState([]);
+    
+    // استیت‌های جدید برای سیستم جستجو
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchedPatient, setSearchedPatient] = useState(null);
+    const [searchError, setSearchError] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+    const [formData, setFormData] = useState({
+        patient: '',
+        test_type: '',
+        result_value: '',
+        test_date: '',
+        notes: ''
+    });
 
-  // دریافت لیست بیماران برای گزینه‌های Dropdown
-  useEffect(() => {
-    if (isOpen) {
-      API.get('patients/')
-        .then((res) => {
-          const list = res.data.results || res.data;
-          setPatients(list);
-          if (list.length > 0) {
-            setFormData((prev) => ({ ...prev, patient: list[0].id }));
-          }
-        })
-        .catch((err) => console.error('Error fetching patients:', err));
-    }
-  }, [isOpen]);
+    const [loading, setLoading] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
 
-  if (!isOpen) return null;
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchData = async () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+            const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
+            try {
+                const patientsRes = await fetch('http://127.0.0.1:8000/api/patients/', { headers });
+                if (patientsRes.ok) {
+                    const patientsData = await patientsRes.json();
+                    setPatients(patientsData);
+                    if (patientsData.length > 0) setFormData(prev => ({ ...prev, patient: patientsData[0].id }));
+                }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+                const testTypesRes = await fetch('http://127.0.0.1:8000/api/test-types/', { headers });
+                if (testTypesRes.ok) {
+                    const testTypesData = await testTypesRes.json();
+                    setTestTypes(testTypesData);
+                    if (testTypesData.length > 0) setFormData(prev => ({ ...prev, test_type: testTypesData[0].id }));
+                }
+            } catch (error) {
+                console.error('خطا در دریافت اطلاعات:', error);
+            }
+        };
+        fetchData();
+    }, [isOpen]);
 
-    // تبدیل مقادیر خالی به null یا عدد
-    const payload = {
-      ...formData,
-      patient: parseInt(formData.patient),
-      test_type: parseInt(formData.test_type),
-      result_value: formData.result_value !== '' ? parseFloat(formData.result_value) : null,
-      lab_min_range: formData.lab_min_range !== '' ? parseFloat(formData.lab_min_range) : null,
-      lab_max_range: formData.lab_max_range !== '' ? parseFloat(formData.lab_max_range) : null,
+    // تابع ارسال کدملی به بک‌اند و قفل کردن فرم
+    const handleSearch = async () => {
+        if (!searchQuery) return;
+        setIsSearching(true);
+        setSearchError('');
+        setSearchedPatient(null);
+
+        const token = localStorage.getItem('access_token');
+        try {
+            const res = await fetch(`http://127.0.0.1:8000/api/patients/search/?q=${searchQuery}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.length > 0) {
+                    const found = data[0];
+                    setSearchedPatient(found);
+                    setFormData({ ...formData, patient: found.id }); // آیدی بیمار روی فرم ست می‌شود
+                } else {
+                    setSearchError('بیماری با این کدملی یافت نشد.');
+                }
+            } else {
+                setSearchError('بیماری با این کدملی یافت نشد.');
+            }
+        } catch (error) {
+            setSearchError('خطای ارتباط با سرور.');
+        } finally {
+            setIsSearching(false);
+        }
     };
 
-    try {
-      await API.post('test-results/', payload);
-      setLoading(false);
-      onTestAdded(); // به‌روزرسانی جدول در داشبورد
-      onClose(); // بستن مودال
-    } catch (err) {
-      setLoading(false);
-      if (err.response && err.response.data) {
-        // دریافت خطاهای Validation بک‌اند
-        const serverErrors = err.response.data;
-        const firstError = Object.values(serverErrors)[0];
-        setError(Array.isArray(firstError) ? firstError[0] : 'خطا در ثبت داده‌ها');
-      } else {
-        setError('خطا در ارتباط با سرور.');
-      }
-    }
-  };
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
 
-  return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>ثبت نتیجه آزمایش جدید</h2>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setMessage({ type: '', text: '' });
+        
+        const token = localStorage.getItem('access_token');
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/test-results/', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                setMessage({ type: 'success', text: '✅ آزمایش با موفقیت ثبت شد!' });
+                setFormData({ ...formData, result_value: '', notes: '' });
+                if (onTestAdded) onTestAdded();
+                setTimeout(() => {
+                    onClose();
+                    setMessage({ type: '', text: '' });
+                    setSearchedPatient(null); // ریست کردن جستجو برای دفعه بعد
+                    setSearchQuery('');
+                }, 1500);
+            } else {
+                setMessage({ type: 'error', text: '❌ خطا در ثبت آزمایش. اطلاعات را بررسی کنید.' });
+            }
+        } catch (error) {
+            setMessage({ type: 'error', text: '❌ خطای ارتباط با سرور' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="modal-overlay" dir="rtl">
+            <div className="modal-container">
+                <div className="modal-header">
+                    <h2>ثبت نتیجه آزمایش جدید</h2>
+                    <button onClick={onClose} className="close-btn">&times;</button>
+                </div>
+
+                <div className="modal-body">
+                    {message.text && (
+                        <div className={`message-box ${message.type === 'success' ? 'message-success' : 'message-error'}`}>
+                            {message.text}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleSubmit}>
+                        
+                        {/* بخش هیبرید: انتخاب از لیست یا جستجو */}
+                        <div className="form-group" style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
+                            <label className="form-label" style={{ marginBottom: '12px' }}>بیمار (انتخاب از لیست یا جستجو):</label>
+                            
+                            {searchedPatient ? (
+                                // حالت قفل شده روی بیمار پیدا شده
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#dcfce7', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                                    <span style={{ color: '#15803d', fontWeight: 'bold' }}>
+                                        ✅ {searchedPatient.first_name} {searchedPatient.last_name}
+                                    </span>
+                                    <button type="button" onClick={() => { setSearchedPatient(null); setFormData({...formData, patient: patients[0]?.id || ''}); setSearchQuery(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>
+                                        لغو انتخاب
+                                    </button>
+                                </div>
+                            ) : (
+                                // حالت عادی (لیست + کادر جستجو)
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    <select name="patient" value={formData.patient} onChange={handleChange} className="form-input">
+                                        {patients.map(p => (
+                                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name} (بیماران من)</option>
+                                        ))}
+                                    </select>
+                                    
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="جستجوی کدملی بیمار جدید..." className="form-input" style={{ flex: 1 }} />
+                                        <button type="button" onClick={handleSearch} disabled={isSearching} className="btn-cancel" style={{ width: 'auto', padding: '0 16px', margin: 0, backgroundColor: '#e5e7eb' }}>
+                                            {isSearching ? '...' : 'جستجو'}
+                                        </button>
+                                    </div>
+                                    {searchError && <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>{searchError}</span>}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="form-row">
+                            <div>
+                                <label className="form-label">نوع آزمایش:</label>
+                                <select name="test_type" value={formData.test_type} onChange={handleChange} className="form-input" dir="ltr">
+                                    {testTypes.map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} ({t.category_name})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="form-label">تاریخ آزمایش:</label>
+                                <input type="date" name="test_date" value={formData.test_date} onChange={handleChange} required className="form-input" />
+                            </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">مقدار نتیجه:</label>
+                            <input type="number" step="0.01" name="result_value" value={formData.result_value} onChange={handleChange} required placeholder="مثلاً: 95.5" className="form-input" dir="ltr" />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">یادداشت (اختیاری):</label>
+                            <textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="توضیحات تکمیلی..." className="form-input form-textarea"></textarea>
+                        </div>
+
+                        <div className="modal-footer">
+                            <button type="submit" disabled={loading} className="btn-submit">
+                                {loading ? 'در حال ثبت...' : 'ثبت نتیجه آزمایش'}
+                            </button>
+                            <button type="button" onClick={onClose} className="btn-cancel">
+                                انصراف
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-
-        {error && <div style={styles.error}>{error}</div>}
-
-        <form onSubmit={handleSubmit}>
-          <div style={styles.field}>
-            <label style={styles.label}>انتخاب بیمار:</label>
-            <select
-              name="patient"
-              value={formData.patient}
-              onChange={handleChange}
-              style={styles.input}
-              required
-            >
-              {patients.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.first_name} {p.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>نوع آزمایش:</label>
-              <select
-                name="test_type"
-                value={formData.test_type}
-                onChange={handleChange}
-                style={styles.input}
-              >
-                <option value="1">آزمایش خون / قند (FBS / CBC)</option>
-              </select>
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>تاریخ آزمایش:</label>
-              <input
-                type="date"
-                name="test_date"
-                value={formData.test_date}
-                onChange={handleChange}
-                style={styles.input}
-                required
-              />
-            </div>
-          </div>
-
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>نتیجه عددی:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="result_value"
-                value={formData.result_value}
-                onChange={handleChange}
-                placeholder="مثلاً 95.5"
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>نتیجه متنی (اختیاری):</label>
-              <input
-                type="text"
-                name="result_text"
-                value={formData.result_text}
-                onChange={handleChange}
-                placeholder="مثلاً مثبت / منفی"
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>حداقل بازه نرمال:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="lab_min_range"
-                value={formData.lab_min_range}
-                onChange={handleChange}
-                placeholder="70"
-                style={styles.input}
-              />
-            </div>
-
-            <div style={styles.field}>
-              <label style={styles.label}>حداکثر بازه نرمال:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="lab_max_range"
-                value={formData.lab_max_range}
-                onChange={handleChange}
-                placeholder="110"
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          <div style={styles.actions}>
-            <button type="submit" style={styles.submitBtn} disabled={loading}>
-              {loading ? 'در حال ثبت...' : 'ثبت آزمایش'}
-            </button>
-            <button type="button" onClick={onClose} style={styles.cancelBtn}>
-              انصراف
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    direction: 'rtl',
-    fontFamily: 'Tahoma, Arial, sans-serif',
-  },
-  modal: {
-    backgroundColor: '#fff',
-    padding: '2rem',
-    borderRadius: '12px',
-    width: '100%',
-    maxWidth: '500px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '1.5rem',
-  },
-  title: {
-    margin: 0,
-    fontSize: '1.2rem',
-    color: '#1f2937',
-  },
-  closeBtn: {
-    background: 'none',
-    border: 'none',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    color: '#6b7280',
-  },
-  field: {
-    marginBottom: '1rem',
-    flex: 1,
-  },
-  row: {
-    display: 'flex',
-    gap: '1rem',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '0.4rem',
-    fontSize: '0.85rem',
-    color: '#374151',
-  },
-  input: {
-    width: '100%',
-    padding: '0.6rem',
-    borderRadius: '6px',
-    border: '1px solid #d1d5db',
-    fontSize: '0.9rem',
-    boxSizing: 'border-box',
-  },
-  actions: {
-    display: 'flex',
-    gap: '0.75rem',
-    marginTop: '1.5rem',
-  },
-  submitBtn: {
-    flex: 1,
-    padding: '0.75rem',
-    backgroundColor: '#10b981',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  cancelBtn: {
-    padding: '0.75rem 1.5rem',
-    backgroundColor: '#f3f4f6',
-    color: '#374151',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  error: {
-    backgroundColor: '#fee2e2',
-    color: '#dc2626',
-    padding: '0.75rem',
-    borderRadius: '6px',
-    marginBottom: '1rem',
-    fontSize: '0.85rem',
-  },
+    );
 };
 
 export default AddTestModal;

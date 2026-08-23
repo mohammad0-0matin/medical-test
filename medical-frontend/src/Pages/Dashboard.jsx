@@ -6,6 +6,7 @@ import EditTestModal from '../components/EditTestModal';
 import AttachmentModal from '../components/AttachmentModal';
 import PatientChartModal from '../components/PatientChartModal';
 import { toast } from 'react-toastify'; // 👈 استفاده از Toast
+import CompleteProfileModal from '../components/CompleteProfileModal';
 
 const Dashboard = () => {
   const { logout } = useContext(AuthContext);
@@ -18,7 +19,7 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAttachmentModalOpen, setIsAttachmentModalOpen] = useState(false);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
-  
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
 
   // استیت‌های جستجو و فیلتر
@@ -28,7 +29,71 @@ const Dashboard = () => {
   // 👈 استیت‌های صفحه‌بندی
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5; // تعداد رکوردهای هر صفحه (می‌توانید تغییر دهید)
+  const [childNationalCode, setChildNationalCode] = useState('');
+  // استیت ذخیره آزمایش‌های در انتظار تایید
+  const [pendingTests, setPendingTests] = useState([]);
 
+  // تابع دریافت صندوق پیام از بک‌اند
+  const fetchPendingTests = async () => {
+    console.log("📥 تابع fetchPendingTests شروع به کار کرد..."); // ردیاب ۱
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+    try {
+      console.log("🚀 در حال ارسال درخواست به صندوق پیام..."); // ردیاب ۲
+      const response = await fetch('http://127.0.0.1:8000/api/test-results/inbox/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log("وضعیت پاسخ سرور:", response.status); // ردیاب ۳
+      if (response.ok) {
+        const data = await response.json();
+        console.log("📦 دیتای دریافت شده از صندوق پیام:", data); // ردیاب ۴
+        setPendingTests(data);
+      }
+    } catch (error) {
+      console.error("خطا در دریافت صندوق پیام:", error);
+    }
+  };
+
+  // تابعی که دکمه‌های تایید و رد صدا می‌زنند
+  const handleReviewTest = async (testId, actionType) => {
+    const token = localStorage.getItem('access_token');
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/test-results/${testId}/review/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: actionType }) // ارسال 'approve' یا 'reject'
+      });
+
+      if (response.ok) {
+        toast.success(actionType === 'approve' ? '✅ آزمایش تایید و به پرونده اضافه شد.' : '❌ آزمایش رد و حذف شد.');
+        
+        // به‌روزرسانی لیست‌ها تا تغییرات فوراً روی صفحه اعمال شود
+        fetchPendingTests(); 
+        fetchTests(); // فرض بر این است که تابعی برای دریافت جدول اصلی با این نام دارید
+      } else {
+        toast.error('خطا در انجام عملیات.');
+      }
+    } catch (error) {
+      console.error('خطا:', error);
+      toast.error('خطای ارتباط با سرور.');
+    }
+  };
+
+  const handleAddDependent = async (e) => {
+    e.preventDefault();
+    if (!childNationalCode) return;
+    try {
+      const res = await API.post('patients/add-dependent/', { national_code: childNationalCode });
+      toast.success(res.data?.message || 'فرزند با موفقیت اضافه شد.');
+      setChildNationalCode('');
+      fetchTests(); 
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'خطا در افزودن فرد تحت تکفل');
+    }
+  };
   const fetchTests = async () => {
     setLoading(true);
     try {
@@ -43,7 +108,9 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    console.log("🔄 کامپوننت داشبورد لود شد. در حال فراخوانی توابع...");
     fetchTests();
+    fetchPendingTests(); // دریافت صندوق پیام‌ها هنگام بارگذاری داشبورد
   }, []);
 
   // 👈 وقتی کاربر جستجو یا فیلتر می‌کند، باید برگردیم به صفحه اول
@@ -94,6 +161,18 @@ const Dashboard = () => {
     if (status === 'abnormal') return <span style={styles.badgeDanger}>غیرنرمال</span>;
     return <span style={styles.badgeNeutral}>نامشخص</span>;
   };
+  const renderApprovalStatus = (status) => {
+    switch(status) {
+      case 'approved': 
+        return <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: '#d1fae5', color: '#065f46', fontWeight: 'bold' }}>✅ تایید شده</span>;
+      case 'pending': 
+        return <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: '#fef08a', color: '#854d0e', fontWeight: 'bold' }}>⏳ در انتظار</span>;
+      case 'rejected': 
+        return <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: '#fee2e2', color: '#991b1b', fontWeight: 'bold' }}>❌ رد شده</span>;
+      default: 
+        return <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '0.8rem', backgroundColor: '#f3f4f6', color: '#4b5563' }}>نامشخص</span>;
+    }
+  };
 
   // فیلتر کردن داده‌ها
   const filteredTests = tests.filter((test) => {
@@ -135,6 +214,29 @@ const Dashboard = () => {
           <button onClick={() => setIsAddModalOpen(true)} style={styles.addBtn}>
             + ثبت آزمایش جدید
           </button>
+          
+                {/* دکمه باز کردن فرم تکمیل پروفایل */}
+          <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              style={{
+                  ...styles.addBtn, // ارث‌بریِ تمام ویژگی‌های سایز و فونت از دکمه اصلی
+                  backgroundColor: '#0369a1', // فقط رنگش را متمایز می‌کنیم
+                  marginRight: '10px'
+              }}
+          >
+              👤 تکمیل پرونده سلامت
+          </button>
+
+          {/* کامپوننت مودال که وقتی دکمه زده شود باز می‌شود */}
+          <CompleteProfileModal 
+              isOpen={isProfileModalOpen} 
+              onClose={() => setIsProfileModalOpen(false)} 
+              onProfileUpdated={() => {
+                  console.log("پروفایل آپدیت شد!");
+                  // اگر تابعی برای دریافت مجدد اطلاعات کاربر در داشبورد دارید، اینجا صدا بزنید
+              }}
+          />
+
           <button onClick={logout} style={styles.logoutButton}>
             خروج از حساب
           </button>
@@ -143,7 +245,38 @@ const Dashboard = () => {
 
       <main style={styles.main}>
         {error && <div style={styles.errorMessage}>{error}</div>}
-
+        {/* 📥 بخش صندوق پیام‌های در انتظار تایید */}
+      {pendingTests.length > 0 && (
+        <div style={{ backgroundColor: '#fffbeb', border: '1px solid #fde047', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          
+          <h3 style={{ color: '#854d0e', marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+            📥 صندوق پیام: شما {pendingTests.length} آزمایش در انتظار تایید دارید!
+          </h3>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {pendingTests.map(test => (
+              
+              <div key={test.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #fef08a' }}>
+                <div style={{ fontSize: '1rem', color: '#374151', lineHeight: '1.6' }}>
+                  آزمایش <strong>{test.test_type_name}</strong> با نتیجه <strong>{test.result_value ?? test.result_text}</strong> <br/>
+                  <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>
+                    ثبت شده توسط <span style={{ color: '#2563eb', fontWeight: 'bold' }}>{test.creator_name || 'نامشخص'}</span> در تاریخ {formatDate(test.test_date)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={() => handleReviewTest(test.id, 'approve')} style={{ backgroundColor: '#10b981', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}>
+                    ✅ تایید
+                  </button>
+                  <button onClick={() => handleReviewTest(test.id, 'reject')} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' }}>
+                    ❌ رد
+                  </button>
+                </div>
+              </div>
+              
+            ))}
+          </div>
+        </div>
+      )}
         <div style={styles.statsContainer}>
           <div style={{ ...styles.statCard, borderBottomColor: '#3b82f6' }}>
             <span style={styles.statTitle}>کل آزمایش‌ها</span>
@@ -162,7 +295,22 @@ const Dashboard = () => {
             <span style={{ ...styles.statValue, color: '#6b7280' }}>{stats.unknown}</span>
           </div>
         </div>
-
+          {/* باکس افزودن فرزند */}
+          <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid #e5e7eb' }}>
+            <h3 style={{ margin: '0 0 12px 0', color: '#4b5563', fontSize: '15px' }}>افزودن فرد تحت تکفل (فرزند)</h3>
+            <form onSubmit={handleAddDependent} style={{ display: 'flex', gap: '12px' }}>
+              <input
+                type="text"
+                placeholder="کد ملی فرزند را وارد کنید..."
+                value={childNationalCode}
+                onChange={(e) => setChildNationalCode(e.target.value)}
+                style={styles.searchInput}
+              />
+              <button type="submit" style={{ ...styles.addBtn, padding: '0.6rem 1.5rem' }}>
+                افزودن به لیست
+              </button>
+            </form>
+          </div>
         <div style={styles.filterSection}>
           <input 
             type="text" 
@@ -195,8 +343,10 @@ const Dashboard = () => {
                     <th style={styles.th}>نام بیمار</th>
                     <th style={styles.th}>نوع آزمایش</th>
                     <th style={styles.th}>نتیجه</th>
-                    <th style={styles.th}>وضعیت</th>
+                    <th style={styles.th}>وضعیت پزشکی</th>
+                    <th style={styles.th}>وضعیت تایید</th>
                     <th style={styles.th}>تاریخ ثبت</th>
+                    <th style={styles.th}>ثبت‌کننده</th>
                     <th style={styles.th}>پیوست‌ها و نمودار</th>
                     <th style={styles.th}>عملیات</th>
                   </tr>
@@ -218,12 +368,17 @@ const Dashboard = () => {
                       return (
                         <tr key={test.id} style={styles.tr}>
                           <td style={styles.td}>{actualIndex}</td>
-                          <td style={styles.td}>{test.patient?.first_name} {test.patient?.last_name}</td>
+                          <td style={styles.td}>{test.patient_name || (test.patient?.first_name ? `${test.patient.first_name} ${test.patient.last_name}` : 'خودم')}</td>
                           <td style={styles.td}>{test.test_type_name}</td>
                           <td style={styles.td}><strong>{test.result_value ?? test.result_text}</strong></td>
                           <td style={styles.td}>{renderStatusBadge(status)}</td>
+                          <td style={styles.td}>{renderApprovalStatus(test.status)}</td>
                           <td style={styles.td}>{formatDate(test.test_date)}</td>
-                          
+                          <td style={styles.td}>
+                              <span style={{ fontSize: '0.85rem', color: '#6b7280', backgroundColor: '#f3f4f6', padding: '4px 8px', borderRadius: '4px' }}>
+                                  {test.creator_name}
+                              </span>
+                          </td>
                           <td style={styles.td}>
                             <button onClick={() => handleAttachmentClick(test)} style={styles.actionBtnAttachment}>
                               فایل‌ها ({test.attachments?.length || 0})

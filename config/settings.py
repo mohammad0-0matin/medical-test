@@ -66,7 +66,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'MedicalTestDB_Django',
         'USER': 'root',
-        'PASSWORD': 'M@tin.1383',
+        'PASSWORD': '123456',
         'HOST': '127.0.0.1',
         'PORT': '3306',
     }
@@ -140,12 +140,13 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 # CORS Settings (اصلاح شده)
-CORS_ALLOW_ALL_ORIGINS = False  # 👈 این را False کنید چون لیست پایین را تعریف کرده‌اید
+CORS_ALLOW_ALL_ORIGINS = True  # 👈 این را False کنید چون لیست پایین را تعریف کرده‌اید
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
+    "http://172.19.0.1:5173",
 ]
 
 CORS_ALLOW_CREDENTIALS = True

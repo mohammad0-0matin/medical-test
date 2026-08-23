@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Patient, TestResult, UserPatientAccess, Attachment
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from .permissions import IsPatientOwnerOrStaff
 from .serializers import (
     PatientSerializer,
@@ -14,6 +16,17 @@ from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.models import User
 from .serializers import RegisterSerializer
+from rest_framework import viewsets
+from .models import TestType
+from .serializers import TestTypeSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+
+class TestTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TestType.objects.select_related('category').all()
+    serializer_class = TestTypeSerializer
+    permission_classes = [IsAuthenticated]
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -27,13 +40,71 @@ class PatientViewSet(ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.is_staff:
-            return Patient.objects.all()
+        return Patient.objects.filter(
+            Q(user=user) | Q(user_accesses__user=user)
+        ).distinct()
+        
+    @action(detail=False, methods=['get'], url_path='search')
+    def search_global(self, request):
+        # دریافت کلمه‌ای که سرچ شده (مثلاً از طریق آدرس api/patients/search/?q=1234567890)
+        search_query = request.query_params.get('q', '').strip()
+        if not search_query:
+            return Response(
+                {"detail": "لطفاً کد ملی یا شناسه بیمار را وارد کنید."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        allowed_patient_ids = UserPatientAccess.objects.filter(user=user).values_list('patient_id', flat=True)
-        return Patient.objects.filter(id__in=allowed_patient_ids)
+        # در اینجا فرض کردیم فیلد شما در دیتابیس national_id است. 
+        # اگر اسم فیلد کد ملی چیز دیگری است (مثلا user__username)، آن را جایگزین کنید.
+        patients = Patient.objects.filter(national_code=search_query)
 
+        if not patients.exists():
+            return Response(
+                {"detail": "بیماری با این مشخصات یافت نشد."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        # دیتای پیدا شده را سریالایز کرده و می‌فرستیم
+        serializer = self.get_serializer(patients, many=True)
+        return Response(serializer.data)
+    @action(detail=False, methods=['get', 'post', 'put'], url_path='me')
+    def my_profile(self, request):
+        user = request.user
+        patient = Patient.objects.filter(user=user).first()
+
+        # ۱. هندل کردن درخواست GET (دریافت اطلاعات)
+        if request.method == 'GET':
+            if patient:
+                serializer = self.get_serializer(patient)
+                return Response(serializer.data)
+            return Response({"detail": "پرونده تکمیل نشده است."}, status=status.HTTP_404_NOT_FOUND)
+
+        # ۲. هندل کردن درخواست POST و PUT (ثبت اطلاعات)
+        # یک کپی از دیتای ارسالی می‌گیریم و آیدی یوزر را همان ابتدا به آن تزریق می‌کنیم 
+        # تا سریالایزر الکی ارور "فیلد user اجباری است" ندهد.
+        data = request.data.copy()
+        data['user'] = user.id
+        
+        if 'first_name' in data:
+            user.first_name = data['first_name']
+        if 'last_name' in data:
+            user.last_name = data['last_name']
+        user.save()
+        
+        if patient:
+            serializer = self.get_serializer(patient, data=data, partial=True)
+        else:
+            serializer = self.get_serializer(data=data)
+
+        # ۳. اعتبارسنجی و ذخیره
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response(serializer.data)
+        
+        # چاپ کاملاً امنِ خطاها (فقط زمانی به اینجا می‌رسد که متد POST باشد و فرم مشکل داشته باشد)
+        print("❌ ارورهای اعتبارسنجی فرم:", serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class TestResultViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['patient', 'test_type', 'is_archived']
@@ -45,18 +116,70 @@ class TestResultViewSet(ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         base_queryset = TestResult.objects.select_related('patient', 'test_type')
-
-        if user.is_staff:
-            return base_queryset.all()
-
-        allowed_patient_ids = UserPatientAccess.objects.filter(user=user).values_list('patient_id', flat=True)
-        return base_queryset.filter(patient_id__in=allowed_patient_ids)
+    
+        return base_queryset.filter(
+            Q(patient__user=user) | 
+            Q(patient__user_accesses__user=user) |
+            Q(created_by=user)  # 👈 این خط اضافه شد
+        ).distinct()
 
     def get_serializer_class(self):
         if self.action in ['list', 'retrieve']:
             return TestResultReadSerializer
         return TestResultWriteSerializer
+    def perform_create(self, serializer):
+        user = self.request.user
+        patient = serializer.validated_data.get('patient')
 
+        # اگر فیلد بیمار خالی بود، یعنی شخص دارد برای خودش ثبت می‌کند
+        # پس بیمار را همان صاحب پرونده در نظر می‌گیریم
+        if not patient:
+            from core.models import Patient # (یا اسم اپلیکیشن خودتان)
+            try:
+                patient = Patient.objects.get(user=user)
+                serializer.save(patient=patient, created_by=user, status='approved')
+                return
+            except Patient.DoesNotExist:
+                pass
+
+        # اگر بیمار مشخص شده بود، چک می‌کنیم آیا خودش است یا نه
+        if patient and patient.user_id == user.id:
+            serializer.save(created_by=user, status='approved')
+        else:
+            serializer.save(created_by=user, status='pending')
+    @action(detail=False, methods=['get'], url_path='inbox')
+    def inbox(self, request):
+        user = request.user
+        # پیدا کردن آزمایش‌هایی که متعلق به پرونده این کاربر است اما هنوز در انتظار تایید است
+        pending_tests = TestResult.objects.filter(
+            patient__user=user,
+            status='pending'
+        ).select_related('created_by', 'test_type')
+        print(f"🕵️‍♂️ یوزر لاگین شده: {user.username} | آیدی: {user.id}")
+        print(f"📦 تعداد پیام‌های در انتظار: {pending_tests.count()}")
+        serializer = TestResultReadSerializer(pending_tests, many=True)
+        return Response(serializer.data)
+    @action(detail=True, methods=['post'], url_path='review')
+    def review(self, request, pk=None):
+        # 👇 تله‌ی امنیتی جنگو را با خواندن مستقیم از دیتابیس دور می‌زنیم
+        test_result = get_object_or_404(TestResult, pk=pk)
+        
+        action_type = request.data.get('action') # 'approve' یا 'reject'
+
+        # قفل امنیتی اختصاصی خودمان: چک می‌کنیم این آزمایش حتماً برای همین بیمار باشد
+        if test_result.patient.user_id != request.user.id:
+            return Response({"detail": "شما اجازه تغییر وضعیت این آزمایش را ندارید."}, status=403)
+
+        if action_type == 'approve':
+            test_result.status = 'approved'
+            test_result.save()
+            return Response({"detail": "آزمایش با موفقیت تایید و به پرونده اضافه شد."})
+        elif action_type == 'reject':
+            test_result.status = 'rejected'
+            test_result.save()
+            return Response({"detail": "آزمایش رد و حذف شد."})
+        
+        return Response({"detail": "عملیات نامعتبر است."}, status=400)
 
 class AttachmentViewSet(ModelViewSet):
     serializer_class = AttachmentSerializer
@@ -69,3 +192,34 @@ class AttachmentViewSet(ModelViewSet):
 
         allowed_patient_ids = UserPatientAccess.objects.filter(user=user).values_list('patient_id', flat=True)
         return Attachment.objects.filter(test_result__patient_id__in=allowed_patient_ids)
+# --- این ایمپورت‌ها را بالای کلاس جدید قرار دهید ---
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from django.contrib.auth import get_user_model
+
+class AddDependentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        search_value = request.data.get('national_code')
+        if not search_value:
+            return Response({'error': 'لطفاً کد ملی فرزند را وارد کنید.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # جستجوی مستقیم در جدول بیماران با استفاده از کدملی
+            patient = Patient.objects.get(national_code=search_value)
+
+            # ایجاد دسترسی برای پدر (کاربری که لاگین کرده)
+            UserPatientAccess.objects.get_or_create(user=request.user, patient=patient)
+
+            display_name = f"{patient.first_name} {patient.last_name}".strip()
+
+            return Response({
+                'message': f'اطلاعات {display_name} با موفقیت به پنل شما اضافه شد.'
+            }, status=status.HTTP_200_OK)
+
+        except Patient.DoesNotExist:
+            return Response({'error': 'هیچ پرونده پزشکی با این کد ملی در سیستم ثبت نشده است.'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': f'خطای سیستمی: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

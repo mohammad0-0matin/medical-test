@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../api';
+import { toast } from 'react-toastify';
 
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    first_name: '',
-    last_name: '',
   });
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -18,33 +16,38 @@ const Register = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+      e.preventDefault();
+      setLoading(true); 
+      
+      try {
+        await API.post('register/', formData); 
+        
+        toast.success('🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.');
+        
+        setTimeout(() => {
+          navigate('/login');
+        }, 2000);
 
-    try {
-      // ارسال درخواست ثبت‌نام به بک‌اند
-      await API.post('register/', formData);
-      setLoading(false);
-      alert('ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.');
-      navigate('/login'); // انتقال به صفحه ورود پس از ثبت‌نام
-    } catch (err) {
-      setLoading(false);
-      if (err.response && err.response.data) {
-        // نمایش خطاهای بک‌اند (مثلاً نام کاربری تکراری)
-        const firstError = Object.values(err.response.data)[0];
-        setError(Array.isArray(firstError) ? firstError[0] : 'خطا در ثبت‌نام');
-      } else {
-        setError('خطا در ارتباط با سرور.');
+      } catch (err) {
+        setLoading(false); 
+        
+        const errData = err.response?.data;
+        let errorMessage = '❌ خطا در ارتباط با سرور.';
+        
+        if (errData) {
+            if (errData.username) errorMessage = `❌ نام کاربری: ${errData.username[0]}`;
+            else if (errData.password) errorMessage = `❌ رمز عبور: ${errData.password[0]}`;
+            else if (errData.detail) errorMessage = `❌ ${errData.detail}`;
+        }
+        
+        toast.error(errorMessage);
       }
-    }
-  };
+    };
 
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h2 style={styles.title}>ثبت‌نام در سیستم</h2>
-        {error && <div style={styles.error}>{error}</div>}
+        <h2 style={styles.title}>ثبت‌نام سریع</h2>
         
         <form onSubmit={handleSubmit} style={styles.form}>
           <input
@@ -55,22 +58,6 @@ const Register = () => {
             onChange={handleChange}
             style={styles.input}
             required
-          />
-          <input
-            type="text"
-            name="first_name"
-            placeholder="نام (اختیاری)"
-            value={formData.first_name}
-            onChange={handleChange}
-            style={styles.input}
-          />
-          <input
-            type="text"
-            name="last_name"
-            placeholder="نام خانوادگی (اختیاری)"
-            value={formData.last_name}
-            onChange={handleChange}
-            style={styles.input}
           />
           <input
             type="password"
@@ -99,11 +86,10 @@ const styles = {
   container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6', direction: 'rtl', fontFamily: 'Tahoma, Arial, sans-serif' },
   card: { backgroundColor: '#fff', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', width: '100%', maxWidth: '400px' },
   title: { textAlign: 'center', marginBottom: '1.5rem', color: '#1f2937', fontSize: '1.5rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  input: { padding: '0.75rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem' },
-  button: { padding: '0.75rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold' },
-  error: { backgroundColor: '#fee2e2', color: '#dc2626', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem', textAlign: 'center' },
-  footerText: { textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: '#4b5563' },
+  form: { display: 'flex', flexDirection: 'column', gap: '1.2rem' },
+  input: { padding: '0.85rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', outline: 'none' },
+  button: { padding: '0.85rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' },
+  footerText: { textAlign: 'center', marginTop: '1.5rem', fontSize: '0.95rem', color: '#4b5563' },
   link: { color: '#2563eb', textDecoration: 'none', fontWeight: 'bold' }
 };
 
