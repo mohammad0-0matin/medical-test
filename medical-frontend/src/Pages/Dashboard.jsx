@@ -10,6 +10,7 @@ import CompleteProfileModal from '../components/CompleteProfileModal';
 import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
 import UserMenu from '../components/UserMenu';
+import NotificationBell from '../components/NotificationBell';
 import Footer from '../components/Footer';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
@@ -598,6 +599,13 @@ const Dashboard = () => {
                   fetchTests();
                   fetchProfile();
               }}
+          />
+
+          <NotificationBell
+            pendingTests={pendingTests}
+            accessRequests={accessRequests}
+            onReviewTest={handleReviewTest}
+            onRespondAccess={handleRespondAccess}
           />
 
           <UserMenu
