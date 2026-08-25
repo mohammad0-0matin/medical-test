@@ -1,11 +1,50 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify'; // 👈 اضافه شدن توست
+import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import './AddTestModal.css';
+
+const UserGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.6" />
+        <path d="M5 20v-.8A5.2 5.2 0 0 1 10.2 14h3.6a5.2 5.2 0 0 1 5.2 5.2V20" />
+    </svg>
+);
+
+const FlaskGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M10 3h4" />
+        <path d="M10 3v6l-4.7 8.2A2.4 2.4 0 0 0 7.3 21h9.4a2.4 2.4 0 0 0 2-3.8L14 9V3" />
+        <path d="M8.5 15h7" />
+    </svg>
+);
+
+const CalendarGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="4" y="5.5" width="16" height="15" rx="2.5" />
+        <path d="M8 3v4M16 3v4M4 10.5h16" />
+    </svg>
+);
+
+const NumberGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M9.5 4L7.7 20M16.3 4L14.5 20M4.5 9h15M3.7 15h15" />
+    </svg>
+);
+
+const CloseGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+        strokeLinecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+);
 
 const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     const [testTypes, setTestTypes] = useState([]);
     const [patients, setPatients] = useState([]);
-    
+
     // استیت‌های سیستم جستجو
     const [searchQuery, setSearchQuery] = useState('');
     const [searchedPatient, setSearchedPatient] = useState(null);
@@ -68,7 +107,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                 if (data.length > 0) {
                     const found = data[0];
                     setSearchedPatient(found);
-                    setFormData({ ...formData, patient: found.id }); 
+                    setFormData({ ...formData, patient: found.id });
                 } else {
                     setSearchError('بیماری با این کدملی یافت نشد.');
                 }
@@ -89,7 +128,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        
+
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('http://127.0.0.1:8000/api/test-results/', {
@@ -101,9 +140,9 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
             if (response.ok) {
                 toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!'); // 👈 جادوی توست
                 setFormData({ ...formData, result_value: '', notes: '' });
-                
+
                 if (onTestAdded) onTestAdded();
-                
+
                 // فرم بلافاصله بسته و ریست می‌شود
                 onClose();
                 setSearchedPatient(null);
@@ -125,40 +164,47 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
             <div className="modal-container">
                 <div className="modal-header">
                     <h2>ثبت نتیجه آزمایش جدید</h2>
-                    <button onClick={onClose} className="close-btn">&times;</button>
+                    <button onClick={onClose} className="close-btn" aria-label="بستن پنجره" title="بستن">
+                        <CloseGlyph />
+                    </button>
                 </div>
 
                 <div className="modal-body">
                     {/* 👈 باکس پیام خطای قدیمی از اینجا حذف شد */}
 
                     <form onSubmit={handleSubmit}>
-                        <div className="form-group" style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
-                            <label className="form-label" style={{ marginBottom: '12px' }}>بیمار (انتخاب از لیست یا جستجو):</label>
-                            
+                        <div className="patient-picker form-group">
+                            <label className="form-label">بیمار (انتخاب از لیست یا جستجو):</label>
+
                             {searchedPatient ? (
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#dcfce7', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                                    <span style={{ color: '#15803d', fontWeight: 'bold' }}>
+                                <div className="searched-box">
+                                    <span className="searched-name">
                                         ✅ {searchedPatient.first_name} {searchedPatient.last_name}
                                     </span>
-                                    <button type="button" onClick={() => { setSearchedPatient(null); setFormData({...formData, patient: patients[0]?.id || ''}); setSearchQuery(''); }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>
+                                    <button type="button" onClick={() => { setSearchedPatient(null); setFormData({...formData, patient: patients[0]?.id || ''}); setSearchQuery(''); }} className="unpick-btn">
                                         لغو انتخاب
                                     </button>
                                 </div>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    <select name="patient" value={formData.patient} onChange={handleChange} className="form-input">
-                                        {patients.map(p => (
-                                            <option key={p.id} value={p.id}>{p.first_name} {p.last_name} (بیماران من)</option>
-                                        ))}
-                                    </select>
-                                    
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="جستجوی کدملی بیمار جدید..." className="form-input" style={{ flex: 1 }} />
-                                        <button type="button" onClick={handleSearch} disabled={isSearching} className="btn-cancel" style={{ width: 'auto', padding: '0 16px', margin: 0, backgroundColor: '#e5e7eb' }}>
+                                <div className="picker-col">
+                                    <div className="input-shell">
+                                        <span className="input-icon"><UserGlyph /></span>
+                                        <select name="patient" value={formData.patient} onChange={handleChange} className="form-input">
+                                            {patients.map(p => (
+                                                <option key={p.id} value={p.id}>{p.first_name} {p.last_name} (بیماران من)</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="picker-row">
+                                        <div className="input-shell grow">
+                                            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="جستجوی کدملی بیمار جدید..." className="form-input" />
+                                        </div>
+                                        <button type="button" onClick={handleSearch} disabled={isSearching} className="search-btn">
                                             {isSearching ? '...' : 'جستجو'}
                                         </button>
                                     </div>
-                                    {searchError && <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>{searchError}</span>}
+                                    {searchError && <span className="search-error">{searchError}</span>}
                                 </div>
                             )}
                         </div>
@@ -166,21 +212,30 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                         <div className="form-row">
                             <div>
                                 <label className="form-label">نوع آزمایش:</label>
-                                <select name="test_type" value={formData.test_type} onChange={handleChange} className="form-input" dir="ltr">
-                                    {testTypes.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name} ({t.category_name})</option>
-                                    ))}
-                                </select>
+                                <div className="input-shell">
+                                    <span className="input-icon"><FlaskGlyph /></span>
+                                    <select name="test_type" value={formData.test_type} onChange={handleChange} className="form-input" dir="ltr">
+                                        {testTypes.map(t => (
+                                            <option key={t.id} value={t.id}>{t.name} ({t.category_name})</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                             <div>
                                 <label className="form-label">تاریخ آزمایش:</label>
-                                <input type="date" name="test_date" value={formData.test_date} onChange={handleChange} required className="form-input" />
+                                <div className="input-shell">
+                                    <span className="input-icon"><CalendarGlyph /></span>
+                                    <input type="date" name="test_date" value={formData.test_date} onChange={handleChange} required className="form-input" />
+                                </div>
                             </div>
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">مقدار نتیجه:</label>
-                            <input type="number" step="0.01" name="result_value" value={formData.result_value} onChange={handleChange} required placeholder="مثلاً: 95.5" className="form-input" dir="ltr" />
+                            <div className="input-shell">
+                                <span className="input-icon"><NumberGlyph /></span>
+                                <input type="number" step="0.01" name="result_value" value={formData.result_value} onChange={handleChange} required placeholder="مثلاً: 95.5" className="form-input" dir="ltr" />
+                            </div>
                         </div>
 
                         <div className="form-group">
@@ -190,7 +245,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
 
                         <div className="modal-footer">
                             <button type="submit" disabled={loading} className="btn-submit">
-                                {loading ? 'در حال ثبت...' : 'ثبت نتیجه آزمایش'}
+                                {loading ? (<><span className="btn-spinner" />در حال ثبت...</>) : 'ثبت نتیجه آزمایش'}
                             </button>
                             <button type="button" onClick={onClose} className="btn-cancel">
                                 انصراف

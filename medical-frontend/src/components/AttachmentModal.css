@@ -1,0 +1,351 @@
+/* ============================================
+   AttachmentModal — dropzone, file cards, progress
+   ============================================ */
+
+.att-subtitle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 18px;
+    color: var(--text-muted);
+    font-size: 0.86rem;
+}
+
+.att-subtitle strong {
+    color: var(--text-strong);
+}
+
+.att-badge {
+    padding: 3px 10px;
+    border: 1px solid var(--border-input);
+    border-radius: 9999px;
+    background-color: var(--bg-subtle);
+    color: var(--text-body);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+/* ---------- Uploaded list ---------- */
+
+.att-section-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 10px;
+    color: var(--text-body);
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.att-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 18px;
+}
+
+.att-card {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background-color: var(--bg-input);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.att-card:hover {
+    border-color: var(--border-input);
+    box-shadow: 0 6px 16px -10px rgba(2, 32, 71, 0.35);
+}
+
+.att-file-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border-radius: 9px;
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+[data-theme='dark'] .att-file-icon {
+    background: rgba(96, 165, 250, 0.14);
+    color: #60a5fa;
+}
+
+.att-file-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.att-meta {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.att-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-strong);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.att-date {
+    color: var(--text-faint);
+    font-size: 0.74rem;
+}
+
+.att-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.att-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--link-color);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.att-view svg {
+    width: 13px;
+    height: 13px;
+}
+
+.att-view:hover {
+    background: rgba(37, 99, 235, 0.1);
+}
+
+.att-delete {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #ef4444;
+    cursor: pointer;
+    transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.att-delete svg {
+    width: 15px;
+    height: 15px;
+}
+
+.att-delete:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.att-delete:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.att-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 22px 14px;
+    border: 1px dashed var(--border-input);
+    border-radius: 11px;
+    background-color: var(--bg-subtle);
+    color: var(--text-faint);
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+.att-empty svg {
+    width: 26px;
+    height: 26px;
+    opacity: 0.7;
+}
+
+/* ---------- Dropzone ---------- */
+
+.att-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 18px 0;
+}
+
+.att-dropzone {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    padding: 24px 16px;
+    border: 2px dashed var(--border-input);
+    border-radius: 13px;
+    background-color: var(--bg-input);
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.att-dropzone:hover,
+.att-dropzone:focus-visible {
+    border-color: #2563eb;
+    outline: none;
+}
+
+.att-dropzone-active {
+    border-color: #2563eb;
+    background: rgba(37, 99, 235, 0.07);
+    transform: scale(1.01);
+}
+
+.att-dropzone-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.13);
+    color: #10b981;
+}
+
+.att-dropzone-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.att-dropzone-title {
+    color: var(--text-strong);
+    font-size: 0.88rem;
+    font-weight: 800;
+}
+
+.att-dropzone-hint {
+    color: var(--text-faint);
+    font-size: 0.76rem;
+}
+
+.att-hidden-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ---------- Selected file chip ---------- */
+
+.att-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--msg-success-border);
+    border-radius: 10px;
+    background-color: var(--msg-success-bg);
+}
+
+.att-chip-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--msg-success-text);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.att-chip-size {
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+}
+
+.att-chip-remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--msg-success-text);
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.att-chip-remove svg {
+    width: 12px;
+    height: 12px;
+}
+
+.att-chip-remove:hover {
+    background: rgba(239, 68, 68, 0.14);
+    color: #ef4444;
+}
+
+/* ---------- Progress ---------- */
+
+.att-progress {
+    margin-top: 12px;
+}
+
+.att-progress-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background-color: var(--bg-subtle);
+}
+
+.att-progress-bar {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, #2563eb, #10b981);
+    transition: width 0.2s ease;
+}
+
+.att-progress-label {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ---------- Footer actions ---------- */
+
+.att-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+@media (max-width: 480px) {
+    .att-meta {
+        min-width: 120px;
+    }
+}

@@ -1,0 +1,79 @@
+.ft {
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.ft-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.ft-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-strong);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.ft-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+  box-shadow: 0 6px 14px -6px rgba(37, 99, 235, 0.55);
+}
+
+.ft-logo svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ft-links {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.ft-links a {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.ft-links a:hover {
+  color: var(--link-color);
+}
+
+.ft-copy {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 640px) {
+  .ft-inner {
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 20px 18px;
+    text-align: center;
+  }
+
+  .ft-copy {
+    order: 3;
+  }
+}

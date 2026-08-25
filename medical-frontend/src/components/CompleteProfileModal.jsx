@@ -1,6 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify'; // 👈 کتابخانه توست اضافه شد
-import './AddTestModal.css'; 
+import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import './AddTestModal.css';
+
+const UserGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="8" r="3.6" />
+        <path d="M5 20v-.8A5.2 5.2 0 0 1 10.2 14h3.6a5.2 5.2 0 0 1 5.2 5.2V20" />
+    </svg>
+);
+
+const IdCardGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+        strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="14" rx="2.5" />
+        <circle cx="9" cy="10.5" r="1.9" />
+        <path d="M6.2 16.2c.6-1.6 1.9-2.4 2.8-2.4s2.2.8 2.8 2.4" />
+        <path d="M15 9.5h4M15 13h4" />
+    </svg>
+);
+
+const CloseGlyph = () => (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+        strokeLinecap="round" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+);
 
 const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const [formData, setFormData] = useState({
@@ -22,7 +47,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                 const res = await fetch('http://127.0.0.1:8000/api/patients/me/', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 if (res.ok) {
                     const data = await res.json();
                     setFormData({
@@ -46,7 +71,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        
+
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('http://127.0.0.1:8000/api/patients/me/', {
@@ -79,11 +104,13 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
             <div className="modal-container">
                 <div className="modal-header">
                     <h2>تکمیل پرونده سلامت</h2>
-                    <button onClick={onClose} className="close-btn">&times;</button>
+                    <button onClick={onClose} className="close-btn" aria-label="بستن پنجره" title="بستن">
+                        <CloseGlyph />
+                    </button>
                 </div>
 
                 <div className="modal-body">
-                    <div className="message-box message-success" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', borderColor: '#bae6fd', marginBottom: '20px' }}>
+                    <div className="message-box message-info">
                         برای اینکه دیگران بتوانند برای شما نتیجه آزمایش ارسال کنند، لطفاً کدملی خود را با دقت وارد کنید.
                     </div>
 
@@ -93,22 +120,31 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                         <div className="form-row">
                             <div>
                                 <label className="form-label">نام:</label>
-                                <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} required className="form-input" />
+                                <div className="input-shell">
+                                    <span className="input-icon"><UserGlyph /></span>
+                                    <input type="text" name="first_name" value={formData.first_name} onChange={handleChange} required className="form-input" autoComplete="given-name" />
+                                </div>
                             </div>
                             <div>
                                 <label className="form-label">نام خانوادگی:</label>
-                                <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} required className="form-input" />
+                                <div className="input-shell">
+                                    <span className="input-icon"><UserGlyph /></span>
+                                    <input type="text" name="last_name" value={formData.last_name} onChange={handleChange} required className="form-input" autoComplete="family-name" />
+                                </div>
                             </div>
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">کد ملی:</label>
-                            <input type="text" name="national_code" value={formData.national_code} onChange={handleChange} required placeholder="مثلاً 1234567890" className="form-input" dir="ltr" />
+                            <div className="input-shell">
+                                <span className="input-icon"><IdCardGlyph /></span>
+                                <input type="text" name="national_code" value={formData.national_code} onChange={handleChange} required placeholder="مثلاً 1234567890" className="form-input" dir="ltr" autoComplete="off" />
+                            </div>
                         </div>
 
                         <div className="modal-footer">
                             <button type="submit" disabled={loading} className="btn-submit">
-                                {loading ? 'در حال ثبت...' : 'ثبت و ذخیره پرونده'}
+                                {loading ? (<><span className="btn-spinner" />در حال ثبت...</>) : 'ثبت و ذخیره پرونده'}
                             </button>
                             <button type="button" onClick={onClose} className="btn-cancel">
                                 انصراف

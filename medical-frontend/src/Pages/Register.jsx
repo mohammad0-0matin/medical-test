@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../api';
 import { toast } from 'react-toastify';
+import AuthBrand, { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon } from '../components/AuthBrand';
+import './Auth.css';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -9,6 +11,7 @@ const Register = () => {
     password: '',
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -17,80 +20,101 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
       e.preventDefault();
-      setLoading(true); 
-      
+      setLoading(true);
+
       try {
-        await API.post('register/', formData); 
-        
+        await API.post('register/', formData);
+
         toast.success('🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.');
-        
+
         setTimeout(() => {
           navigate('/login');
         }, 2000);
 
       } catch (err) {
-        setLoading(false); 
-        
+        setLoading(false);
+
         const errData = err.response?.data;
         let errorMessage = '❌ خطا در ارتباط با سرور.';
-        
+
         if (errData) {
             if (errData.username) errorMessage = `❌ نام کاربری: ${errData.username[0]}`;
             else if (errData.password) errorMessage = `❌ رمز عبور: ${errData.password[0]}`;
             else if (errData.detail) errorMessage = `❌ ${errData.detail}`;
         }
-        
+
         toast.error(errorMessage);
       }
     };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>ثبت‌نام سریع</h2>
-        
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <input
-            type="text"
-            name="username"
-            placeholder="نام کاربری"
-            value={formData.username}
-            onChange={handleChange}
-            style={styles.input}
-            required
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="رمز عبور"
-            value={formData.password}
-            onChange={handleChange}
-            style={styles.input}
-            required
-          />
-          
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'در حال ثبت‌نام...' : 'ایجاد حساب کاربری'}
-          </button>
-        </form>
+    <div className="auth-page">
+      <AuthBrand />
 
-        <p style={styles.footerText}>
-          از قبل حساب دارید؟ <Link to="/login" style={styles.link}>وارد شوید</Link>
-        </p>
-      </div>
+      <main className="auth-form-side">
+        <div className="auth-card">
+          <Link to="/" className="auth-back">
+            <ChevronRightIcon />
+            بازگشت به خانه
+          </Link>
+
+          <header className="auth-head">
+            <h2>ثبت‌نام سریع</h2>
+            <p className="auth-sub">در چند ثانیه حساب بسازید و مدیریت پرونده سلامت را شروع کنید.</p>
+          </header>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <label className="auth-label" htmlFor="register-username">نام کاربری</label>
+            <div className="auth-field">
+              <span className="auth-field-icon"><UserIcon /></span>
+              <input
+                id="register-username"
+                type="text"
+                name="username"
+                placeholder="نام کاربری"
+                value={formData.username}
+                onChange={handleChange}
+                autoComplete="username"
+                required
+              />
+            </div>
+
+            <label className="auth-label" htmlFor="register-password">رمز عبور</label>
+            <div className="auth-field">
+              <span className="auth-field-icon"><LockIcon /></span>
+              <input
+                id="register-password"
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                placeholder="رمز عبور"
+                value={formData.password}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                className="auth-toggle"
+                onClick={() => setShowPassword((s) => !s)}
+                aria-label={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
+                title={showPassword ? 'پنهان کردن رمز' : 'نمایش رمز'}
+              >
+                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+
+            <button type="submit" className="auth-submit" disabled={loading}>
+              {loading ? (<><span className="auth-spinner" />در حال ثبت‌نام...</>) : 'ایجاد حساب کاربری'}
+            </button>
+          </form>
+
+          <p className="auth-switch">
+            از قبل حساب دارید؟ <Link to="/login">وارد شوید</Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
-};
-
-const styles = {
-  container: { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6', direction: 'rtl', fontFamily: 'Tahoma, Arial, sans-serif' },
-  card: { backgroundColor: '#fff', padding: '2.5rem', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', width: '100%', maxWidth: '400px' },
-  title: { textAlign: 'center', marginBottom: '1.5rem', color: '#1f2937', fontSize: '1.5rem' },
-  form: { display: 'flex', flexDirection: 'column', gap: '1.2rem' },
-  input: { padding: '0.85rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '1rem', outline: 'none' },
-  button: { padding: '0.85rem', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '1rem', cursor: 'pointer', fontWeight: 'bold', transition: '0.2s' },
-  footerText: { textAlign: 'center', marginTop: '1.5rem', fontSize: '0.95rem', color: '#4b5563' },
-  link: { color: '#2563eb', textDecoration: 'none', fontWeight: 'bold' }
 };
 
 export default Register;

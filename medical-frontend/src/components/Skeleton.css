@@ -1,0 +1,95 @@
+/* ============================================
+   Skeleton primitives — shimmer / pulse
+   Themed via CSS variables, honors reduced motion
+   ============================================ */
+
+.sk {
+  --sk-base: rgba(2, 32, 71, 0.09);
+  --sk-highlight: rgba(255, 255, 255, 0.65);
+
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background-color: var(--sk-base);
+  border-radius: 7px;
+}
+
+[data-theme='dark'] .sk {
+  --sk-base: rgba(148, 163, 184, 0.14);
+  --sk-highlight: rgba(165, 180, 210, 0.08);
+}
+
+.sk::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--sk-highlight),
+    transparent
+  );
+  animation: sk-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes sk-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ---------- Variants ---------- */
+
+.sk-text {
+  height: 12px;
+}
+
+.sk-rounded {
+  border-radius: 12px;
+}
+
+.sk-rectangular {
+  border-radius: 4px;
+}
+
+.sk-circle {
+  border-radius: 50%;
+}
+
+/* ---------- Reduced motion: static subtle pulse ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .sk::after {
+    animation: none;
+    opacity: 0.45;
+  }
+
+  .sk {
+    animation: sk-pulse-static 1.8s ease-in-out infinite;
+  }
+
+  @keyframes sk-pulse-static {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+}
+
+/* ---------- Screen-reader helper ---------- */
+
+.sk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

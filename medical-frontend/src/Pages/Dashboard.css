@@ -1,0 +1,121 @@
+/* Hover / state polish for the Excel export button (base styles live inline) */
+
+.dashboard-btn-excel {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.dashboard-btn-excel svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dashboard-btn-excel:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(5, 150, 105, 0.7);
+}
+
+.dashboard-btn-excel:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.dashboard-btn-excel:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Segmented ownership filter ---------- */
+
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border-input);
+  border-radius: 9px;
+  background-color: var(--bg-input);
+}
+
+.seg-btn {
+  padding: 0.45rem 0.85rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.83rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.seg-btn:hover {
+  color: var(--text-strong);
+}
+
+.seg-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.seg-active {
+  background: linear-gradient(135deg, #2563eb, #10b981);
+  color: #ffffff !important;
+  box-shadow: 0 5px 12px -5px rgba(37, 99, 235, 0.6);
+}
+
+/* ---------- Sortable table headers ---------- */
+
+.th-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.th-sort:hover,
+.th-sort:focus-visible {
+  color: var(--text-strong);
+  outline: none;
+}
+
+.th-sort:focus-visible .sort-arrows svg {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.th-sort-active {
+  color: #2563eb;
+}
+
+.sort-arrows {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.sort-arrows svg {
+  width: 10px;
+  height: 13px;
+}
+
+.sort-arrows .p-top,
+.sort-arrows .p-bottom {
+  fill: currentColor;
+  opacity: 0.32;
+  transition: opacity 0.2s ease;
+}
+
+.sort-asc .p-top {
+  opacity: 1;
+}
+
+.sort-desc .p-bottom {
+  opacity: 1;
+}

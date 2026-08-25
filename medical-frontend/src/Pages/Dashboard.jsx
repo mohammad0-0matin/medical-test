@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import API from '../api';
 import AddTestModal from '../components/AddTestModal';
@@ -7,10 +7,195 @@ import AttachmentModal from '../components/AttachmentModal';
 import PatientChartModal from '../components/PatientChartModal';
 import { toast } from 'react-toastify';
 import CompleteProfileModal from '../components/CompleteProfileModal';
-import ThemeToggle from '../components/ThemeToggle';
 import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
+import UserMenu from '../components/UserMenu';
+import Footer from '../components/Footer';
+import Skeleton from '../components/Skeleton';
+import { exportTestsToCsv } from '../utils/exportToCsv';
 import { useReactToPrint } from 'react-to-print';
+import './Dashboard.css';
+
+const SpreadsheetGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3.5" y="4" width="17" height="16" rx="2" />
+    <path d="M3.5 9h17M9.8 9v11M15.4 9v11M3.5 14.5h17" />
+  </svg>
+);
+
+/* ---------- Skeleton compositions (matching real layout dimensions) ---------- */
+
+const StatsRowSkeleton = () => (
+  <div
+    style={styles.statsContainer}
+    role="status"
+    aria-busy="true"
+    aria-live="polite"
+  >
+    <span className="sk-sr-only">در حال دریافت آمار آزمایش‌ها...</span>
+    {[0, 1, 2, 3].map((index) => (
+      <div key={index} style={{ ...styles.statCard, minHeight: '128px' }}>
+        <Skeleton variant="text" width="55%" height={13} />
+        <Skeleton variant="rounded" width={68} height={38} style={{ marginTop: '16px' }} />
+      </div>
+    ))}
+  </div>
+);
+
+const HealthCardSkeleton = () => (
+  <section className="hc-scene" role="status" aria-busy="true" aria-live="polite">
+    <span className="sk-sr-only">در حال دریافت کارت سلامت دیجیتال...</span>
+    <div className="hc-card" style={{ minHeight: '196px', justifyContent: 'space-between', gap: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Skeleton variant="circle" width={34} height={34} />
+          <Skeleton variant="text" width={132} height={13} />
+        </div>
+        <Skeleton variant="rounded" width={76} height={26} style={{ borderRadius: '9999px' }} />
+      </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '20px' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Skeleton variant="text" width="46%" height={22} style={{ borderRadius: '8px' }} />
+          <Skeleton variant="text" width="30%" height={11} />
+          <Skeleton variant="text" width="38%" height={15} />
+        </div>
+        <Skeleton variant="rounded" width={84} height={84} style={{ borderRadius: '14px' }} />
+      </div>
+    </div>
+  </section>
+);
+
+const InboxSkeleton = () => (
+  <div
+    role="status"
+    aria-busy="true"
+    aria-live="polite"
+    style={{
+      backgroundColor: 'var(--bg-surface)',
+      border: '1px solid var(--border)',
+      borderRadius: '12px',
+      padding: '20px',
+      marginBottom: '24px',
+    }}
+  >
+    <span className="sk-sr-only">در حال دریافت صندوق پیام‌ها و درخواست‌های دسترسی...</span>
+    <Skeleton variant="text" width="42%" height={17} style={{ marginBottom: '16px' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {[0, 1].map((index) => (
+        <div
+          key={index}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            backgroundColor: 'var(--bg-page)',
+            padding: '16px',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
+            <Skeleton variant="circle" width={34} height={34} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '7px' }}>
+              <Skeleton variant="text" width={`${64 - index * 18}%`} height={12} />
+              <Skeleton variant="text" width={`${42 + index * 12}%`} height={10} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <Skeleton variant="rounded" width={82} height={32} />
+            <Skeleton variant="rounded" width={70} height={32} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const AccessListSkeleton = ({ titleWidth = '60%' }) => (
+  <div
+    role="status"
+    aria-busy="true"
+    aria-live="polite"
+    style={{
+      backgroundColor: 'var(--bg-surface)',
+      border: '1px solid var(--border)',
+      borderRadius: '12px',
+      padding: '20px',
+      marginBottom: '24px',
+    }}
+  >
+    <span className="sk-sr-only">در حال دریافت اطلاعات دسترسی‌ها...</span>
+    <Skeleton variant="text" width={titleWidth} height={17} style={{ marginBottom: '16px' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {[0, 1].map((index) => (
+        <div
+          key={index}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            backgroundColor: 'var(--bg-page)',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            border: '1px solid var(--border)',
+          }}
+        >
+          <Skeleton variant="text" width={`${58 - index * 16}%`} height={13} />
+          <Skeleton variant="rounded" width={88} height={30} />
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+const TABLE_SKELETON_WIDTHS = ['36px', '20%', '24%', '12%', '15%', '15%', '13%', '14%', '17%', '13%'];
+
+const TableSkeleton = () => (
+  <div
+    style={styles.tableWrapper}
+    role="status"
+    aria-busy="true"
+    aria-live="polite"
+  >
+    <span className="sk-sr-only">در حال دریافت لیست آزمایش‌ها...</span>
+    <div style={styles.tableContainer}>
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th style={styles.th}>ردیف</th>
+            <th style={styles.th}>نام بیمار</th>
+            <th style={styles.th}>نوع آزمایش</th>
+            <th style={styles.th}>نتیجه</th>
+            <th style={styles.th}>وضعیت پزشکی</th>
+            <th style={styles.th}>وضعیت تایید</th>
+            <th style={styles.th}>تاریخ ثبت</th>
+            <th style={styles.th}>ثبت‌کننده</th>
+            <th style={styles.th}>پیوست‌ها و نمودار</th>
+            <th style={styles.th}>عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[0, 1, 2, 3, 4].map((rowIndex) => (
+            <tr key={rowIndex} style={styles.tr}>
+              {TABLE_SKELETON_WIDTHS.map((_, colIndex) => {
+                const width =
+                  TABLE_SKELETON_WIDTHS[(colIndex + rowIndex * 3) % TABLE_SKELETON_WIDTHS.length];
+                return (
+                  <td key={colIndex} style={colIndex === 9 ? styles.tdActions : styles.td}>
+                    <Skeleton variant="text" height={12} style={{ width }} />
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+);
 
 const Dashboard = () => {
   const { logout } = useContext(AuthContext);
@@ -27,6 +212,9 @@ const Dashboard = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [personFilter, setPersonFilter] = useState('all');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'none' });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -43,6 +231,13 @@ const Dashboard = () => {
   // استیت صندوق پیام درخواست‌های دسترسی
   const [accessRequests, setAccessRequests] = useState([]);
 
+  // استیت‌های اسکلتون بارگذاری اولیه
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [accessLoading, setAccessLoading] = useState(true);
+
+  // استیت خروجی اکسل
+  const [isExporting, setIsExporting] = useState(false);
+
   // تنظیمات پرینت و خروجی PDF
   const printRef = useRef(null);
   const handlePrintReport = useReactToPrint({
@@ -50,13 +245,35 @@ const Dashboard = () => {
     documentTitle: 'گزارش آزمایش‌ها - سلامت‌یار',
   });
 
+  // خروجی اکسل از نتایج فیلتر و مرتب شده (کل لیست، نه فقط صفحه جاری)
+  const handleExportExcel = () => {
+    if (!visibleTests.length) {
+      toast.info('هیچ آزمایشی برای خروجی اکسل وجود ندارد.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      exportTestsToCsv(visibleTests);
+      toast.success(`📊 خروجی اکسل ${visibleTests.length} آزمایش با موفقیت دانلود شد.`);
+    } catch (exportError) {
+      console.error('Export error:', exportError);
+      toast.error('خطا در تولید فایل اکسل.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // دریافت اطلاعات پروفایل کاربر لاگین شده
   const fetchProfile = async () => {
+    setProfileLoading(true);
     try {
       const res = await API.get('patients/me/');
       setProfile(res.data);
     } catch (err) {
       setProfile(null);
+    } finally {
+      setProfileLoading(false);
     }
   };
 
@@ -115,17 +332,23 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
-    fetchTests();
-    fetchPendingTests();
-    fetchAccessRequests();
-    fetchGrantedAccesses();
-    fetchMyDependents();
-    fetchProfile();
+    const bootstrap = async () => {
+      await Promise.all([
+        fetchTests(),
+        fetchPendingTests(),
+        fetchAccessRequests(),
+        fetchGrantedAccesses(),
+        fetchMyDependents(),
+        fetchProfile(),
+      ]);
+      setAccessLoading(false);
+    };
+    bootstrap();
   }, []);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterStatus]);
+  }, [searchTerm, filterStatus, typeFilter, personFilter]);
 
   // لغو دسترسی یک شخص
   const handleRevokeAccess = async (id) => {
@@ -239,13 +462,68 @@ const Dashboard = () => {
     }
   };
 
+  // گزینه‌های نوع آزمایش به صورت پویا از داده‌های بارگذاری شده
+  const testTypeOptions = useMemo(
+    () => [...new Set(tests.map((t) => t.test_type_name).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'fa')),
+    [tests]
+  );
+
+  // کدهای ملی افراد تحت مراقبت برای فیلتر مالکیت
+  const dependentCodes = useMemo(
+    () => new Set(myDependents.map((d) => d.national_code).filter(Boolean)),
+    [myDependents]
+  );
+
+  const profileNationalCode = profile?.national_code || '';
+
+  // مرحله ۱: فیلتر (جستجو + وضعیت + نوع آزمایش + مالکیت)
   const filteredTests = tests.filter((test) => {
     const fullName = `${test.patient?.first_name || ''} ${test.patient?.last_name || ''}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
     const status = getTestStatus(test.result_value, test.min_range ?? test.lab_min_range, test.max_range ?? test.lab_max_range);
     const matchesStatus = filterStatus === 'all' || status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const matchesType = typeFilter === 'all' || test.test_type_name === typeFilter;
+
+    let matchesPerson = true;
+    if (personFilter === 'mine') {
+      matchesPerson = !!profileNationalCode && test.patient?.national_code === profileNationalCode;
+    } else if (personFilter === 'dependents') {
+      matchesPerson = dependentCodes.has(test.patient?.national_code);
+    }
+
+    return matchesSearch && matchesStatus && matchesType && matchesPerson;
   });
+
+  // مرحله ۲: مرتب‌سازی ستونی (تاریخ / نتیجه) با پایداری و هندل مقادیر خالی
+  let visibleTests = filteredTests;
+  if (sortConfig.key && sortConfig.direction !== 'none') {
+    const parseValue = (test) => {
+      if (sortConfig.key === 'test_date') {
+        const time = new Date(test.test_date).getTime();
+        return Number.isNaN(time) ? null : time;
+      }
+      if (test.result_value !== null && test.result_value !== undefined && test.result_value !== '') {
+        const num = parseFloat(test.result_value);
+        if (!Number.isNaN(num)) return num;
+      }
+      return null;
+    };
+
+    const factor = sortConfig.direction === 'asc' ? 1 : -1;
+
+    visibleTests = [...filteredTests].sort((a, b) => {
+      const valueA = parseValue(a);
+      const valueB = parseValue(b);
+
+      // مقادیر خالی همیشه در انتها قرار می‌گیرند
+      if (valueA === null && valueB === null) return 0;
+      if (valueA === null) return 1;
+      if (valueB === null) return -1;
+
+      return (valueA - valueB) * factor;
+    });
+  }
 
   const stats = {
     total: tests.length,
@@ -256,8 +534,45 @@ const Dashboard = () => {
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentTests = filteredTests.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredTests.length / itemsPerPage);
+  const currentTests = visibleTests.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(visibleTests.length / itemsPerPage);
+
+  // تغییر جهت مرتب‌سازی: صعودی → نزولی → بدون مرتب‌سازی
+  const handleSort = (key) => {
+    setSortConfig((prev) => {
+      if (prev.key !== key) return { key, direction: 'asc' };
+      if (prev.direction === 'asc') return { key, direction: 'desc' };
+      return { key: null, direction: 'none' };
+    });
+  };
+
+  const renderSortableTh = (label, sortKey, thStyle) => {
+    const isActive = sortConfig.key === sortKey;
+    const direction = isActive ? sortConfig.direction : 'none';
+    return (
+      <th
+        style={thStyle}
+        aria-sort={isActive ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+      >
+        <button
+          type="button"
+          className={`th-sort ${isActive ? `th-sort-active sort-${direction}` : ''}`}
+          onClick={() => handleSort(sortKey)}
+          title={isActive
+            ? (direction === 'asc' ? 'مرتب‌سازی نزولی' : 'حذف مرتب‌سازی')
+            : 'مرتب‌سازی صعودی'}
+        >
+          {label}
+          <span className="sort-arrows" aria-hidden="true">
+            <svg viewBox="0 0 12 14">
+              <path className="p-top" d="M6 1.2L1.8 5.4h8.4z" />
+              <path className="p-bottom" d="M6 12.8L1.8 8.6h8.4z" />
+            </svg>
+          </span>
+        </button>
+      </th>
+    );
+  };
 
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
@@ -275,32 +590,22 @@ const Dashboard = () => {
           <button onClick={() => setIsAddModalOpen(true)} style={styles.addBtn}>
             + ثبت آزمایش جدید
           </button>
-          
-          <button 
-            onClick={() => setIsProfileModalOpen(true)}
-            style={{
-              ...styles.addBtn,
-              backgroundColor: '#0369a1',
-              marginRight: '10px'
-            }}
-          >
-            👤 تکمیل پرونده سلامت
-          </button>
 
-          <CompleteProfileModal 
-            isOpen={isProfileModalOpen} 
-            onClose={() => setIsProfileModalOpen(false)} 
-            onProfileUpdated={() => {
-              fetchTests();
-              fetchProfile();
-            }}
+          <CompleteProfileModal
+              isOpen={isProfileModalOpen}
+              onClose={() => setIsProfileModalOpen(false)}
+              onProfileUpdated={() => {
+                  fetchTests();
+                  fetchProfile();
+              }}
           />
 
-          <ThemeToggle />
-
-          <button onClick={logout} style={styles.logoutButton}>
-            خروج از حساب
-          </button>
+          <UserMenu
+            fullName={profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : ''}
+            nationalCode={profile?.national_code || ''}
+            onOpenProfile={() => setIsProfileModalOpen(true)}
+            onLogout={logout}
+          />
         </div>
       </header>
 
@@ -308,14 +613,22 @@ const Dashboard = () => {
         {error && <div style={styles.errorMessage}>{error}</div>}
 
         {/* کارت سلامت دیجیتال */}
-        <HealthCard
-          firstName={profile?.first_name}
-          lastName={profile?.last_name}
-          nationalCode={profile?.national_code}
-        />
+        {profileLoading && !profile ? (
+          <HealthCardSkeleton />
+        ) : (
+          <HealthCard
+            firstName={profile?.first_name}
+            lastName={profile?.last_name}
+            nationalCode={profile?.national_code}
+          />
+        )}
 
-        {/* ۱. صندوق پیام آزمایش‌های در انتظار تایید */}
-        {pendingTests.length > 0 && (
+        {/* ۱ و ۲. صندوق‌های پیام (آزمایش‌ها و درخواست‌های دسترسی) */}
+        {accessLoading ? (
+          <InboxSkeleton />
+        ) : (
+          <>
+            {pendingTests.length > 0 && (
           <div style={{ backgroundColor: 'var(--warn-bg)', border: '1px solid var(--warn-text)', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <h3 style={{ color: 'var(--warn-text)', marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
               📥 صندوق پیام: شما {pendingTests.length} آزمایش در انتظار تایید دارید!
@@ -370,7 +683,17 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+          </>
+        )}
 
+        {/* ۳ و ۴. مدیریت دسترسی‌ها و افراد تحت مراقبت */}
+        {accessLoading ? (
+          <>
+            <AccessListSkeleton titleWidth="68%" />
+            <AccessListSkeleton titleWidth="54%" />
+          </>
+        ) : (
+          <>
         {/* ۳. مدیریت افرادی که به پرونده من دسترسی دارند */}
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
           <h3 style={{ color: 'var(--text-strong)', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
@@ -420,9 +743,14 @@ const Dashboard = () => {
             </div>
           )}
         </div>
+          </>
+        )}
 
         {/* آمار آزمایش‌ها */}
-        <div style={styles.statsContainer}>
+        {loading ? (
+          <StatsRowSkeleton />
+        ) : (
+          <div style={styles.statsContainer}>
           <div style={{ ...styles.statCard, borderBottomColor: '#3b82f6' }}>
             <span style={styles.statTitle}>کل آزمایش‌ها</span>
             <span style={{ ...styles.statValue, color: '#3b82f6' }}>{stats.total}</span>
@@ -440,6 +768,7 @@ const Dashboard = () => {
             <span style={{ ...styles.statValue, color: 'var(--text-muted)' }}>{stats.unknown}</span>
           </div>
         </div>
+        )}
 
         {/* فرم ارسال درخواست مراقبت */}
         <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid var(--border)' }}>
@@ -460,14 +789,42 @@ const Dashboard = () => {
 
         {/* بخش جستجو، فیلتر و دکمه پرینت */}
         <div style={styles.filterSection}>
-          <input 
-            type="text" 
-            placeholder="🔍 جستجوی نام بیمار در آزمایش‌ها..." 
+          <input
+            type="text"
+            placeholder="🔍 جستجوی نام بیمار در آزمایش‌ها..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
           />
-          <select 
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            style={styles.filterSelect}
+            aria-label="فیلتر نوع آزمایش"
+          >
+            <option value="all">همه آزمایش‌ها</option>
+            {testTypeOptions.map((typeName) => (
+              <option key={typeName} value={typeName}>{typeName}</option>
+            ))}
+          </select>
+          <div className="seg" role="group" aria-label="فیلتر مالکیت آزمایش">
+            {[
+              ['all', 'همه'],
+              ['mine', 'آزمایش‌های من'],
+              ['dependents', 'تحت مراقبت'],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={`seg-btn ${personFilter === value ? 'seg-active' : ''}`}
+                onClick={() => setPersonFilter(value)}
+                aria-pressed={personFilter === value}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             style={styles.filterSelect}
@@ -477,6 +834,9 @@ const Dashboard = () => {
             <option value="abnormal">فقط غیرنرمال</option>
             <option value="unknown">نامشخص</option>
           </select>
+          <button onClick={handleExportExcel} disabled={isExporting} className="dashboard-btn-excel" style={styles.excelBtn}>
+            {isExporting ? (<><span className="btn-spinner" />در حال آماده‌سازی...</>) : (<><SpreadsheetGlyph />خروجی اکسل</>)}
+          </button>
           <button onClick={() => handlePrintReport()} style={styles.printBtn}>
             🖨️ چاپ / دانلود PDF
           </button>
@@ -484,7 +844,7 @@ const Dashboard = () => {
 
         {/* جدول آزمایش‌ها */}
         {loading ? (
-          <div style={styles.loading}>در حال دریافت اطلاعات از سرور...</div>
+          <TableSkeleton />
         ) : (
           <div style={styles.tableWrapper}>
             <div style={styles.tableContainer}>
@@ -494,10 +854,10 @@ const Dashboard = () => {
                     <th style={styles.th}>ردیف</th>
                     <th style={styles.th}>نام بیمار</th>
                     <th style={styles.th}>نوع آزمایش</th>
-                    <th style={styles.th}>نتیجه</th>
+                    {renderSortableTh('نتیجه', 'result_value', styles.th)}
                     <th style={styles.th}>وضعیت پزشکی</th>
                     <th style={styles.th}>وضعیت تایید</th>
-                    <th style={styles.th}>تاریخ ثبت</th>
+                    {renderSortableTh('تاریخ ثبت', 'test_date', styles.th)}
                     <th style={styles.th}>ثبت‌کننده</th>
                     <th style={styles.th}>پیوست‌ها و نمودار</th>
                     <th style={styles.th}>عملیات</th>
@@ -574,13 +934,15 @@ const Dashboard = () => {
         )}
       </main>
 
+      <Footer />
+
       <AddTestModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onTestAdded={fetchTests} />
       <EditTestModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTestUpdated={fetchTests} testData={selectedTest} />
       <AttachmentModal isOpen={isAttachmentModalOpen} onClose={() => setIsAttachmentModalOpen(false)} testData={selectedTest} onUploadSuccess={() => { fetchTests(); setIsAttachmentModalOpen(false); }} />
       <PatientChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} testData={selectedTest} allTests={tests} />
 
       {/* کامپوننت مخصوص خروجی چاپ و PDF */}
-      <PrintableReport ref={printRef} tests={tests} profile={profile} />
+      <PrintableReport ref={printRef} tests={visibleTests} profile={profile} />
     </div>
   );
 };
@@ -591,18 +953,17 @@ const styles = {
   title: { margin: 0, fontSize: '1.25rem', color: 'var(--text-strong)' },
   headerButtons: { display: 'flex', gap: '0.75rem', alignItems: 'center' },
   addBtn: { padding: '0.5rem 1rem', backgroundColor: '#2563eb', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold' },
-  logoutButton: { padding: '0.5rem 1rem', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.9rem' },
   main: { padding: '2rem', maxWidth: '1200px', margin: '0 auto' },
   statsContainer: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' },
   statCard: { backgroundColor: 'var(--bg-surface)', padding: '1.5rem', borderRadius: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '4px solid var(--border)', cursor: 'default' },
   statTitle: { fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'bold', marginBottom: '0.5rem' },
   statValue: { fontSize: '2.5rem', fontWeight: '900', lineHeight: '1' },
-  filterSection: { display: 'flex', gap: '1rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', alignItems: 'center' },
-  searchInput: { flex: 2, padding: '0.6rem 1rem', border: '1px solid var(--border-input)', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-strong)' },
+  filterSection: { display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', alignItems: 'center' },
+  searchInput: { flex: 2, minWidth: '200px', padding: '0.6rem 1rem', border: '1px solid var(--border-input)', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', backgroundColor: 'var(--bg-input)', color: 'var(--text-strong)' },
   filterSelect: { flex: 1, padding: '0.6rem 1rem', border: '1px solid var(--border-input)', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', cursor: 'pointer', backgroundColor: 'var(--bg-input)', color: 'var(--text-strong)' },
   printBtn: { padding: '0.6rem 1.5rem', backgroundColor: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' },
+  excelBtn: { padding: '0.6rem 1.5rem', background: 'linear-gradient(135deg, #059669, #10b981)', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: '0 8px 18px -8px rgba(5, 150, 105, 0.6)' },
   errorMessage: { backgroundColor: 'var(--error-bg)', color: 'var(--error-text)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem' },
-  loading: { textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '1.1rem' },
   tableWrapper: { backgroundColor: 'var(--bg-surface)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
   tableContainer: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'right' },

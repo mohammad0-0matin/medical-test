@@ -1,5 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import API from '../api';
+import './AddTestModal.css';
+
+const UserGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="8" r="3.6" />
+    <path d="M5 20v-.8A5.2 5.2 0 0 1 10.2 14h3.6a5.2 5.2 0 0 1 5.2 5.2V20" />
+  </svg>
+);
+
+const FlaskGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M10 3h4" />
+    <path d="M10 3v6l-4.7 8.2A2.4 2.4 0 0 0 7.3 21h9.4a2.4 2.4 0 0 0 2-3.8L14 9V3" />
+    <path d="M8.5 15h7" />
+  </svg>
+);
+
+const CalendarGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="4" y="5.5" width="16" height="15" rx="2.5" />
+    <path d="M8 3v4M16 3v4M4 10.5h16" />
+  </svg>
+);
+
+const NumberGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.5 4L7.7 20M16.3 4L14.5 20M4.5 9h15M3.7 15h15" />
+  </svg>
+);
+
+const TextGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 6h14M5 11h14M5 16h9" />
+  </svg>
+);
+
+const MinGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 4v13" />
+    <path d="M6.5 12L12 17.5 17.5 12" />
+    <path d="M5 20h14" />
+  </svg>
+);
+
+const MaxGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 20V7" />
+    <path d="M6.5 12L12 6.5 17.5 12" />
+    <path d="M5 4h14" />
+  </svg>
+);
+
+const CloseGlyph = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+    strokeLinecap="round" aria-hidden="true">
+    <path d="M6 6l12 12M18 6L6 18" />
+  </svg>
+);
 
 const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   const [formData, setFormData] = useState({
@@ -16,8 +81,13 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // وقتی مودال باز می‌شود، اطلاعات آزمایشی که برای ویرایش انتخاب شده را در فرم قرار می‌دهیم
-  useEffect(() => {
+  // وقتی مودال برای هر آزمایشی باز می‌شود، اطلاعات آن را در فرم قرار می‌دهیم
+  // (الگوی رسمی «تنظیم وضعیت هنگام تغییر پراپس» به‌جای useEffect)
+  const [syncedTestId, setSyncedTestId] = useState('closed');
+  const openTestId = isOpen && testData ? `edit-${testData.id}` : 'closed';
+
+  if (openTestId !== syncedTestId) {
+    setSyncedTestId(openTestId);
     if (isOpen && testData) {
       setFormData({
         patient: testData.patient?.id || '',
@@ -31,7 +101,7 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
       });
       setError(null);
     }
-  }, [isOpen, testData]);
+  }
 
   if (!isOpen) return null;
 
@@ -55,7 +125,7 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
     };
 
     try {
-      // استفاده از متد PUT یا PATCH برای آپدیت رکورد
+      // استفاده از متد PUT برای آپدیت رکورد
       await API.put(`test-results/${testData.id}/`, payload);
       setLoading(false);
       onTestUpdated(); // آپدیت کردن جدول
@@ -73,127 +143,136 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>ویرایش نتیجه آزمایش</h2>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+    <div className="modal-overlay" dir="rtl">
+      <div className="modal-container">
+        <div className="modal-header">
+          <h2>ویرایش نتیجه آزمایش</h2>
+          <button onClick={onClose} className="close-btn" aria-label="بستن پنجره" title="بستن">
+            <CloseGlyph />
+          </button>
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
-
-        <form onSubmit={handleSubmit}>
+        <div className="modal-body">
           {/* برای سادگی ویرایش، نام بیمار و نوع آزمایش را فقط خواندنی (Read-Only) می‌کنیم */}
-          <div style={styles.row}>
-             <div style={styles.field}>
-              <label style={styles.label}>نام بیمار:</label>
-              <input type="text" value={`${testData.patient?.first_name} ${testData.patient?.last_name}`} disabled style={styles.disabledInput} />
-            </div>
-             <div style={styles.field}>
-              <label style={styles.label}>نوع آزمایش:</label>
-              <input type="text" value={testData.test_type_name} disabled style={styles.disabledInput} />
-            </div>
-          </div>
+          {error && (
+            <div className="modal-alert" role="alert">⚠️ {error}</div>
+          )}
 
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>نتیجه عددی:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="result_value"
-                value={formData.result_value}
-                onChange={handleChange}
-                style={styles.input}
-              />
+          <form onSubmit={handleSubmit}>
+            <div className="form-row">
+              <div>
+                <label className="form-label">نام بیمار:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><UserGlyph /></span>
+                  <input
+                    type="text"
+                    value={`${testData.patient?.first_name ?? ''} ${testData.patient?.last_name ?? ''}`}
+                    disabled
+                    className="form-input"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">نوع آزمایش:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><FlaskGlyph /></span>
+                  <input type="text" value={testData.test_type_name} disabled className="form-input" />
+                </div>
+              </div>
             </div>
-            <div style={styles.field}>
-              <label style={styles.label}>نتیجه متنی:</label>
-              <input
-                type="text"
-                name="result_text"
-                value={formData.result_text}
-                onChange={handleChange}
-                style={styles.input}
-              />
-            </div>
-          </div>
 
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>حداقل بازه نرمال:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="lab_min_range"
-                value={formData.lab_min_range}
-                onChange={handleChange}
-                style={styles.input}
-              />
+            <div className="form-row">
+              <div>
+                <label className="form-label">نتیجه عددی:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><NumberGlyph /></span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="result_value"
+                    value={formData.result_value}
+                    onChange={handleChange}
+                    className="form-input"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">نتیجه متنی:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><TextGlyph /></span>
+                  <input
+                    type="text"
+                    name="result_text"
+                    value={formData.result_text}
+                    onChange={handleChange}
+                    className="form-input"
+                  />
+                </div>
+              </div>
             </div>
-            <div style={styles.field}>
-              <label style={styles.label}>حداکثر بازه نرمال:</label>
-              <input
-                type="number"
-                step="0.01"
-                name="lab_max_range"
-                value={formData.lab_max_range}
-                onChange={handleChange}
-                style={styles.input}
-              />
+
+            <div className="form-row">
+              <div>
+                <label className="form-label">حداقل بازه نرمال:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><MinGlyph /></span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="lab_min_range"
+                    value={formData.lab_min_range}
+                    onChange={handleChange}
+                    className="form-input"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="form-label">حداکثر بازه نرمال:</label>
+                <div className="input-shell">
+                  <span className="input-icon"><MaxGlyph /></span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="lab_max_range"
+                    value={formData.lab_max_range}
+                    onChange={handleChange}
+                    className="form-input"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>تاریخ آزمایش:</label>
-            <input
-              type="date"
-              name="test_date"
-              value={formData.test_date}
-              onChange={handleChange}
-              style={styles.input}
-              required
-            />
-          </div>
+            <div className="form-group">
+              <label className="form-label">تاریخ آزمایش:</label>
+              <div className="input-shell">
+                <span className="input-icon"><CalendarGlyph /></span>
+                <input
+                  type="date"
+                  name="test_date"
+                  value={formData.test_date}
+                  onChange={handleChange}
+                  required
+                  className="form-input"
+                />
+              </div>
+            </div>
 
-          <div style={styles.actions}>
-            <button type="submit" style={styles.submitBtn} disabled={loading}>
-              {loading ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
-            </button>
-            <button type="button" onClick={onClose} style={styles.cancelBtn}>
-              انصراف
-            </button>
-          </div>
-        </form>
+            <div className="modal-footer">
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? (<><span className="btn-spinner" />در حال ذخیره...</>) : 'ذخیره تغییرات'}
+              </button>
+              <button type="button" onClick={onClose} className="btn-cancel">
+                انصراف
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    display: 'flex', justifyContent: 'center', alignItems: 'center',
-    zIndex: 1000, direction: 'rtl', fontFamily: 'Tahoma, Arial, sans-serif',
-  },
-  modal: {
-    backgroundColor: '#fff', padding: '2rem', borderRadius: '12px',
-    width: '100%', maxWidth: '500px', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-  },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' },
-  title: { margin: 0, fontSize: '1.2rem', color: '#1f2937' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#6b7280' },
-  field: { marginBottom: '1rem', flex: 1 },
-  row: { display: 'flex', gap: '1rem' },
-  label: { display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', color: '#374151' },
-  input: { width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #d1d5db', fontSize: '0.9rem', boxSizing: 'border-box' },
-  disabledInput: { width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid #d1d5db', backgroundColor: '#f3f4f6', color: '#9ca3af', boxSizing: 'border-box' },
-  actions: { display: 'flex', gap: '0.75rem', marginTop: '1.5rem' },
-  submitBtn: { flex: 1, padding: '0.75rem', backgroundColor: '#eab308', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
-  cancelBtn: { padding: '0.75rem 1.5rem', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer' },
-  error: { backgroundColor: '#fee2e2', color: '#dc2626', padding: '0.75rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.85rem' },
 };
 
 export default EditTestModal;

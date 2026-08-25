@@ -1,0 +1,105 @@
+/* ============================================
+   PatientChartModal — header, legend, empty state
+   ============================================ */
+
+.pc-modal {
+    max-width: 720px;
+}
+
+.pc-subtitle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 0 0 18px;
+    color: var(--text-muted);
+    font-size: 0.87rem;
+}
+
+.pc-subtitle strong {
+    color: var(--text-strong);
+}
+
+.pc-badge {
+    padding: 3px 11px;
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    border-radius: 9999px;
+    background: rgba(37, 99, 235, 0.09);
+    color: #2563eb;
+    font-size: 0.77rem;
+    font-weight: 800;
+}
+
+[data-theme='dark'] .pc-badge {
+    border-color: rgba(96, 165, 250, 0.35);
+    background: rgba(37, 99, 235, 0.16);
+    color: #93c5fd;
+}
+
+.pc-chart-container {
+    width: 100%;
+    height: 350px;
+    margin-top: 6px;
+}
+
+.pc-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.pc-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border: 1px solid var(--border-input);
+    border-radius: 9999px;
+    background-color: var(--bg-subtle);
+    color: var(--text-body);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.pc-swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: rgba(16, 185, 129, 0.55);
+    border: 1px solid #10b981;
+}
+
+.pc-line-swatch {
+    display: inline-block;
+    width: 14px;
+    height: 3px;
+    border-radius: 9999px;
+    background: #2563eb;
+}
+
+.pc-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 6px;
+    padding: 44px 20px;
+    border: 1px dashed var(--border-input);
+    border-radius: 13px;
+    background-color: var(--bg-subtle);
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.9;
+    text-align: center;
+}
+
+.pc-empty svg {
+    width: 40px;
+    height: 40px;
+    color: var(--text-faint);
+}
