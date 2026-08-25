@@ -12,6 +12,7 @@ import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
 import UserMenu from '../components/UserMenu';
 import NotificationBell from '../components/NotificationBell';
+import MedicalTimeline from '../components/MedicalTimeline';
 import Footer from '../components/Footer';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
@@ -241,6 +242,21 @@ const Dashboard = () => {
 
   // استیت خروجی اکسل
   const [isExporting, setIsExporting] = useState(false);
+
+  // حالت نمایش نتایج: جدول یا تایم‌لاین (ذخیره محلی)
+  const VIEW_MODE_KEY = 'salamatyar_view_mode';
+  const [viewMode, setViewMode] = useState(() =>
+    localStorage.getItem(VIEW_MODE_KEY) === 'timeline' ? 'timeline' : 'table'
+  );
+
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, mode);
+    } catch {
+      /* storage unavailable */
+    }
+  };
 
   // تنظیمات پرینت و خروجی PDF
   const printRef = useRef(null);
@@ -881,9 +897,37 @@ const Dashboard = () => {
           </button>
         </div>
 
+        {/* سوییچ حالت نمایش: جدول / تایم‌لاین */}
+        <div className="view-toggle-row" role="group" aria-label="حالت نمایش نتایج">
+          <span className="vt-label">نمایش نتایج:</span>
+          <div className="seg">
+            {[
+              ['table', '📋 نمای جدول'],
+              ['timeline', '🌿 نمای تایم‌لاین'],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={`seg-btn ${viewMode === mode ? 'seg-active' : ''}`}
+                onClick={() => changeViewMode(mode)}
+                aria-pressed={viewMode === mode}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* جدول آزمایش‌ها */}
         {loading ? (
           <TableSkeleton />
+        ) : viewMode === 'timeline' ? (
+          <MedicalTimeline
+            tests={visibleTests}
+            onChart={handleChartClick}
+            onAttachments={handleAttachmentClick}
+            onEdit={handleEditClick}
+          />
         ) : (
           <div style={styles.tableWrapper}>
             <div style={styles.tableContainer}>

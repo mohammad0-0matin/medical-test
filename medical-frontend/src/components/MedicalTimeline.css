@@ -1,0 +1,421 @@
+/* ============================================
+   MedicalTimeline — glass spine, category nodes,
+   alternating branches (desktop) / right rail (mobile)
+   ============================================ */
+
+.mt {
+  --mt-spine: linear-gradient(
+    180deg,
+    rgba(37, 99, 235, 0.55),
+    rgba(16, 185, 129, 0.45)
+  );
+  animation: mt-fade-in 0.28s ease-out;
+}
+
+@keyframes mt-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---------- Group label ---------- */
+
+.mt-group {
+  margin-bottom: 26px;
+}
+
+.mt-group-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 16px;
+  padding: 7px 18px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background-color: var(--bg-surface);
+  color: var(--text-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: 0 6px 14px -8px rgba(2, 32, 71, 0.35);
+}
+
+.mt-group-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+}
+
+/* ---------- Spine & items ---------- */
+
+.mt-items {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 0 10px;
+}
+
+.mt-items::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  right: 50%;
+  width: 2px;
+  transform: translateX(50%);
+  background: var(--mt-spine);
+  opacity: 0.55;
+}
+
+.mt-item {
+  position: relative;
+  width: calc(50% - 30px);
+}
+
+.mt-item:nth-child(even) {
+  margin-left: auto;
+}
+
+/* ---------- Node markers ---------- */
+
+.mt-node {
+  --node-color: #8b5cf6;
+
+  position: absolute;
+  top: 22px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--node-color);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--node-color) 25%, transparent),
+    0 0 12px 1px var(--node-color);
+  animation: mt-node-pulse 2.4s ease-out infinite;
+}
+
+.tl-cat-hematology { --node-color: #ef4444; }
+.tl-cat-biochemistry { --node-color: #10b981; }
+.tl-cat-hormone { --node-color: #0ea5e9; }
+.tl-cat-general { --node-color: #8b5cf6; }
+
+@keyframes mt-node-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px color-mix(in srgb, var(--node-color) 35%, transparent),
+      0 0 10px 1px var(--node-color);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px color-mix(in srgb, var(--node-color) 12%, transparent),
+      0 0 16px 2px var(--node-color);
+  }
+}
+
+@media (min-width: 769px) {
+  .mt-item:nth-child(odd)::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    left: -30px;
+    width: 26px;
+    height: 2px;
+    background: var(--border);
+  }
+
+  .mt-item:nth-child(even)::before {
+    content: '';
+    position: absolute;
+    top: 24px;
+    right: -30px;
+    width: 26px;
+    height: 2px;
+    background: var(--border);
+  }
+
+  .mt-item:nth-child(odd) .mt-node {
+    left: -37px;
+  }
+
+  .mt-item:nth-child(even) .mt-node {
+    right: -37px;
+  }
+}
+
+/* ---------- Card ---------- */
+
+.mt-card {
+  padding: 15px 17px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 12px 26px -18px rgba(2, 32, 71, 0.45);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+[data-theme='dark'] .mt-card {
+  background: rgba(16, 26, 46, 0.85);
+  box-shadow: 0 12px 26px -18px rgba(0, 0, 0, 0.6);
+}
+
+.mt-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-input);
+  box-shadow: 0 20px 36px -20px rgba(2, 32, 71, 0.5);
+}
+
+.mt-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.mt-card-head strong {
+  color: var(--text-strong);
+  font-size: 0.97rem;
+}
+
+/* ---------- Category chip ---------- */
+
+.tl-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.tl-cat-chip svg {
+  width: 13px;
+  height: 13px;
+}
+
+.tl-chip-hematology {
+  background: rgba(239, 68, 68, 0.11);
+  border: 1px solid rgba(239, 68, 68, 0.38);
+  color: #dc2626;
+}
+
+.tl-chip-biochemistry {
+  background: rgba(16, 185, 129, 0.11);
+  border: 1px solid rgba(16, 185, 129, 0.38);
+  color: #059669;
+}
+
+.tl-chip-hormone {
+  background: rgba(14, 165, 233, 0.11);
+  border: 1px solid rgba(14, 165, 233, 0.38);
+  color: #0284c7;
+}
+
+.tl-chip-general {
+  background: rgba(139, 92, 246, 0.11);
+  border: 1px solid rgba(139, 92, 246, 0.38);
+  color: #7c3aed;
+}
+
+[data-theme='dark'] .tl-chip-hematology { color: #f87171; }
+[data-theme='dark'] .tl-chip-biochemistry { color: #34d399; }
+[data-theme='dark'] .tl-chip-hormone { color: #38bdf8; }
+[data-theme='dark'] .tl-chip-general { color: #a78bfa; }
+
+/* ---------- Meta row ---------- */
+
+.mt-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 11px;
+}
+
+.mt-date-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.mt-relative {
+  color: var(--text-faint);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.tl-status-chip {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.tl-st-approved {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+}
+
+.tl-st-pending {
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.tl-st-rejected {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+.tl-med-normal {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+}
+
+.tl-med-abnormal {
+  background-color: var(--danger-bg);
+  color: var(--danger-text);
+}
+
+/* ---------- Result row ---------- */
+
+.mt-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+}
+
+.mt-value {
+  color: var(--text-strong);
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.mt-value small {
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.mt-range-pill {
+  padding: 3px 11px;
+  border: 1px dashed var(--border-input);
+  border-radius: 9999px;
+  color: var(--text-muted);
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+
+/* ---------- Quick actions ---------- */
+
+.mt-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.mt-actions button {
+  padding: 6px 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background-color: var(--bg-input);
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.77rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+
+.mt-actions button:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  transform: translateY(-1px);
+}
+
+.mt-actions button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+/* ---------- Empty state ---------- */
+
+.mt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 48px 20px;
+  border: 1px dashed var(--border-input);
+  border-radius: 14px;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-align: center;
+  animation: mt-fade-in 0.28s ease-out;
+}
+
+.mt-empty svg {
+  width: 34px;
+  height: 34px;
+  opacity: 0.65;
+}
+
+.mt-empty span {
+  color: var(--text-faint);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* ---------- Mobile: single right rail (≤768px) ---------- */
+
+@media (max-width: 768px) {
+  .mt-items::before {
+    right: 17px;
+    transform: none;
+  }
+
+  .mt-item {
+    width: 100%;
+  }
+
+  .mt-item:nth-child(even) {
+    margin-left: 0;
+  }
+
+  .mt-node {
+    top: 20px !important;
+    right: 10px !important;
+    left: auto !important;
+  }
+
+  /* فضای لازم برای ستون فقرات سمت راست */
+  .mt-item:nth-child(odd)::before,
+  .mt-item:nth-child(even)::before {
+    display: none;
+  }
+
+  .mt-card {
+    padding-right: 38px;
+  }
+}
