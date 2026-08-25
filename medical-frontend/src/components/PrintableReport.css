@@ -1,0 +1,18 @@
+.print-report {
+  display: none;
+}
+
+@media print {
+  .print-report {
+    display: block;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+}

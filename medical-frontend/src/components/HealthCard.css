@@ -1,0 +1,220 @@
+.hc-scene {
+  perspective: 1200px;
+  margin-bottom: 28px;
+}
+
+.hc-card {
+  --hc-glass: rgba(255, 255, 255, 0.62);
+  --hc-border: rgba(255, 255, 255, 0.85);
+  --hc-text: #0f172a;
+  --hc-sub: #475569;
+  --hc-shadow: rgba(2, 32, 71, 0.3);
+
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 196px;
+  padding: 22px 26px;
+  border-radius: 20px;
+  border: 1px solid var(--hc-border);
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(16, 185, 129, 0.12)),
+    var(--hc-glass);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 24px 44px -20px var(--hc-shadow);
+  color: var(--hc-text);
+  transform-style: preserve-3d;
+  transition: transform 0.14s ease-out, box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+.hc-card:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 34px 60px -24px var(--hc-shadow);
+}
+
+[data-theme='dark'] .hc-card {
+  --hc-glass: rgba(13, 22, 40, 0.72);
+  --hc-border: rgba(96, 165, 250, 0.28);
+  --hc-text: #e6edf3;
+  --hc-sub: #93a5bd;
+  --hc-shadow: rgba(0, 0, 0, 0.55);
+}
+
+.hc-holo {
+  content: '';
+  position: absolute;
+  inset: -45%;
+  background: conic-gradient(
+    from 180deg at 50% 50%,
+    transparent 0deg,
+    rgba(59, 130, 246, 0.16) 70deg,
+    rgba(16, 185, 129, 0.15) 150deg,
+    transparent 230deg,
+    rgba(139, 92, 246, 0.13) 310deg,
+    transparent 360deg
+  );
+  animation: hc-spin 16s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes hc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hc-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    440px circle at var(--shine-x, 50%) var(--shine-y, 50%),
+    rgba(255, 255, 255, 0.35),
+    transparent 55%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.hc-card:hover .hc-shine {
+  opacity: 1;
+}
+
+[data-theme='dark'] .hc-shine {
+  background: radial-gradient(
+    440px circle at var(--shine-x, 50%) var(--shine-y, 50%),
+    rgba(147, 197, 253, 0.18),
+    transparent 55%
+  );
+}
+
+.hc-top,
+.hc-body,
+.hc-brand,
+.hc-details,
+.hc-meta {
+  position: relative;
+  z-index: 1;
+}
+
+.hc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hc-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.hc-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+  box-shadow: 0 6px 14px -6px rgba(37, 99, 235, 0.6);
+}
+
+.hc-logo svg {
+  width: 18px;
+  height: 18px;
+}
+
+.hc-pass-type {
+  padding: 4px 12px;
+  border: 1px solid var(--hc-border);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+[data-theme='dark'] .hc-pass-type {
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.hc-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hc-name {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.6vw, 1.7rem);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.hc-role {
+  margin: 2px 0 14px;
+  color: var(--hc-sub);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hc-meta dt {
+  color: var(--hc-sub);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.hc-meta dd {
+  margin: 4px 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hc-qr {
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  padding: 9px;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 10px 20px -10px rgba(2, 32, 71, 0.45);
+}
+
+.hc-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 640px) {
+  .hc-body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .hc-qr {
+    order: -1;
+    width: 68px;
+    height: 68px;
+  }
+}

@@ -106,6 +106,15 @@ class PatientViewSet(ModelViewSet):
         # چاپ کاملاً امنِ خطاها (فقط زمانی به اینجا می‌رسد که متد POST باشد و فرم مشکل داشته باشد)
         print("❌ ارورهای اعتبارسنجی فرم:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        try:
+            # پیدا کردن پروفایل کاربری که الان لاگین کرده است
+            patient = Patient.objects.get(user=request.user)
+            serializer = self.get_serializer(patient)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Patient.DoesNotExist:
+            return Response({"error": "پروفایل یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
     
 class TestResultViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
