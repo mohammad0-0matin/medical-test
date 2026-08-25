@@ -5,6 +5,7 @@ import HomePage from './Pages/HomePage';
 import Login from './Pages/Login';
 import Register from './Pages/Register';
 import Dashboard from './Pages/Dashboard';
+import EmergencyPassView from './Pages/EmergencyPassView';
 import ProtectedRoute from './components/ProtectedRoute';
 
 import './theme.css';
@@ -25,8 +26,9 @@ function App() {
           />
 
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<Login />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/pass/:token" element={<EmergencyPassView />} />
+          <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route
               path="/dashboard"

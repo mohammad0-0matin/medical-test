@@ -7,6 +7,7 @@ import AttachmentModal from '../components/AttachmentModal';
 import PatientChartModal from '../components/PatientChartModal';
 import { toast } from 'react-toastify';
 import CompleteProfileModal from '../components/CompleteProfileModal';
+import TemporaryAccessModal from '../components/TemporaryAccessModal';
 import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
 import UserMenu from '../components/UserMenu';
@@ -209,6 +210,7 @@ const Dashboard = () => {
   const [isAttachmentModalOpen, setIsAttachmentModalOpen] = useState(false);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isTempAccessOpen, setIsTempAccessOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -591,6 +593,24 @@ const Dashboard = () => {
           <button onClick={() => setIsAddModalOpen(true)} style={styles.addBtn}>
             + ثبت آزمایش جدید
           </button>
+
+          <button
+            onClick={() => setIsTempAccessOpen(true)}
+            style={{
+              ...styles.addBtn,
+              background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)',
+              boxShadow: '0 8px 18px -8px rgba(124, 58, 237, 0.6)',
+            }}
+          >
+            ⚡ دسترسی اضطراری پزشک
+          </button>
+
+          <TemporaryAccessModal
+            isOpen={isTempAccessOpen}
+            onClose={() => setIsTempAccessOpen(false)}
+            profile={profile}
+            tests={tests}
+          />
 
           <CompleteProfileModal
               isOpen={isProfileModalOpen}
