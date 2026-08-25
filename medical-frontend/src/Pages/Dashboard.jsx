@@ -13,6 +13,7 @@ import PrintableReport from '../components/PrintableReport';
 import UserMenu from '../components/UserMenu';
 import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
+import TestComparisonModal from '../components/TestComparisonModal';
 import Footer from '../components/Footer';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
@@ -213,6 +214,7 @@ const Dashboard = () => {
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isTempAccessOpen, setIsTempAccessOpen] = useState(false);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -892,6 +894,9 @@ const Dashboard = () => {
           <button onClick={handleExportExcel} disabled={isExporting} className="dashboard-btn-excel" style={styles.excelBtn}>
             {isExporting ? (<><span className="btn-spinner" />در حال آماده‌سازی...</>) : (<><SpreadsheetGlyph />خروجی اکسل</>)}
           </button>
+          <button onClick={() => setIsCompareOpen(true)} className="dashboard-btn-compare" style={styles.compareBtn}>
+            ⚖️ مقایسه آزمایش‌ها
+          </button>
           <button onClick={() => handlePrintReport()} style={styles.printBtn}>
             🖨️ چاپ / دانلود PDF
           </button>
@@ -1023,6 +1028,7 @@ const Dashboard = () => {
       <EditTestModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onTestUpdated={fetchTests} testData={selectedTest} />
       <AttachmentModal isOpen={isAttachmentModalOpen} onClose={() => setIsAttachmentModalOpen(false)} testData={selectedTest} onUploadSuccess={() => { fetchTests(); setIsAttachmentModalOpen(false); }} />
       <PatientChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} testData={selectedTest} allTests={tests} />
+      <TestComparisonModal isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} tests={tests} />
 
       {/* کامپوننت مخصوص خروجی چاپ و PDF */}
       <PrintableReport ref={printRef} tests={visibleTests} profile={profile} />
@@ -1046,6 +1052,7 @@ const styles = {
   filterSelect: { flex: 1, padding: '0.6rem 1rem', border: '1px solid var(--border-input)', borderRadius: '6px', fontSize: '0.95rem', outline: 'none', cursor: 'pointer', backgroundColor: 'var(--bg-input)', color: 'var(--text-strong)' },
   printBtn: { padding: '0.6rem 1.5rem', backgroundColor: '#0f172a', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' },
   excelBtn: { padding: '0.6rem 1.5rem', background: 'linear-gradient(135deg, #059669, #10b981)', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '7px', boxShadow: '0 8px 18px -8px rgba(5, 150, 105, 0.6)' },
+  compareBtn: { padding: '0.6rem 1.5rem', background: 'linear-gradient(135deg, #4f46e5, #6366f1)', color: '#ffffff', border: 'none', borderRadius: '6px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', whiteSpace: 'nowrap' },
   errorMessage: { backgroundColor: 'var(--error-bg)', color: 'var(--error-text)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem' },
   tableWrapper: { backgroundColor: 'var(--bg-surface)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
   tableContainer: { overflowX: 'auto' },

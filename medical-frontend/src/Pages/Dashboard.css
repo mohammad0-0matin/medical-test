@@ -24,6 +24,20 @@
   transform: none;
 }
 
+.dashboard-btn-compare {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 8px 18px -8px rgba(79, 70, 229, 0.6);
+}
+
+.dashboard-btn-compare:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -8px rgba(79, 70, 229, 0.7);
+}
+
+.dashboard-btn-compare:active {
+  transform: translateY(0);
+}
+
 /* ---------- View switcher ---------- */
 
 .view-toggle-row {
