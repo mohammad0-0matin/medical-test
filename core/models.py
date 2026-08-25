@@ -6,7 +6,7 @@ User = get_user_model()
 
 # 1. Patients Table
 class Patient(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_patients')
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     birth_date = models.DateField(null=True, blank=True)
@@ -23,22 +23,31 @@ class UserPatientAccess(models.Model):
         ('read_only', 'Read Only'),
         ('read_write', 'Read Write'),
     ]
+    
+    # 👇 وضعیت برای صندوق پیام
+    STATUS_CHOICES = (
+        ('pending', 'در انتظار تایید'),
+        ('approved', 'تایید شده'),
+        ('rejected', 'رد شده'),
+    )
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='patient_accesses')
     patient = models.ForeignKey(Patient, on_delete=models.RESTRICT, related_name='user_accesses')
-    access_level = models.CharField(max_length=20, choices=ACCESS_LEVEL_CHOICES)
+    access_level = models.CharField(max_length=20, choices=ACCESS_LEVEL_CHOICES, default='read_only')
+    
+    # 👇 اضافه شدن فیلد وضعیت
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    
     granted_at = models.DateTimeField(auto_now_add=True)
     granted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='granted_accesses')
 
     class Meta:
-        # ساخت یکتایی دوتایی کاربر و بیمار با متد جدید جنگو
         constraints = [
             models.UniqueConstraint(fields=['user', 'patient'], name='unique_user_patient_access')
         ]
 
     def __str__(self):
-        return f"{self.user.username} -> {self.patient} ({self.access_level})"
-
+        return f"{self.user.username} -> {self.patient} ({self.get_status_display()})"
 
 # 3. TestCategories Table
 class TestCategory(models.Model):
@@ -116,21 +125,3 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.user} - {self.action} at {self.created_at}"
-    class AccessRequest(models.Model):
-        STATUS_CHOICES = (
-            ('pending', 'در انتظار تایید'),
-            ('approved', 'تایید شده'),
-            ('rejected', 'رد شده'),
-        )
-
-        # کسی که درخواست داده (مثلاً متصدی آزمایشگاه یا یک پزشک)
-        requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_requests')
-        
-        # بیماری که درخواست برایش ارسال شده
-        target_patient = models.ForeignKey('Patient', on_delete=models.CASCADE, related_name='received_requests')
-        
-        status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-        created_at = models.DateTimeField(auto_now_add=True)
-
-        def __str__(self):
-            return f"درخواست {self.requester} برای دیدن پرونده {self.target_patient} - {self.status}"

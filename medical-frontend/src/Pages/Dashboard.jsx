@@ -28,7 +28,81 @@ const Dashboard = () => {
   const itemsPerPage = 5;
   const [childNationalCode, setChildNationalCode] = useState('');
   const [pendingTests, setPendingTests] = useState([]);
+  
+  // استیت لیست افراد تحت تکفل من
+  const [myDependents, setMyDependents] = useState([]);
 
+  // تابع دریافت لیست
+  const fetchMyDependents = async () => {
+    try {
+      const response = await API.get('access/dependents/');
+      setMyDependents(response.data);
+    } catch (error) {
+      console.error("خطا در دریافت لیست افراد تحت تکفل:", error);
+    }
+  };
+  // 👈 استیت لیست دسترسی‌های تایید شده
+  const [grantedAccesses, setGrantedAccesses] = useState([]);
+
+  // 👈 دریافت لیست کسانی که به پرونده من دسترسی دارند
+  const fetchGrantedAccesses = async () => {
+    try {
+      const response = await API.get('access/granted/');
+      setGrantedAccesses(response.data);
+    } catch (error) {
+      console.error("خطا در دریافت لیست دسترسی‌ها:", error);
+    }
+  };
+
+  // 👈 لغو دسترسی یک شخص
+  const handleRevokeAccess = async (id) => {
+    if (!window.confirm("آیا از لغو دسترسی این شخص مطمئن هستید؟ او دیگر نمی‌تواند آزمایش‌های شما را ببیند.")) return;
+    try {
+      const res = await API.delete(`access/${id}/revoke/`);
+      toast.success(res.data?.message || 'دسترسی با موفقیت لغو شد.');
+      fetchGrantedAccesses(); // آپدیت کردن لیست
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'خطا در لغو دسترسی.');
+    }
+  };
+
+  // 👈 استیت جدید برای صندوق پیامِ درخواست‌های دسترسی
+  const [accessRequests, setAccessRequests] = useState([]);
+
+  // 👈 تابع جدید برای دریافت لیست درخواست‌ها از بک‌اند
+  const fetchAccessRequests = async () => {
+    try {
+      const response = await API.get('access/inbox/');
+      setAccessRequests(response.data);
+    } catch (error) {
+      console.error("خطا در دریافت درخواست‌های دسترسی:", error);
+    }
+  };
+
+  // 👈 تابع جدید برای تایید یا رد درخواست دسترسی
+  const handleRespondAccess = async (id, actionType) => {
+    try {
+      const res = await API.post(`access/${id}/respond/`, { action: actionType });
+      toast.success(res.data?.message || 'عملیات با موفقیت انجام شد.');
+      fetchAccessRequests(); // آپدیت کردن صندوق پیام
+      fetchTests(); // آپدیت کردن جدول آزمایش‌ها (چون ممکن است آزمایش‌های جدیدی اضافه شده باشد)
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'خطا در ثبت پاسخ.');
+    }
+  };
+
+  // 👈 تغییر تابع قبلی: حالا به جای ثبت مستقیم، درخواست می‌فرستد
+  const handleAddDependent = async (e) => {
+    e.preventDefault();
+    if (!childNationalCode) return;
+    try {
+      const res = await API.post('access/request/', { national_code: childNationalCode });
+      toast.success(res.data?.message || 'درخواست با موفقیت ارسال شد.');
+      setChildNationalCode('');
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'خطا در ارسال درخواست');
+    }
+  };
   const fetchPendingTests = async () => {
     const token = localStorage.getItem('access_token');
     if (!token) return;
@@ -70,18 +144,18 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddDependent = async (e) => {
-    e.preventDefault();
-    if (!childNationalCode) return;
-    try {
-      const res = await API.post('patients/add-dependent/', { national_code: childNationalCode });
-      toast.success(res.data?.message || 'فرزند با موفقیت اضافه شد.');
-      setChildNationalCode('');
-      fetchTests(); 
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'خطا در افزودن فرد تحت تکفل');
-    }
-  };
+  // const handleAddDependent = async (e) => {
+  //   e.preventDefault();
+  //   if (!childNationalCode) return;
+  //   try {
+  //     const res = await API.post('patients/add-dependent/', { national_code: childNationalCode });
+  //     toast.success(res.data?.message || 'فرزند با موفقیت اضافه شد.');
+  //     setChildNationalCode('');
+  //     fetchTests(); 
+  //   } catch (err) {
+  //     toast.error(err.response?.data?.error || 'خطا در افزودن فرد تحت تکفل');
+  //   }
+  // };
 
   const fetchTests = async () => {
     setLoading(true);
@@ -99,6 +173,9 @@ const Dashboard = () => {
   useEffect(() => {
     fetchTests();
     fetchPendingTests();
+    fetchAccessRequests();
+    fetchGrantedAccesses();
+    fetchMyDependents();
   }, []);
 
   useEffect(() => {
@@ -262,7 +339,81 @@ const Dashboard = () => {
             </div>
           </div>
         )}
+        {/* 🤝 بخش جدید: صندوق پیامِ درخواست‌های دسترسی */}
+        {accessRequests.length > 0 && (
+          <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h3 style={{ color: '#1e3a8a', marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
+              🤝 صندوق درخواست‌ها: {accessRequests.length} نفر درخواست دسترسی به پرونده شما را دارند!
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {accessRequests.map(req => (
+                <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '16px', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                  <div style={{ fontSize: '1rem', color: '#374151', lineHeight: '1.6' }}>
+                    <strong>{req.requester_name}</strong> درخواست دسترسی به نتایج آزمایش‌های شما را دارد. <br/>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => handleRespondAccess(req.id, 'approve')} style={{ backgroundColor: '#3b82f6', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      ✅ تایید دسترسی
+                    </button>
+                    <button onClick={() => handleRespondAccess(req.id, 'reject')} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                      ❌ رد درخواست
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
+        {/* 🛡️ بخش مدیریت دسترسی‌های داده شده (همیشه نمایش داده می‌شود) */}
+        <div style={{ backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+          <h3 style={{ color: '#374151', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
+            🛡️ افرادی که به پرونده شما دسترسی دارند:
+          </h3>
+          
+          {grantedAccesses.length === 0 ? (
+            <div style={{ color: '#6b7280', fontSize: '0.95rem', backgroundColor: 'white', padding: '16px', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+              در حال حاضر هیچ شخص دیگری به نتایج آزمایش‌های شما دسترسی ندارد.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {grantedAccesses.map(access => (
+                <div key={access.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                  <div style={{ fontSize: '1rem', color: '#4b5563' }}>
+                    دسترسی فعال برای: <strong>{access.grantee_name}</strong>
+                  </div>
+                  <button onClick={() => handleRevokeAccess(access.id)} style={{ backgroundColor: '#ef4444', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    لغو دسترسی
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* 📋 بخش جدید: افرادی که تحت مراقبت من هستند */}
+        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
+          <h3 style={{ color: '#166534', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
+            📋 افرادی که تحت مراقبت من هستند (دسترسی دارم):
+          </h3>
+          
+          {myDependents.length === 0 ? (
+            <div style={{ color: '#15803d', fontSize: '0.95rem', backgroundColor: 'white', padding: '16px', borderRadius: '8px', border: '1px dashed #86efac' }}>
+              شما در حال حاضر به پرونده شخص دیگری دسترسی ندارید.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {myDependents.map(person => (
+                <div key={person.access_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontSize: '1rem', color: '#166534' }}>
+                    نام بیمار: <strong>{person.patient_name}</strong> <br/>
+                    <span style={{ fontSize: '0.85rem', color: '#15803d' }}>کد ملی: {person.national_code}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div style={styles.statsContainer}>
           <div style={{ ...styles.statCard, borderBottomColor: '#3b82f6' }}>
             <span style={styles.statTitle}>کل آزمایش‌ها</span>
@@ -283,11 +434,11 @@ const Dashboard = () => {
         </div>
 
         <div style={{ backgroundColor: '#fff', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid #e5e7eb' }}>
-          <h3 style={{ margin: '0 0 12px 0', color: '#4b5563', fontSize: '15px' }}>افزودن فرد تحت تکفل (فرزند)</h3>
+          <h3 style={{ margin: '0 0 12px 0', color: '#4b5563', fontSize: '15px' }}>افزودن عضو خانواده یا فرد تحت مراقبت</h3>
           <form onSubmit={handleAddDependent} style={{ display: 'flex', gap: '12px' }}>
             <input
               type="text"
-              placeholder="کد ملی فرزند را وارد کنید..."
+              placeholder="کد ملی فرد تحت مراقبت را وارد کنید..."
               value={childNationalCode}
               onChange={(e) => setChildNationalCode(e.target.value)}
               style={styles.searchInput}
@@ -301,7 +452,7 @@ const Dashboard = () => {
         <div style={styles.filterSection}>
           <input 
             type="text" 
-            placeholder="🔍 جستجوی نام بیمار..." 
+            placeholder="🔍 جستجوی نام بیمار در آزمایش ها  ..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}

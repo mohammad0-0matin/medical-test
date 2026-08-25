@@ -106,7 +106,8 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
         ]
 
     def validate_test_date(self, value):
-        if value > timezone.now().date():
+        today = timezone.localdate()
+        if value > today:
             raise serializers.ValidationError("تاریخ آزمایش نمی‌تواند در آینده باشد.")
         return value
 
