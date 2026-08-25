@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import { MEDICAL_ROLES, ROLE_LABELS, getStoredIdentity, storeIdentity } from '../utils/medicalIdentity';
 import './AddTestModal.css';
 
 const UserGlyph = () => (
@@ -31,7 +32,9 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
-        national_code: ''
+        national_code: '',
+        medical_role: MEDICAL_ROLES.STANDARD,
+        medical_id: ''
     });
 
     const [loading, setLoading] = useState(false);
@@ -50,11 +53,22 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
 
                 if (res.ok) {
                     const data = await res.json();
+                    // اولویت: مقدار سرور → مقدار ذخیره شده محلی → پیش‌فرض استاندارد
+                    const identity = getStoredIdentity();
                     setFormData({
                         first_name: data.first_name || '',
                         last_name: data.last_name || '',
-                        national_code: data.national_code || ''
+                        national_code: data.national_code || '',
+                        medical_role: data.medical_role || identity.role,
+                        medical_id: data.medical_id || identity.id
                     });
+                } else if (res.status === 404 || res.status === 401) {
+                    const identity = getStoredIdentity();
+                    setFormData((prev) => ({
+                        ...prev,
+                        medical_role: identity.role,
+                        medical_id: identity.id
+                    }));
                 }
             } catch (error) {
                 console.error('خطا در دریافت پروفایل:', error);
@@ -72,6 +86,12 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
         e.preventDefault();
         setLoading(true);
 
+        const payload = {
+            ...formData,
+            medical_role: formData.medical_role || MEDICAL_ROLES.STANDARD,
+            medical_id: formData.medical_role === MEDICAL_ROLES.STANDARD ? '' : formData.medical_id
+        };
+
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('http://127.0.0.1:8000/api/patients/me/', {
@@ -80,17 +100,19 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
+                // ذخیره محلی هویت پزشکی تا نشان‌ها بدون پشتیبانی بک‌اند هم کار کنند
+                storeIdentity({ role: payload.medical_role, id: payload.medical_id });
                 toast.success('🩺 پرونده سلامت شما با موفقیت تکمیل شد!'); // 👈 جادوی توست
                 if (onProfileUpdated) onProfileUpdated();
                 onClose(); // 👈 فرم بلافاصله بسته می‌شود چون توست روی صفحه اصلی شناور می‌ماند
             } else {
                 toast.error('❌ خطا در ثبت اطلاعات. لطفاً کدملی را بررسی کنید.');
             }
-        } catch (error) {
+        } catch {
             toast.error('❌ خطای ارتباط با سرور');
         } finally {
             setLoading(false);
@@ -141,6 +163,61 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                                 <input type="text" name="national_code" value={formData.national_code} onChange={handleChange} required placeholder="مثلاً 1234567890" className="form-input" dir="ltr" autoComplete="off" />
                             </div>
                         </div>
+
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="medical-role">نقش کاربری و هویت پزشکی:</label>
+                            <div className="input-shell">
+                                <select
+                                    id="medical-role"
+                                    name="medical_role"
+                                    value={formData.medical_role}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                >
+                                    {Object.values(MEDICAL_ROLES).map((value) => (
+                                        <option key={value} value={value}>{ROLE_LABELS[value]}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {formData.medical_role === MEDICAL_ROLES.DOCTOR && (
+                            <div className="form-group">
+                                <label className="form-label">شماره نظام پزشکی:</label>
+                                <div className="input-shell">
+                                    <span className="input-icon"><IdCardGlyph /></span>
+                                    <input
+                                        type="text"
+                                        name="medical_id"
+                                        value={formData.medical_id}
+                                        onChange={handleChange}
+                                        placeholder="مثلاً 123456"
+                                        className="form-input"
+                                        dir="ltr"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {formData.medical_role === MEDICAL_ROLES.STAFF && (
+                            <div className="form-group">
+                                <label className="form-label">کد پرسنلی / شناسه درمانی:</label>
+                                <div className="input-shell">
+                                    <span className="input-icon"><IdCardGlyph /></span>
+                                    <input
+                                        type="text"
+                                        name="medical_id"
+                                        value={formData.medical_id}
+                                        onChange={handleChange}
+                                        placeholder="شناسه درمانی خود را وارد کنید"
+                                        className="form-input"
+                                        dir="ltr"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         <div className="modal-footer">
                             <button type="submit" disabled={loading} className="btn-submit">

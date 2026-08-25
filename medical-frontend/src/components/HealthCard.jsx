@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import MedicalRoleBadge from './MedicalRoleBadge';
 import './HealthCard.css';
 
 const toFaDigits = (value) =>
@@ -45,7 +46,7 @@ const PulseIcon = () => (
   </svg>
 );
 
-const HealthCard = ({ firstName, lastName, nationalCode }) => {
+const HealthCard = ({ firstName, lastName, nationalCode, medicalRole = 'standard', medicalId = '' }) => {
   const cardRef = useRef(null);
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
 
@@ -88,6 +89,7 @@ const HealthCard = ({ firstName, lastName, nationalCode }) => {
         <div className="hc-body">
           <div className="hc-details">
             <h2 className="hc-name">{fullName || 'کاربر سلامت‌یار'}</h2>
+            <MedicalRoleBadge role={medicalRole} id={medicalId} size="lg" />
             <p className="hc-role">دارنده پرونده سلامت</p>
             <dl className="hc-meta">
               <dt>کد ملی</dt>

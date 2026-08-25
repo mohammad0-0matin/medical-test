@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
+import MedicalRoleBadge from './MedicalRoleBadge';
 import './UserMenu.css';
 
 const toFaDigits = (value) =>
@@ -39,7 +40,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const UserMenu = ({ fullName = '', nationalCode = '', onOpenProfile, onLogout }) => {
+const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -94,6 +95,9 @@ const UserMenu = ({ fullName = '', nationalCode = '', onOpenProfile, onLogout })
             <span className="um-head-avatar" aria-hidden="true">{initial}</span>
             <div className="um-head-info">
               <strong>{displayName}</strong>
+              {medicalRole !== 'standard' && (
+                <MedicalRoleBadge role={medicalRole} id={medicalId} />
+              )}
               <span className="um-badge">{badgeText}</span>
             </div>
             <span className="um-status" title="وضعیت: آنلاین">

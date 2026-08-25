@@ -15,6 +15,7 @@ import NotificationBell from '../components/NotificationBell';
 import Footer from '../components/Footer';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
+import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { useReactToPrint } from 'react-to-print';
 import './Dashboard.css';
 
@@ -480,6 +481,12 @@ const Dashboard = () => {
 
   const profileNationalCode = profile?.national_code || '';
 
+  // نقش کاربری و هویت پزشکی (سرور → محلی → استاندارد)
+  const medicalIdentity = useMemo(
+    () => resolveMedicalIdentity(profile),
+    [profile]
+  );
+
   // مرحله ۱: فیلتر (جستجو + وضعیت + نوع آزمایش + مالکیت)
   const filteredTests = tests.filter((test) => {
     const fullName = `${test.patient?.first_name || ''} ${test.patient?.last_name || ''}`.toLowerCase();
@@ -631,6 +638,8 @@ const Dashboard = () => {
           <UserMenu
             fullName={profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : ''}
             nationalCode={profile?.national_code || ''}
+            medicalRole={medicalIdentity.role}
+            medicalId={medicalIdentity.id}
             onOpenProfile={() => setIsProfileModalOpen(true)}
             onLogout={logout}
           />
@@ -648,6 +657,8 @@ const Dashboard = () => {
             firstName={profile?.first_name}
             lastName={profile?.last_name}
             nationalCode={profile?.national_code}
+            medicalRole={medicalIdentity.role}
+            medicalId={medicalIdentity.id}
           />
         )}
 
