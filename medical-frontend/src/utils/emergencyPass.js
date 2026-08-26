@@ -106,7 +106,7 @@ export const saveActivePass = (record) => {
 
 /* ---------- Build & Resolve ---------- */
 
-export const buildEmergencyPass = async ({ profile, tests, durationHours, pin }) => {
+export const buildEmergencyPass = async ({ profile, tests, durationHours, pin, extras = {} }) => {
   const issuedAt = Date.now();
   const expiresAt = issuedAt + Number(durationHours) * 3600000;
   const jti = `${issuedAt.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -120,8 +120,9 @@ export const buildEmergencyPass = async ({ profile, tests, durationHours, pin })
     exp: expiresAt,
     n: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '',
     nc: profile?.national_code || '',
-    bg: profile?.blood_group || null,
-    al: profile?.allergies || null,
+    bg: extras.bg ?? profile?.blood_group ?? null,
+    al: extras.al ?? profile?.allergies ?? null,
+    md: extras.md ?? null,
     pinHash,
     ts: tests.map((t) => ({
       tn: t.test_type_name || '',

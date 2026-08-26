@@ -182,6 +182,18 @@ const EmergencyPassView = () => {
                   </div>
                 )}
                 {resolved.data.al && (
+                  <div className="epv-meta-item epv-meta-wide epv-meta-alert">
+                    <span>حساسیت‌ها و آلرژی‌ها</span>
+                    <strong>{resolved.data.al}</strong>
+                  </div>
+                )}
+                {resolved.data.md && (
+                  <div className="epv-meta-item epv-meta-wide">
+                    <span>داروهای مصرفی جاری</span>
+                    <strong>{resolved.data.md}</strong>
+                  </div>
+                )}
+                {resolved.data.al && (
                   <div className="epv-meta-item epv-meta-wide">
                     <span>حساسیت‌ها / هشدارها</span>
                     <strong>{resolved.data.al}</strong>

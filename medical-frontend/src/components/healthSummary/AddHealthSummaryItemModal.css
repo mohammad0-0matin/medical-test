@@ -1,0 +1,11 @@
+/* ============================================
+   AddHealthSummaryItemModal — sizing
+   ============================================ */
+
+.hsm-modal {
+    max-width: 520px;
+}
+
+.hsm-modal .form-textarea {
+    min-height: 74px;
+}

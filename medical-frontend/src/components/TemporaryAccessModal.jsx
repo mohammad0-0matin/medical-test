@@ -55,7 +55,7 @@ const truncate = (value, max = 60) => {
   return str.length > max ? `${str.slice(0, max)}…` : str;
 };
 
-const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMap = {} }) => {
+const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMap = {}, healthSummary = null }) => {
   const [duration, setDuration] = useState('24');
   const [scope, setScope] = useState('all');
   const [pin, setPin] = useState('');
@@ -153,6 +153,23 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
         tests: scopedTests,
         durationHours: Number(duration),
         pin,
+        // همگام‌سازی آلرژی‌ها و داروهای فعال از خلاصه پرونده سلامت
+        extras: {
+          bg: profile?.blood_group || null,
+          al:
+            (healthSummary?.allergies || []).length > 0
+              ? healthSummary.allergies
+                  .map((a) => `${a.allergen}${a.severity === 'severe' ? ' (شدید)' : ''}`)
+                  .join('، ')
+              : null,
+          md:
+            (healthSummary?.medications || []).filter((m) => m.isActive !== false).length > 0
+              ? healthSummary.medications
+                  .filter((m) => m.isActive !== false)
+                  .map((m) => `${m.name} ${m.dosage || ''}`.trim())
+                  .join('، ')
+              : null,
+        },
       });
 
       saveActivePass({ jti: pass.jti, token: pass.token, expiresAt: pass.expiresAt });

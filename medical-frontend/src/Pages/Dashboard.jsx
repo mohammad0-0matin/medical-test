@@ -21,6 +21,8 @@ import UserMenu from '../components/UserMenu';
 import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
 import TestComparisonModal from '../components/TestComparisonModal';
+import HealthSummaryView from '../components/healthSummary/HealthSummaryView';
+import { getHealthSummary } from '../utils/healthSummaryUtils';
 import Footer from '../components/Footer';
 import OnboardingTour from '../components/OnboardingTour';
 import UpcomingCheckupsWidget from '../components/UpcomingCheckupsWidget';
@@ -263,11 +265,12 @@ const Dashboard = () => {
   // استیت خروجی اکسل
   const [isExporting, setIsExporting] = useState(false);
 
-  // حالت نمایش نتایج: جدول یا تایم‌لاین (ذخیره محلی)
+  // حالت نمایش نتایج: جدول / تایم‌لاین / خلاصه پرونده (ذخیره محلی)
   const VIEW_MODE_KEY = 'salamatyar_view_mode';
-  const [viewMode, setViewMode] = useState(() =>
-    localStorage.getItem(VIEW_MODE_KEY) === 'timeline' ? 'timeline' : 'table'
-  );
+  const [viewMode, setViewMode] = useState(() => {
+    const stored = localStorage.getItem(VIEW_MODE_KEY);
+    return stored === 'timeline' || stored === 'summary' ? stored : 'table';
+  });
 
   const changeViewMode = (mode) => {
     setViewMode(mode);
@@ -277,6 +280,9 @@ const Dashboard = () => {
       /* storage unavailable */
     }
   };
+
+  // خلاصه پرونده سلامت (برای همگام‌سازی با دسترسی اضطراری)
+  const [healthSummary, setHealthSummary] = useState(() => getHealthSummary());
 
   // تنظیمات پرینت و خروجی PDF
   const printRef = useRef(null);
@@ -763,6 +769,7 @@ const Dashboard = () => {
             profile={profile}
             tests={tests}
             clinicalNotesMap={clinicalNotesMap}
+            healthSummary={healthSummary}
           />
 
           <CompleteProfileModal
@@ -1046,6 +1053,7 @@ const Dashboard = () => {
             {[
               ['table', '📋 نمای جدول'],
               ['timeline', '🌿 نمای تایم‌لاین'],
+              ['summary', '🛡️ خلاصه پرونده سلامت'],
             ].map(([mode, label]) => (
               <button
                 key={mode}
@@ -1060,9 +1068,16 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* جدول آزمایش‌ها */}
+        {/* محتوای اصلی بر اساس حالت نمایش */}
         {loading ? (
           <TableSkeleton />
+        ) : viewMode === 'summary' ? (
+          <HealthSummaryView
+            profile={profile}
+            reminders={reminders}
+            summary={healthSummary}
+            onChange={setHealthSummary}
+          />
         ) : viewMode === 'timeline' ? (
           <MedicalTimeline
             tests={visibleTests}
