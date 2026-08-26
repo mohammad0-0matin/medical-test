@@ -15,6 +15,7 @@ import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
 import TestComparisonModal from '../components/TestComparisonModal';
 import Footer from '../components/Footer';
+import OnboardingTour from '../components/OnboardingTour';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
 import { resolveMedicalIdentity } from '../utils/medicalIdentity';
@@ -368,6 +369,63 @@ const Dashboard = () => {
     bootstrap();
   }, []);
 
+  // راهنمای تعاملی: اجرای خودکار فقط برای بازدید اول پس از اتمام بارگذاری اولیه
+  const [isTourActive, setIsTourActive] = useState(false);
+
+  useEffect(() => {
+    if (loading || accessLoading || profileLoading) return undefined;
+    let firstVisit = false;
+    try {
+      firstVisit = !localStorage.getItem('salamatyar_tour_completed');
+    } catch {
+      firstVisit = false;
+    }
+    if (firstVisit) setIsTourActive(true);
+    return undefined;
+  }, [loading, accessLoading, profileLoading]);
+
+  const finishTour = () => {
+    setIsTourActive(false);
+    try {
+      localStorage.setItem('salamatyar_tour_completed', 'true');
+    } catch {
+      /* storage unavailable */
+    }
+  };
+
+  const TOUR_STEPS = [
+    {
+      selector: '.hc-scene',
+      title: 'کارت سلامت هوشمند',
+      description: 'نمایش خلاصه هویت، گروه خونی و بارکد دسترسی سریع شما.',
+    },
+    {
+      selector: '.dashboard-btn-emergency',
+      title: '⚡ دسترسی اضطراری پزشک',
+      description: 'صدور کد QR و لینک امن با محدودیت زمانی برای پزشک یا اورژانس.',
+    },
+    {
+      selector: '.nb-trigger',
+      title: 'مرکز اعلانات',
+      description: 'تایید یا رد سریع درخواست‌های دسترسی و آزمایش‌های جدید.',
+    },
+    {
+      selector: '.view-toggle-row',
+      title: 'تغییر نما',
+      description: 'سوییچ بین نمای کلاسیک جدول و نمای گرافیکی تایم‌لاین پرونده.',
+    },
+    {
+      selector: '.dashboard-filter-bar',
+      title: 'ابزارهای پیشرفته',
+      description: 'جستجو، فیلتر تخصص، مقایسه دو آزمایش، و خروجی اکسل/PDF.',
+    },
+    {
+      selector: '.dashboard-btn-add-new',
+      title: 'ثبت آزمایش جدید',
+      description: 'افزودن سریع نتیجه آزمایش، تصاویر نسخه و پیوست‌ها.',
+    },
+  ];
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, typeFilter, personFilter]);
@@ -615,12 +673,17 @@ const Dashboard = () => {
       <header style={styles.header}>
         <h1 style={styles.title}>داشبورد مدیریت آزمایش‌ها</h1>
         <div style={styles.headerButtons}>
-          <button onClick={() => setIsAddModalOpen(true)} style={styles.addBtn}>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="dashboard-btn-add-new"
+            style={styles.addBtn}
+          >
             + ثبت آزمایش جدید
           </button>
 
           <button
             onClick={() => setIsTempAccessOpen(true)}
+            className="dashboard-btn-emergency"
             style={{
               ...styles.addBtn,
               background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)',
@@ -659,6 +722,7 @@ const Dashboard = () => {
             medicalRole={medicalIdentity.role}
             medicalId={medicalIdentity.id}
             onOpenProfile={() => setIsProfileModalOpen(true)}
+            onOpenTour={() => setIsTourActive(true)}
             onLogout={logout}
           />
         </div>
@@ -845,7 +909,7 @@ const Dashboard = () => {
         </div>
 
         {/* بخش جستجو، فیلتر و دکمه پرینت */}
-        <div style={styles.filterSection}>
+        <div style={styles.filterSection} className="dashboard-filter-bar">
           <input
             type="text"
             placeholder="🔍 جستجوی نام بیمار در آزمایش‌ها..."
@@ -1032,6 +1096,9 @@ const Dashboard = () => {
 
       {/* کامپوننت مخصوص خروجی چاپ و PDF */}
       <PrintableReport ref={printRef} tests={visibleTests} profile={profile} />
+
+      {/* راهنمای تعاملی گام‌به‌گام */}
+      <OnboardingTour steps={TOUR_STEPS} active={isTourActive} onFinish={finishTour} />
     </div>
   );
 };

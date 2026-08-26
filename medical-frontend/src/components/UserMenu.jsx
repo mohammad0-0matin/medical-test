@@ -31,6 +31,16 @@ const HelpIcon = () => (
   </svg>
 );
 
+const TourIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3a6.5 6.5 0 0 0-3.7 11.8c.7.55 1.2 1.3 1.2 2.2h5c0-.9.5-1.65 1.2-2.2A6.5 6.5 0 0 0 12 3z" />
+    <path d="M10 20.5h4" />
+    <path d="M12 8v3" />
+    <path d="M12 13h.01" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -40,7 +50,7 @@ const LogoutIcon = () => (
   </svg>
 );
 
-const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onLogout }) => {
+const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onOpenTour, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -123,6 +133,19 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
             <span className="um-theme-label">حالت نمایش</span>
             <ThemeToggle />
           </div>
+
+          <button
+            type="button"
+            role="menuitem"
+            className="um-item"
+            onClick={() => {
+              setIsOpen(false);
+              if (onOpenTour) onOpenTour();
+            }}
+          >
+            <TourIcon />
+            💡 راهنمای سامانه
+          </button>
 
           <button
             type="button"

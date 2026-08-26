@@ -1,0 +1,236 @@
+/* ============================================
+   OnboardingTour — glass popover + SVG cutout overlay
+   ============================================ */
+
+.ot {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+}
+
+/* ---------- Overlay & glowing hole ---------- */
+
+.ot-overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.ot-scrim {
+  fill: rgba(2, 6, 16, 0.7);
+  transition: d 0.25s ease, opacity 0.2s ease;
+}
+
+[data-theme='light'] .ot-scrim {
+  fill: rgba(11, 18, 32, 0.66);
+}
+
+.ot-ring {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.75));
+  animation: ot-ring-glow 1.8s ease-in-out infinite;
+}
+
+@keyframes ot-ring-glow {
+  0%,
+  100% {
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.65));
+  }
+  50% {
+    stroke-opacity: 0.65;
+    filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.95));
+  }
+}
+
+/* ---------- Popover ---------- */
+
+.ot-popover {
+  --ot-glass: rgba(255, 255, 255, 0.94);
+
+  position: fixed;
+  width: min(330px, calc(100vw - 24px));
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--ot-glass);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 26px 52px -22px rgba(2, 32, 71, 0.55);
+  animation: ot-pop 0.22s ease-out;
+}
+
+[data-theme='dark'] .ot-popover {
+  --ot-glass: rgba(15, 24, 42, 0.95);
+
+  box-shadow:
+    inset 0 1px 0 rgba(230, 237, 243, 0.06),
+    0 26px 52px -22px rgba(0, 0, 0, 0.7);
+}
+
+@keyframes ot-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+
+/* ---------- Header / content ---------- */
+
+.ot-pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ot-step-chip {
+  padding: 3px 11px;
+  border: 1px solid var(--border-input);
+  border-radius: 9999px;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.ot-skip {
+  border: none;
+  background: none;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.ot-skip:hover {
+  color: #ef4444;
+}
+
+.ot-title {
+  margin: 0 0 8px;
+  color: var(--text-strong);
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.ot-desc {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 0.87rem;
+  line-height: 1.95;
+}
+
+/* ---------- Footer ---------- */
+
+.ot-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.ot-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.ot-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background-color: var(--border-input);
+  transition: width 0.25s ease, background-color 0.25s ease;
+}
+
+.ot-dot-active {
+  width: 20px;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+}
+
+.ot-nav {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.ot-prev,
+.ot-next,
+.ot-skip {
+  outline-offset: 2px;
+}
+
+.ot-prev:focus-visible,
+.ot-next:focus-visible,
+.ot-skip:focus-visible {
+  outline: 2px solid #2563eb;
+}
+
+.ot-prev {
+  padding: 8px 16px;
+  border: 1px solid var(--border-input);
+  border-radius: 9px;
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.ot-prev:hover:not(:disabled) {
+  background-color: var(--border);
+}
+
+.ot-prev:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ot-next {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #2563eb, #10b981);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 20px -10px rgba(37, 99, 235, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.ot-next:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px -10px rgba(37, 99, 235, 0.68);
+}
+
+.ot-next-finish {
+  background: linear-gradient(135deg, #059669, #34d399);
+  box-shadow: 0 10px 20px -10px rgba(16, 185, 129, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ot-popover {
+    animation: none;
+  }
+
+  .ot-ring {
+    animation: none;
+  }
+
+  .ot-dot,
+  .ot-next,
+  .ot-prev {
+    transition: none;
+  }
+}
