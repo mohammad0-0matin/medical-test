@@ -16,6 +16,14 @@ import MedicalTimeline from '../components/MedicalTimeline';
 import TestComparisonModal from '../components/TestComparisonModal';
 import Footer from '../components/Footer';
 import OnboardingTour from '../components/OnboardingTour';
+import UpcomingCheckupsWidget from '../components/UpcomingCheckupsWidget';
+import AddReminderModal from '../components/AddReminderModal';
+import {
+  getReminders,
+  addReminder,
+  deleteReminder,
+  completeReminder,
+} from '../utils/reminderUtils';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
 import { resolveMedicalIdentity } from '../utils/medicalIdentity';
@@ -216,6 +224,8 @@ const Dashboard = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isTempAccessOpen, setIsTempAccessOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [reminders, setReminders] = useState(() => getReminders());
   const [selectedTest, setSelectedTest] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -497,6 +507,25 @@ const Dashboard = () => {
     setIsEditModalOpen(true);
   };
 
+  /* ---------- یادآور آزمایش‌ها ---------- */
+
+  const handleAddReminder = (payload) => {
+    setReminders(addReminder(payload));
+    toast.success('🗓️ یادآور با موفقیت ثبت شد.');
+  };
+
+  const handleCompleteReminder = (id) => {
+    const updated = completeReminder(id);
+    setReminders(updated);
+    toast.success('✔️ تکمیل شد؛ در صورت دوره‌ای بودن، موعد بعدی برنامه‌ریزی شد.');
+  };
+
+  const handleDeleteReminder = (id) => {
+    if (!window.confirm('آیا از حذف این یادآور مطمئن هستید؟')) return;
+    setReminders(deleteReminder(id));
+    toast.success('یادآور حذف شد.');
+  };
+
   const handleAttachmentClick = (test) => {
     setSelectedTest(test);
     setIsAttachmentModalOpen(true);
@@ -743,6 +772,14 @@ const Dashboard = () => {
             medicalId={medicalIdentity.id}
           />
         )}
+
+        {/* یادآور و تقویم دوره‌ای آزمایش‌ها */}
+        <UpcomingCheckupsWidget
+          reminders={reminders}
+          onAddClick={() => setIsReminderModalOpen(true)}
+          onComplete={handleCompleteReminder}
+          onDelete={handleDeleteReminder}
+        />
 
         {/* ۱ و ۲. صندوق‌های پیام (آزمایش‌ها و درخواست‌های دسترسی) */}
         {accessLoading ? (
@@ -1093,6 +1130,11 @@ const Dashboard = () => {
       <AttachmentModal isOpen={isAttachmentModalOpen} onClose={() => setIsAttachmentModalOpen(false)} testData={selectedTest} onUploadSuccess={() => { fetchTests(); setIsAttachmentModalOpen(false); }} />
       <PatientChartModal isOpen={isChartModalOpen} onClose={() => setIsChartModalOpen(false)} testData={selectedTest} allTests={tests} />
       <TestComparisonModal isOpen={isCompareOpen} onClose={() => setIsCompareOpen(false)} tests={tests} />
+      <AddReminderModal
+        isOpen={isReminderModalOpen}
+        onClose={() => setIsReminderModalOpen(false)}
+        onSave={handleAddReminder}
+      />
 
       {/* کامپوننت مخصوص خروجی چاپ و PDF */}
       <PrintableReport ref={printRef} tests={visibleTests} profile={profile} />

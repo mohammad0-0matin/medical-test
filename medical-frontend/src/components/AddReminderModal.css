@@ -1,0 +1,11 @@
+/* ============================================
+   AddReminderModal — sizing tweaks
+   ============================================ */
+
+.arm-modal {
+    max-width: 520px;
+}
+
+.arm-modal .form-textarea {
+    min-height: 70px;
+}
