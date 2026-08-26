@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, Fragment } from 'react';
 import './PrintableReport.css';
 
 const toFaDigits = (value) =>
@@ -119,9 +119,24 @@ const styles = {
   emptyRow: { textAlign: 'center', padding: '18px', color: '#6b7280' },
 };
 
-const PrintableReport = forwardRef(({ tests = [], profile }, ref) => {
+const buildNoteLine = (note) => {
+  if (!note) return '';
+  const parts = [];
+  if (note.fastingHours) parts.push(`ناشتایی: ${note.fastingHours}`);
+  if (note.medications) parts.push(`داروها: ${note.medications}`);
+  if (note.notes) parts.push(`توصیه: ${note.notes}`);
+  if (note.doctorName) parts.push(`پزشک: ${note.doctorName}`);
+  return parts.join(' | ');
+};
+
+const PrintableReport = forwardRef(({ tests = [], profile, clinicalNotesMap = {} }, ref) => {
   const fullName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || '—';
+
+  const noteFor = (testId) => {
+    const note = clinicalNotesMap[testId];
+    return note ? buildNoteLine(note) : '';
+  };
 
   const summary = tests.reduce(
     (acc, t) => {
@@ -192,25 +207,37 @@ const PrintableReport = forwardRef(({ tests = [], profile }, ref) => {
                 </td>
               </tr>
             ) : (
-              tests.map((test, index) => (
-                <tr key={test.id}>
-                  <td style={styles.td}>{toFaDigits(index + 1)}</td>
-                  <td style={styles.td}>
-                    {test.patient_name ||
-                      (test.patient?.first_name
-                        ? `${test.patient.first_name} ${test.patient.last_name}`
-                        : 'خودم')}
-                  </td>
-                  <td style={styles.td}>{test.test_type_name}</td>
-                  <td style={{ ...styles.td, fontWeight: 'bold' }}>
-                    {test.result_value ?? test.result_text ?? '—'}
-                  </td>
-                  <td style={styles.td}>{getMedicalStatus(test)}</td>
-                  <td style={styles.td}>{approvalLabel(test.status)}</td>
-                  <td style={styles.td}>{formatDate(test.test_date)}</td>
-                  <td style={styles.td}>{test.creator_name || '—'}</td>
-                </tr>
-              ))
+              tests.map((test, index) => {
+                const noteLine = noteFor(test.id);
+                return (
+                  <Fragment key={test.id}>
+                    <tr>
+                      <td style={styles.td}>{toFaDigits(index + 1)}</td>
+                      <td style={styles.td}>
+                        {test.patient_name ||
+                          (test.patient?.first_name
+                            ? `${test.patient.first_name} ${test.patient.last_name}`
+                            : 'خودم')}
+                      </td>
+                      <td style={styles.td}>{test.test_type_name}</td>
+                      <td style={{ ...styles.td, fontWeight: 'bold' }}>
+                        {test.result_value ?? test.result_text ?? '—'}
+                      </td>
+                      <td style={styles.td}>{getMedicalStatus(test)}</td>
+                      <td style={styles.td}>{approvalLabel(test.status)}</td>
+                      <td style={styles.td}>{formatDate(test.test_date)}</td>
+                      <td style={styles.td}>{test.creator_name || '—'}</td>
+                    </tr>
+                    {noteLine && (
+                      <tr>
+                        <td colSpan="8" style={{ ...styles.td, backgroundColor: '#f8fafc', fontSize: '10px', color: '#475569' }}>
+                          📝 یادداشت بالینی: {noteLine}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })
             )}
           </tbody>
         </table>

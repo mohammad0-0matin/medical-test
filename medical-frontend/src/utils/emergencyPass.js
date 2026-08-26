@@ -131,6 +131,7 @@ export const buildEmergencyPass = async ({ profile, tests, durationHours, pin })
       mx: t.max_range ?? t.lab_max_range ?? null,
       dt: t.test_date || '',
       un: t.unit || '',
+      cn: t.cn || null,
     })),
   };
 

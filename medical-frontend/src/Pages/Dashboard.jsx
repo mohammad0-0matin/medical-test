@@ -10,6 +10,13 @@ import CompleteProfileModal from '../components/CompleteProfileModal';
 import TemporaryAccessModal from '../components/TemporaryAccessModal';
 import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
+import ClinicalNotesModal from '../components/ClinicalNotesModal';
+import {
+  getAllClinicalNotes,
+  saveClinicalNote,
+  deleteClinicalNote,
+  getClinicalNotePreview,
+} from '../utils/clinicalNotesUtils';
 import UserMenu from '../components/UserMenu';
 import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
@@ -165,7 +172,7 @@ const AccessListSkeleton = ({ titleWidth = '60%' }) => (
   </div>
 );
 
-const TABLE_SKELETON_WIDTHS = ['36px', '20%', '24%', '12%', '15%', '15%', '13%', '14%', '17%', '13%'];
+const TABLE_SKELETON_WIDTHS = ['36px', '20%', '24%', '12%', '15%', '15%', '13%', '13%', '13%', '17%', '13%'];
 
 const TableSkeleton = () => (
   <div
@@ -592,6 +599,34 @@ const Dashboard = () => {
     [profile]
   );
 
+  const doctorPrefill =
+    medicalIdentity.role === 'doctor'
+      ? `دکتر ${profile?.first_name || ''} ${profile?.last_name || ''}`.trim()
+      : '';
+
+  /* ---------- یادداشت‌های بالینی ---------- */
+
+  const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+  const [notesTest, setNotesTest] = useState(null);
+  const [clinicalNotesMap, setClinicalNotesMap] = useState(() => getAllClinicalNotes());
+
+  const handleOpenNotes = (test) => {
+    setNotesTest(test);
+    setIsNotesModalOpen(true);
+  };
+
+  const handleSaveClinicalNote = (testId, entry) => {
+    setClinicalNotesMap((prev) => ({ ...prev, [testId]: entry }));
+  };
+
+  const handleDeleteClinicalNote = (testId) => {
+    setClinicalNotesMap((prev) => {
+      const next = { ...prev };
+      delete next[testId];
+      return next;
+    });
+  };
+
   // مرحله ۱: فیلتر (جستجو + وضعیت + نوع آزمایش + مالکیت)
   const filteredTests = tests.filter((test) => {
     const fullName = `${test.patient?.first_name || ''} ${test.patient?.last_name || ''}`.toLowerCase();
@@ -727,6 +762,7 @@ const Dashboard = () => {
             onClose={() => setIsTempAccessOpen(false)}
             profile={profile}
             tests={tests}
+            clinicalNotesMap={clinicalNotesMap}
           />
 
           <CompleteProfileModal
@@ -1030,6 +1066,8 @@ const Dashboard = () => {
         ) : viewMode === 'timeline' ? (
           <MedicalTimeline
             tests={visibleTests}
+            clinicalNotesMap={clinicalNotesMap}
+            onNotes={handleOpenNotes}
             onChart={handleChartClick}
             onAttachments={handleAttachmentClick}
             onEdit={handleEditClick}
@@ -1048,6 +1086,7 @@ const Dashboard = () => {
                     <th style={styles.th}>وضعیت تایید</th>
                     {renderSortableTh('تاریخ ثبت', 'test_date', styles.th)}
                     <th style={styles.th}>ثبت‌کننده</th>
+                    <th style={styles.th}>یادداشت بالینی</th>
                     <th style={styles.th}>پیوست‌ها و نمودار</th>
                     <th style={styles.th}>عملیات</th>
                   </tr>
@@ -1055,7 +1094,7 @@ const Dashboard = () => {
                 <tbody>
                   {currentTests.length === 0 ? (
                     <tr>
-                      <td colSpan="10" style={styles.emptyState}>
+                      <td colSpan="11" style={styles.emptyState}>
                         {tests.length === 0 ? 'هیچ آزمایشی یافت نشد.' : 'آزمایشی با این مشخصات پیدا نشد.'}
                       </td>
                     </tr>
@@ -1077,6 +1116,27 @@ const Dashboard = () => {
                             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-subtle)', padding: '4px 8px', borderRadius: '4px' }}>
                               {test.creator_name}
                             </span>
+                          </td>
+                          <td style={styles.td}>
+                            {clinicalNotesMap[test.id] ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNotes(test)}
+                                title={`📝 ${getClinicalNotePreview(test.id)}`}
+                                className="cn-row-pill cn-row-pill-has"
+                              >
+                                📝 دارای یادداشت
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenNotes(test)}
+                                className="cn-row-pill"
+                                title="افزودن یادداشت بالینی"
+                              >
+                                + یادداشت
+                              </button>
+                            )}
                           </td>
                           <td style={styles.td}>
                             <button onClick={() => handleAttachmentClick(test)} style={styles.actionBtnAttachment}>
@@ -1135,9 +1195,22 @@ const Dashboard = () => {
         onClose={() => setIsReminderModalOpen(false)}
         onSave={handleAddReminder}
       />
+      <ClinicalNotesModal
+        isOpen={isNotesModalOpen}
+        onClose={() => setIsNotesModalOpen(false)}
+        test={notesTest}
+        doctorPrefill={doctorPrefill}
+        onSaved={handleSaveClinicalNote}
+        onDeleted={handleDeleteClinicalNote}
+      />
 
       {/* کامپوننت مخصوص خروجی چاپ و PDF */}
-      <PrintableReport ref={printRef} tests={visibleTests} profile={profile} />
+      <PrintableReport
+        ref={printRef}
+        tests={visibleTests}
+        profile={profile}
+        clinicalNotesMap={clinicalNotesMap}
+      />
 
       {/* راهنمای تعاملی گام‌به‌گام */}
       <OnboardingTour steps={TOUR_STEPS} active={isTourActive} onFinish={finishTour} />

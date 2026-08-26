@@ -311,6 +311,27 @@
   font-size: 0.78rem;
 }
 
+.epv-test-note {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  font-size: 0.74rem;
+  line-height: 1.8;
+}
+
+.epv-test-note span:last-child.epv-note-doctor,
+.epv-test-note .epv-note-doctor {
+  align-self: flex-end;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 .epv-no-tests {
   padding: 26px;
   border: 1px dashed var(--border-input);

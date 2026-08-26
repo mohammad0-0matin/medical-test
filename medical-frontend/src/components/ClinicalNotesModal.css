@@ -1,0 +1,55 @@
+/* ============================================
+   ClinicalNotesModal
+   ============================================ */
+
+.cn-modal {
+    max-width: 560px;
+}
+
+.cn-test-name {
+    margin: 0 0 6px;
+    color: var(--text-body);
+    font-size: 0.86rem;
+}
+
+.cn-test-name strong {
+    color: var(--text-strong);
+}
+
+.cn-updated {
+    display: inline-block;
+    margin: 0 0 16px;
+    padding: 3px 10px;
+    border: 1px solid var(--border-input);
+    border-radius: 9999px;
+    background-color: var(--bg-subtle);
+    color: var(--text-muted);
+    font-size: 0.71rem;
+    font-weight: 700;
+}
+
+.cn-notes-area {
+    min-height: 110px;
+}
+
+.cn-footer {
+    flex-wrap: wrap;
+}
+
+.cn-footer .btn-submit {
+    order: 2;
+}
+
+.cn-footer .cn-delete-btn {
+    order: 1;
+    color: #dc2626 !important;
+    border-color: rgba(239, 68, 68, 0.45) !important;
+}
+
+.cn-footer .cn-delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+}
+
+.cn-footer .btn-cancel {
+    order: 3;
+}

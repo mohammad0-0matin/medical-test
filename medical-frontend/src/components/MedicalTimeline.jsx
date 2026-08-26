@@ -138,7 +138,14 @@ const medicalStatus = (test) => {
 
 /* ---------- Component ---------- */
 
-const MedicalTimeline = ({ tests = [], onChart, onAttachments, onEdit }) => {
+const MedicalTimeline = ({
+  tests = [],
+  clinicalNotesMap = {},
+  onChart,
+  onAttachments,
+  onEdit,
+  onNotes,
+}) => {
   const groups = useMemo(() => {
     const sorted = [...tests]
       .filter((t) => toDate(t.test_date))
@@ -183,6 +190,7 @@ const MedicalTimeline = ({ tests = [], onChart, onAttachments, onEdit }) => {
               const medStatus = medicalStatus(test);
               const rangeMin = test.min_range ?? test.lab_min_range;
               const rangeMax = test.max_range ?? test.lab_max_range;
+              const noteEntry = clinicalNotesMap?.[test.id];
 
               return (
                 <article
@@ -227,10 +235,30 @@ const MedicalTimeline = ({ tests = [], onChart, onAttachments, onEdit }) => {
                       ) : null}
                     </div>
 
+                    {noteEntry && (
+                      <details className="mt-notes">
+                        <summary>📝 یادداشت بالینی</summary>
+                        <div className="mt-notes-body">
+                          {noteEntry.fastingHours && <span>🩸 ناشتایی: {noteEntry.fastingHours}</span>}
+                          {noteEntry.medications && <span>💊 داروها: {noteEntry.medications}</span>}
+                          {noteEntry.notes && <span>🩺 توصیه پزشک: {noteEntry.notes}</span>}
+                          {noteEntry.doctorName && <span className="mt-notes-doctor">— {noteEntry.doctorName}</span>}
+                        </div>
+                      </details>
+                    )}
+
                     <footer className="mt-actions">
                       <button type="button" onClick={() => onChart?.(test)}>📈 نمودار روند</button>
                       <button type="button" onClick={() => onAttachments?.(test)}>📎 پیوست‌ها ({test.attachments?.length || 0})</button>
                       <button type="button" onClick={() => onEdit?.(test)}>✏️ ویرایش</button>
+                      <button
+                        type="button"
+                        className={`mt-notes-btn ${noteEntry ? 'mt-notes-btn-has' : ''}`}
+                        onClick={() => onNotes?.(test)}
+                        title={noteEntry ? 'مشاهده / ویرایش یادداشت بالینی' : 'افزودن یادداشت بالینی'}
+                      >
+                        📝 {noteEntry ? 'یادداشت' : 'افزودن یادداشت'}
+                      </button>
                     </footer>
                   </div>
                 </article>

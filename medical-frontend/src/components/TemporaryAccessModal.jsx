@@ -50,7 +50,12 @@ const CloseGlyph = () => (
   </svg>
 );
 
-const TemporaryAccessModal = ({ isOpen, onClose, profile, tests }) => {
+const truncate = (value, max = 60) => {
+  const str = String(value || '').trim();
+  return str.length > max ? `${str.slice(0, max)}…` : str;
+};
+
+const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMap = {} }) => {
   const [duration, setDuration] = useState('24');
   const [scope, setScope] = useState('all');
   const [pin, setPin] = useState('');
@@ -122,11 +127,26 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests }) => {
     setFormError(null);
 
     try {
-      const scopedTests = scope === 'recent'
+      // پیوست کردن خلاصه یادداشت بالینی (در صورت وجود) به هر آزمایش
+      const scopedTests = (scope === 'recent'
         ? [...approvedTests]
             .sort((a, b) => new Date(b.test_date) - new Date(a.test_date))
             .slice(0, 5)
-        : approvedTests;
+        : approvedTests
+      ).map((test) => {
+        const note = clinicalNotesMap?.[test.id];
+        return note
+          ? {
+              ...test,
+              cn: {
+                f: truncate(note.fastingHours),
+                m: truncate(note.medications),
+                d: truncate(note.doctorName),
+                n: truncate(note.notes, 140),
+              },
+            }
+          : test;
+      });
 
       const pass = await buildEmergencyPass({
         profile,

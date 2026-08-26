@@ -357,6 +357,70 @@
   outline-offset: 1px;
 }
 
+/* ---------- Clinical notes block ---------- */
+
+.mt-notes-btn-has {
+  border-color: rgba(37, 99, 235, 0.45);
+  color: #2563eb;
+}
+
+.mt-notes-btn-has:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.mt-notes {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background-color: var(--bg-subtle);
+  overflow: hidden;
+}
+
+.mt-notes summary {
+  padding: 7px 11px;
+  color: var(--text-body);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.2s ease;
+}
+
+.mt-notes summary::-webkit-details-marker {
+  display: none;
+}
+
+.mt-notes summary::before {
+  content: '◂ ';
+  color: var(--text-faint);
+}
+
+.mt-notes[open] summary::before {
+  content: '▾ ';
+}
+
+.mt-notes summary:hover {
+  background-color: var(--border);
+}
+
+.mt-notes-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 4px 12px 11px;
+  border-top: 1px solid var(--border);
+  color: var(--text-body);
+  font-size: 0.76rem;
+  line-height: 1.85;
+}
+
+.mt-notes-doctor {
+  align-self: flex-end;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 /* ---------- Empty state ---------- */
 
 .mt-empty {

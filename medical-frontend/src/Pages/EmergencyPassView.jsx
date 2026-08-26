@@ -221,6 +221,15 @@ const EmergencyPassView = () => {
                               </span>
                             )}
                           </div>
+
+                          {test.cn && (
+                            <div className="epv-test-note">
+                              {test.cn.f && <span>🩸 {test.cn.f}</span>}
+                              {test.cn.m && <span>💊 {test.cn.m}</span>}
+                              {test.cn.n && <span>🩺 {test.cn.n}</span>}
+                              {test.cn.d && <span className="epv-note-doctor">— {test.cn.d}</span>}
+                            </div>
+                          )}
                         </div>
                       </li>
                     );
