@@ -3,6 +3,7 @@ import { FREQUENCIES } from '../utils/reminderUtils';
 import './AddTestModal.css';
 import './AddReminderModal.css';
 
+/** Quick-pick lab-test titles surfaced through the title input's datalist. */
 const POPULAR_TESTS = [
   'چکاپ قند خون ناشتا (FBS)',
   'آزمایش سالانه CBC',
@@ -12,6 +13,7 @@ const POPULAR_TESTS = [
   'هموگلوبین HbA1c',
 ];
 
+/** Round close-button glyph shared by modal headers. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -19,6 +21,17 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/**
+ * Reminder creation form with popular-test suggestions, due-date picker
+ * and recurrence selector. Validation errors render as inline alerts;
+ * a past due date is rejected by comparing against today's ISO date.
+ *
+ * @param {{isOpen: boolean, onClose: Function, onSave?: Function}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing without saving.
+ * @param {Function} [props.onSave] - Receives the validated reminder payload.
+ * @returns {JSX.Element|null} Form modal, or null when closed.
+ */
 const AddReminderModal = ({ isOpen, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -32,10 +45,16 @@ const AddReminderModal = ({ isOpen, onClose, onSave }) => {
 
   const todayIso = new Date().toISOString().slice(0, 10);
 
+  /** Generic controlled-input updater keyed by each field's `name`. */
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  /**
+   * Validates in order — title length ≥ 2, due date present, due date not
+   * in the past (ISO string compare) — then hands the payload upstream,
+   * resets the form and closes the modal.
+   */
   const handleSubmit = (e) => {
     e.preventDefault();
 

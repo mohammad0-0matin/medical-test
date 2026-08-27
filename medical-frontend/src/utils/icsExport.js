@@ -1,10 +1,15 @@
 /**
- * خروجی تقویم — RFC-5545 (.ics) و لینک Google Calendar
- * کاملا سمت کلاینت با پشتیبانی UTF-8
+ * Calendar export utilities — RFC-5545 (.ics) and Google Calendar links.
+ * Fully client-side with UTF-8 support; every reminder becomes an all-day
+ * VEVENT carrying a one-day-before VALARM trigger.
+ *
+ * @module utils/icsExport
  */
 
+/** Approximate column at which RFC-5545 content lines are folded. */
 const FOLD_AT = 73;
 
+/** Escapes text for ICS property values per RFC-5545 (backslash, `;`, `,`, newlines). */
 const escapeIcsText = (value) =>
   String(value ?? '')
     .replace(/\\/g, '\\\\')
@@ -12,7 +17,10 @@ const escapeIcsText = (value) =>
     .replace(/,/g, '\\,')
     .replace(/\r?\n/g, '\\n');
 
-/** شکستن خطوط بلند مطابق RFC-5545 (حداکثر ۷۵ اکتت - تقریب کاراکتری) */
+/**
+ * Folds long content lines at ~75 characters per RFC-5545 (character-count
+ * approximation), continuing each folded segment with a single leading space.
+ */
 const foldLine = (line) => {
   if (line.length <= FOLD_AT) return line;
   const parts = [line.slice(0, FOLD_AT)];
@@ -45,6 +53,12 @@ const icsTimestampNow = () => {
   ).padStart(2, '0')}${String(now.getUTCSeconds()).padStart(2, '0')}Z`;
 };
 
+/**
+ * Builds a one-click Google Calendar web link for an all-day event.
+ *
+ * @param {{title:string,targetDate:string,notes?:string}} reminder - Reminder data.
+ * @returns {string} `render?action=TEMPLATE` URL with text/dates/details.
+ */
 export const buildGoogleCalendarUrl = ({ title, targetDate, notes = '' }) => {
   const dates = `${toIcsDateBasic(targetDate)}/${nextDayBasic(targetDate)}`;
   const params = new URLSearchParams({
@@ -56,6 +70,14 @@ export const buildGoogleCalendarUrl = ({ title, targetDate, notes = '' }) => {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 };
 
+/**
+ * Generates an RFC-5545 compliant calendar string.
+ * Each reminder becomes an all-day VEVENT with a `VALARM` triggered
+ * one day before the due date (`TRIGGER:-P1D`).
+ *
+ * @param {Array<object>} reminders - Reminders to include.
+ * @returns {string} Complete ICS file content joined with CRLF.
+ */
 export const buildIcsCalendar = (reminders) => {
   const lines = [
     'BEGIN:VCALENDAR',
@@ -90,6 +112,13 @@ export const buildIcsCalendar = (reminders) => {
   return lines.map(foldLine).join('\r\n');
 };
 
+/**
+ * Triggers a browser download for an `.ics` file.
+ *
+ * @param {Array<object>} reminders - Reminders to export.
+ * @param {string} [fileName] - Optional custom download filename.
+ * @returns {boolean} False when there is nothing to download.
+ */
 export const downloadIcs = (reminders, fileName) => {
   if (!reminders || reminders.length === 0) return false;
 

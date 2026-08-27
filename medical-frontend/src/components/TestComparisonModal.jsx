@@ -1,15 +1,17 @@
-﻿import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import './AddTestModal.css';
 import './TestComparisonModal.css';
 
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Safely parses ISO-ish dates; returns null instead of an Invalid Date. */
 const toDate = (dateString) => {
   const date = new Date(dateString);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+/** Full Jalali date formatter (year/month/day) with '—' fallback. */
 const jalaliFull = (dateString) => {
   const date = toDate(dateString);
   return date
@@ -17,6 +19,7 @@ const jalaliFull = (dateString) => {
     : '—';
 };
 
+/** Modal close glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -24,6 +27,7 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/** Extracts a finite number when the result value is numeric; null otherwise. */
 const parseNumber = (test) => {
   if (test.result_value === null || test.result_value === undefined || test.result_value === '') {
     return null;
@@ -32,6 +36,7 @@ const parseNumber = (test) => {
   return Number.isNaN(num) ? null : num;
 };
 
+/** Reads min/max from either key style; requires BOTH bounds to form a range. */
 const getRange = (test) => {
   const min = test.min_range ?? test.lab_min_range;
   const max = test.max_range ?? test.lab_max_range;
@@ -39,11 +44,33 @@ const getRange = (test) => {
   return { min: parseFloat(min), max: parseFloat(max) };
 };
 
+/** True when the value falls inside [min, max]; null-safe on missing pieces. */
 const inRange = (value, range) =>
   value !== null && range !== null && value >= range.min && value <= range.max;
 
 /* ---------- Comparison math ---------- */
 
+/**
+ * Computes the full numeric comparison between two results.
+ *
+ * Delta calculation: `delta` is the raw signed difference; `deltaPct` divides
+ * by `Math.abs(oldValue)` so negative baselines behave symmetrically and is
+ * rounded to one decimal (skipped entirely for zero baselines). Direction
+ * classifies the sign. When both values are numeric and each side exposes a
+ * complete normal range, a membership transition is derived — 'improve'
+ * (entered range), 'warn' (left range), or stable in/out states — which
+ * drives the colored insight chip and summary wording.
+ *
+ * @param {object} oldTest - Baseline ("previous") test record.
+ * @param {object} newTest - Target ("current") test record.
+ * @returns {{numeric: boolean, oldValue: number|null, newValue: number|null,
+ *   delta: number|null, deltaPct: number|null,
+ *   direction: 'up'|'down'|'same',
+ *   transition: {key:string,text:string}|null,
+ *   oldRange: {min:number,max:number}|null,
+ *   newRange: {min:number,max:number}|null,
+ *   oldInRange: boolean|null, newInRange: boolean|null}}
+ */
 const computeComparison = (oldTest, newTest) => {
   const oldValue = parseNumber(oldTest);
   const newValue = parseNumber(newTest);
@@ -67,7 +94,7 @@ const computeComparison = (oldTest, newTest) => {
     }
   }
 
-  // گذار وضعیت نسبت به بازه نرمال
+  // Normal-range membership transition.
   const oldInRange = numeric ? inRange(oldValue, oldRange) : null;
   const newInRange = numeric ? inRange(newValue, newRange) : null;
 
@@ -87,6 +114,15 @@ const computeComparison = (oldTest, newTest) => {
   return { numeric, oldValue, newValue, delta, deltaPct, direction, transition, oldRange, newRange, oldInRange, newInRange };
 };
 
+/**
+ * Composes the Persian clinical-summary sentence shown under the grid,
+ * combining direction-of-change wording (with localized percent where
+ * available) and the appropriate tail clause for the transition state.
+ *
+ * @param {string} typeName - Human-readable test-type name.
+ * @param {object} comparison - Result object from {@link computeComparison}.
+ * @returns {string} Ready-to-render Persian analysis sentence.
+ */
 const buildClinicalSummary = (typeName, comparison) => {
   if (!comparison.numeric) {
     return `آزمایش ${typeName} دارای مقدار کیفی/متنی است و مقایسه عددی برای آن امکان‌پذیر نیست.`;
@@ -116,6 +152,14 @@ const buildClinicalSummary = (typeName, comparison) => {
 
 /* ---------- Normal-range position bar ---------- */
 
+/**
+ * Visual min→max bar pinning the result onto its reference interval.
+ * The pin is anchored from the right edge (RTL layout), clamped into the
+ * track, and tagged/darkened when the value lies outside the interval.
+ *
+ * @param {{value?: number|null, range?: {min:number,max:number}|null}} props - Bar props.
+ * @returns {JSX.Element} Position bar, or the no-range placeholder row.
+ */
 const RangeBar = ({ value, range }) => {
   if (!range || value === null) {
     return <div className="tc-bar tc-bar-na">بازه نرمال ثبت نشده است</div>;
@@ -153,6 +197,19 @@ const RangeBar = ({ value, range }) => {
 
 /* ---------- Component ---------- */
 
+/**
+ * Side-by-side comparison modal for two results of the same test type.
+ * Tests are grouped by type (minimum two required per group); picking base
+ * & target results feeds {@link computeComparison}, which powers direction
+ * chips, delta percentages, RangeBar pins, the transition chip and the
+ * Persian clinical summary — all wrapped in a physician disclaimer.
+ *
+ * @param {{isOpen: boolean, onClose: Function, tests?: Array<object>}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal (also fires on outside click / Escape).
+ * @param {Array<object>} [props.tests] - Full results dataset to group and compare.
+ * @returns {JSX.Element|null} Comparison modal, or null when closed.
+ */
 const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
   const [selectedType, setSelectedType] = useState('');
   const [baseId, setBaseId] = useState(null);
@@ -183,7 +240,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
     };
   }, [isOpen, onClose]);
 
-  // انواع آزمایشی که حداقل ۲ نتیجه دارند
+  // Test types with at least two recorded results.
   const typeGroups = useMemo(() => {
     const map = new Map();
     tests.forEach((t) => {
@@ -204,7 +261,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
       .sort((a, b) => a.name.localeCompare(b.name, 'fa'));
   }, [tests]);
 
-  // ریست انتخاب‌ها هنگام هر بار باز شدن مودال
+  // Reset selections every time the modal opens.
   const [syncedOpen, setSyncedOpen] = useState(false);
   if (isOpen !== syncedOpen) {
     setSyncedOpen(isOpen);
@@ -223,7 +280,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
 
     const group = typeGroups.find((g) => String(g.id) === String(value));
     if (group && group.items.length >= 2) {
-      // پرکردن خودکار دو آزمایش اخیر
+      // Auto-prefill the two most recent tests.
       setBaseId(group.items[group.items.length - 2].id);
       setTargetId(group.items[group.items.length - 1].id);
     } else {
@@ -331,7 +388,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
                   {comparison && baseTest && targetTest && (
                     <>
                       <div className="tc-grid">
-                        {/* آزمایش پایه */}
+                        {/* Baseline test */}
                         <section className="tc-side-card">
                           <span className="tc-side-tag tc-side-old">آزمایش پایه</span>
                           <p className="tc-date">{jalaliFull(baseTest.test_date)}</p>
@@ -345,7 +402,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
                           )}
                         </section>
 
-                        {/* ستون دلتا */}
+                        {/* Delta column */}
                         <div className="tc-delta-col">
                           {comparison.direction === 'up' && (
                             <span className="tc-dir-chip tc-dir-up">▲ افزایش</span>
@@ -374,7 +431,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
                           )}
                         </div>
 
-                        {/* آزمایش هدف */}
+                        {/* Target test */}
                         <section className="tc-side-card">
                           <span className="tc-side-tag tc-side-new">آزمایش جدید / هدف</span>
                           <p className="tc-date">{jalaliFull(targetTest.test_date)}</p>
@@ -408,7 +465,10 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
   );
 };
 
-// اتصال اعشار قبل از تبدیل به رقم فارسی
+/**
+ * Rounds to one decimal first, then converts Western digits to Persian,
+ * so percentages never display fractional-precision noise.
+ */
 const toFaSafe = (num) => toFaDigits(Number(num).toFixed(1));
 
 export default TestComparisonModal;

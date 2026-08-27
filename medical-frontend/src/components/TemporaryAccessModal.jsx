@@ -12,6 +12,7 @@ import {
 import './AddTestModal.css';
 import './TemporaryAccessModal.css';
 
+/** Modal header shield/intro icon. */
 const ShieldGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -20,6 +21,7 @@ const ShieldGlyph = () => (
   </svg>
 );
 
+/** Duration-pill and countdown clock icon. */
 const ClockGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -28,6 +30,7 @@ const ClockGlyph = () => (
   </svg>
 );
 
+/** Copy-link action icon. */
 const CopyGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -36,6 +39,7 @@ const CopyGlyph = () => (
   </svg>
 );
 
+/** Copy-success feedback icon. */
 const CheckGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -43,6 +47,7 @@ const CheckGlyph = () => (
   </svg>
 );
 
+/** Modal header close-button glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -50,11 +55,33 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/** Trims a value and ellipsizes it beyond `max` characters (pass-notes hygiene). */
 const truncate = (value, max = 60) => {
   const str = String(value || '').trim();
   return str.length > max ? `${str.slice(0, max)}…` : str;
 };
 
+/**
+ * Issues a time-limited emergency QR pass for doctors.
+ *
+ * Scope pills restrict results to everything approved or the five most
+ * recent tests; clinical notes are embedded as a compact `cn` object per
+ * test (truncated per field), and allergies / active medications sync from
+ * the health summary into `extras`. Supports an optional 4-digit PIN,
+ * copy-to-clipboard link, live countdown and instant revocation. State is
+ * restored from any still-active pass via a render-phase sync gate.
+ *
+ * @param {{isOpen: boolean, onClose: Function, profile: object|null,
+ *          tests: Array<object>, clinicalNotesMap?: object,
+ *          healthSummary?: object|null}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {object|null} props.profile - Patient profile feeding name/blood-group defaults.
+ * @param {Array<object>} props.tests - Full test list (filtered to approved here).
+ * @param {object} [props.clinicalNotesMap] - Notes keyed by test id for embedding.
+ * @param {object|null} [props.healthSummary] - Summary state for allergy/medication extras.
+ * @returns {JSX.Element|null} Issue/revoke flow modal, or null when closed.
+ */
 const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMap = {}, healthSummary = null }) => {
   const [duration, setDuration] = useState('24');
   const [scope, setScope] = useState('all');
@@ -65,8 +92,8 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  // بازیابی پاس فعال هر بار که مودال باز می‌شود
-  // (الگوی «تنظیم وضعیت هنگام تغییر پراپس» به‌جای useEffect)
+  // Restore an active pass every time the modal opens.
+  // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedOpen, setSyncedOpen] = useState(false);
   if (isOpen !== syncedOpen) {
     setSyncedOpen(isOpen);
@@ -83,7 +110,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
     }
   }
 
-  // تایمر شمارش معکوس
+  // Countdown timer.
   useEffect(() => {
     if (!isOpen || !generated) return undefined;
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -100,6 +127,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
     ? `${window.location.origin}/pass/${generated.token}`
     : '';
 
+  /** Copies the pass URL via Clipboard API with a hidden-textarea fallback for insecure contexts. */
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(passUrl);
@@ -117,6 +145,13 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
     }
   };
 
+  /**
+   * Builds and stores the emergency pass:
+   * scopes approved tests by the selected range, attaches compacted
+   * clinical notes (`cn.{f,m,d,n}`) when available, merges health-summary
+   * allergies / active medications into `extras`, hashes the optional PIN,
+   * then persists the record locally (capped at five) before display.
+   */
   const handleGenerate = async () => {
     if (pin && !/^\d{4}$/.test(pin)) {
       setFormError('PIN باید دقیقاً ۴ رقم باشد.');
@@ -127,7 +162,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
     setFormError(null);
 
     try {
-      // پیوست کردن خلاصه یادداشت بالینی (در صورت وجود) به هر آزمایش
+      // Attach a clinical-note summary to each test when available.
       const scopedTests = (scope === 'recent'
         ? [...approvedTests]
             .sort((a, b) => new Date(b.test_date) - new Date(a.test_date))
@@ -153,7 +188,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
         tests: scopedTests,
         durationHours: Number(duration),
         pin,
-        // همگام‌سازی آلرژی‌ها و داروهای فعال از خلاصه پرونده سلامت
+        // Sync allergies and active medications from the health summary.
         extras: {
           bg: profile?.blood_group || null,
           al:
@@ -184,6 +219,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
     }
   };
 
+  /** Revokes the current pass on this device (jti blocklist) and clears UI state. */
   const handleRevoke = () => {
     if (!generated) return;
     revokePass(generated.jti);

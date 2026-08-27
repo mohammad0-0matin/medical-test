@@ -16,6 +16,7 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/** Suggested fasting/sample-condition strings offered via datalist. */
 const FASTING_SUGGESTIONS = [
   '۸ ساعت ناشتا',
   '۱۲ ساعت ناشتا',
@@ -23,6 +24,7 @@ const FASTING_SUGGESTIONS = [
   'نمونه‌گیری صبحگاهی',
 ];
 
+/** Blank field template reused whenever no note exists yet. */
 const EMPTY_FORM = {
   fastingHours: '',
   medications: '',
@@ -30,6 +32,23 @@ const EMPTY_FORM = {
   doctorName: '',
 };
 
+/**
+ * Create / edit / delete clinical notes for a single test result.
+ * Fields: fasting state, concurrent medications, doctor interpretation
+ * and signer name. Doctor-role users receive their name auto-prefilled
+ * via {@link doctorPrefill}. Saving an entirely empty form deletes the entry.
+ *
+ * @param {{isOpen: boolean, onClose: Function, test: object|null,
+ *          doctorPrefill?: string, onSaved?: Function,
+ *          onDeleted?: Function}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {object|null} props.test - Test result being annotated.
+ * @param {string} [props.doctorPrefill] - Pre-filled signer name for doctors.
+ * @param {Function} [props.onSaved] - Called with (testId, storedEntry).
+ * @param {Function} [props.onDeleted] - Called with testId when removed.
+ * @returns {JSX.Element|null} Clinical-notes modal, or null when closed.
+ */
 const ClinicalNotesModal = ({
   isOpen,
   onClose,
@@ -42,8 +61,8 @@ const ClinicalNotesModal = ({
   const [existingUpdatedAt, setExistingUpdatedAt] = useState('');
   const [hasExisting, setHasExisting] = useState(false);
 
-  // بارگذاری یادداشت موجود هر بار که مودال برای یک آزمایش باز می‌شود
-  // (الگوی «تنظیم وضعیت هنگام تغییر پراپس» به‌جای useEffect)
+  // Load the existing note every time the modal opens for a test.
+  // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedKey, setSyncedKey] = useState('closed');
   const openKey = isOpen && test ? `cn-${test.id}` : 'closed';
 
@@ -74,6 +93,7 @@ const ClinicalNotesModal = ({
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  /** Persists the note; a null return means the empty form deleted it. */
   const handleSave = (e) => {
     e.preventDefault();
 
@@ -90,6 +110,7 @@ const ClinicalNotesModal = ({
     }
   };
 
+  /** Confirm-guarded removal that resets the form back to the doctor prefill. */
   const handleDelete = () => {
     if (!window.confirm('حذف کامل یادداشت بالینی این آزمایش؟')) return;
     deleteClinicalNote(test.id);

@@ -24,8 +24,16 @@ const HospitalIcon = () => (
 );
 
 /**
- * نشان نقش پزشکی — برای «کاربر عادی» چیزی رندر نمی‌کند
- * (نشان کد ملی در UserMenu جداگانه وجود دارد).
+ * Renders a medical-role badge chip for clinical users.
+ * The standard (patient) role intentionally renders nothing — the
+ * national-code badge inside UserMenu covers that case instead.
+ *
+ * @param {{role?: string, id?: string, size?: ''|'lg'}} props - Component props.
+ * @param {string} [props.role] - Resolved role key ('doctor' | 'staff' | 'standard').
+ * @param {string} [props.id] - Optional medical / staff ID shown next to the label
+ *   (converted to Persian digits automatically).
+ * @param {string} [props.size] - Optional size modifier class, e.g. `'lg'`.
+ * @returns {JSX.Element|null} Badge element, or null for non-clinical roles.
  */
 const MedicalRoleBadge = ({ role, id = '', size = '' }) => {
   if (role === 'doctor') {
@@ -33,7 +41,7 @@ const MedicalRoleBadge = ({ role, id = '', size = '' }) => {
       <span className={`mrb mrb-doctor ${size}`.trim()}>
         <StethoscopeIcon />
         پزشک
-        {id ? ` (ن.پ: ${toFaDigits(id)})` : ''}
+        {id ? ` (No.Med: ${toFaDigits(id)})` : ''}
       </span>
     );
   }

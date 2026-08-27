@@ -15,6 +15,7 @@ import './PatientChartModal.css';
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Modal header close-button glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -22,6 +23,7 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/** Empty-state icon when fewer than two data points exist. */
 const TrendEmptyGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -31,20 +33,36 @@ const TrendEmptyGlyph = () => (
   </svg>
 );
 
+/**
+ * Trend chart (Recharts) of numeric results for one patient/test-type pair.
+ *
+ * Points are filtered from `allTests` to the same patient & test type with a
+ * numeric value, mapped into chart series and sorted chronologically. The
+ * first record's min/max range drives the shaded normal-range ReferenceArea;
+ * fewer than two points renders an explanatory empty state instead.
+ *
+ * @param {{isOpen: boolean, onClose: Function, testData: object|null,
+ *          allTests: Array<object>}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {object|null} props.testData - Selected test defining patient/type scope.
+ * @param {Array<object>} props.allTests - Full results dataset for trend extraction.
+ * @returns {JSX.Element|null} Chart modal, or null when closed.
+ */
 const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
-  // فیلتر و مرتب‌سازی داده‌ها برای رسم نمودار
+  // Filter and sort data points for the chart.
   const chartData = useMemo(() => {
     if (!isOpen || !testData) return [];
 
     return allTests
-      // ۱. فقط آزمایش‌های همین بیمار و همین نوع آزمایش را جدا کن
+      // 1. Keep only results of the same patient and test type.
       .filter(
         (t) =>
           t.patient?.id === testData.patient?.id &&
           t.test_type === testData.test_type &&
-          t.result_value !== null // فقط نتایج عددی قابل رسم هستند
+          t.result_value !== null // numeric values only
       )
-      // ۲. داده‌ها را برای نمودار فرمت کن
+      // 2. Map raw records into chart points.
       .map((t) => ({
         dateString: new Intl.DateTimeFormat('fa-IR').format(new Date(t.test_date)),
         rawDate: new Date(t.test_date).getTime(),
@@ -52,11 +70,11 @@ const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
         min: t.lab_min_range ? parseFloat(t.lab_min_range) : null,
         max: t.lab_max_range ? parseFloat(t.lab_max_range) : null,
       }))
-      // ۳. مرتب‌سازی بر اساس تاریخ (از قدیم به جدید)
+      // 3. Sort chronologically (oldest first).
       .sort((a, b) => a.rawDate - b.rawDate);
   }, [isOpen, testData, allTests]);
 
-  // استخراج بازه نرمال (برای رسم کادر سبز رنگ در پس‌زمینه)
+  // Extract the normal range for the background band.
   const safeMin = chartData.length > 0 ? chartData[0].min : null;
   const safeMax = chartData.length > 0 ? chartData[0].max : null;
 
@@ -106,7 +124,7 @@ const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
                       labelFormatter={(label) => `تاریخ: ${label}`}
                     />
 
-                    {/* اگر بازه نرمال وجود داشت، یک کادر سبز کمرنگ در پس‌زمینه می‌کشد */}
+                    {/* Draw the normal-range band when boundaries exist */}
                     {safeMin !== null && safeMax !== null && (
                       <ReferenceArea y1={safeMin} y2={safeMax} fill="#10b981" fillOpacity={0.14} />
                     )}

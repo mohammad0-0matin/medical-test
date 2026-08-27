@@ -3,11 +3,26 @@ import './OnboardingTour.css';
 
 /* ---------- Geometry helpers ---------- */
 
+/** Overlay padding added around each highlighted step target. */
 const PAD = 8;
+/** Corner radius of the cutout ring drawn around targets. */
 const RADIUS = 14;
+/** Fixed popover width used in clamp calculations. */
 const POPOVER_WIDTH = 330;
+/** Rough popover height estimate for above/below placement decisions. */
 const POPOVER_EST_HEIGHT = 205;
 
+/**
+ * Builds a closed SVG path for a rounded rectangle using arc commands;
+ * radius is clamped so tiny rects still render valid geometry.
+ *
+ * @param {number} x - Left edge.
+ * @param {number} y - Top edge.
+ * @param {number} w - Width.
+ * @param {number} h - Height.
+ * @param {number} r - Requested corner radius.
+ * @returns {string} SVG path data string.
+ */
 const roundedRectPath = (x, y, w, h, r) => {
   const rr = Math.min(r, w / 2, h / 2);
   return [
@@ -24,6 +39,20 @@ const roundedRectPath = (x, y, w, h, r) => {
   ].join(' ');
 };
 
+/**
+ * Lightweight pure-React guided tour with an SVG even-odd cutout overlay.
+ * Each step measures its `.selector` element (resized on scroll/resize via
+ * rAF throttling), positions the popover below/above depending on available
+ * space, and supports keyboard flow: Escape finishes, ←/→ navigate steps in
+ * RTL order.
+ *
+ * @param {{steps?: Array<{selector:string,title:string,description:string}>,
+ *          active?: boolean, onFinish?: Function}} props - Tour configuration.
+ * @param {Array<{selector:string,title:string,description:string}>} [props.steps] - Ordered tour steps.
+ * @param {boolean} [props.active] - Whether the tour overlay is shown.
+ * @param {Function} [props.onFinish] - Invoked on completion, skip or Escape.
+ * @returns {JSX.Element|null} Overlay with ring + popover, or null when inactive.
+ */
 const OnboardingTour = ({ steps = [], active, onFinish }) => {
   const [index, setIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
@@ -36,7 +65,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
   const step = steps[index];
   const isLast = index === steps.length - 1;
 
-  /* اندازه‌گیری موقعیت المان هدف */
+  /* Measure the target element position */
   useEffect(() => {
     if (!active) return undefined;
 
@@ -95,7 +124,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
     setIndex((i) => Math.max(0, i - 1));
   };
 
-  /* ناوبری کیبورد: Escape خروج، چپ/راست جابجایی گام‌ها */
+  /* Keyboard navigation: Escape closes, Left/Right arrows change steps */
   useEffect(() => {
     if (!active) return undefined;
 
@@ -118,7 +147,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
 
   if (!active || !step) return null;
 
-  /* ---------- محاسبه موقعیت پاپ‌آور ---------- */
+  /* ---------- Popover positioning ---------- */
 
   const vw = viewport.width;
   const vh = viewport.height;
@@ -203,6 +232,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
   );
 };
 
+/** Converts Western digits inside any value to Persian digits (step counter). */
 const toFa = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 

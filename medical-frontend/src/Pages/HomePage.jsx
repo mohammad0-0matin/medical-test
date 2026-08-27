@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import ThemeToggle from '../components/ThemeToggle';
 import './HomePage.css';
 
+/** Brand pulse logo rendered in nav + footer. */
 const LogoIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -9,6 +10,7 @@ const LogoIcon = () => (
   </svg>
 );
 
+/** Feature-card icon: data security. */
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -17,6 +19,7 @@ const ShieldIcon = () => (
   </svg>
 );
 
+/** Feature-card icon: trend charts. */
 const ChartIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -26,6 +29,7 @@ const ChartIcon = () => (
   </svg>
 );
 
+/** Feature-card icon: family access. */
 const FamilyIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -36,6 +40,7 @@ const FamilyIcon = () => (
   </svg>
 );
 
+/** Highlight cards rendered inside the #features grid. */
 const features = [
   {
     icon: <ShieldIcon />,
@@ -57,6 +62,13 @@ const features = [
   },
 ];
 
+/**
+ * Marketing landing page: sticky nav, dark hero, feature grid and footer.
+ * Entry route (`/`) of the application; purely presentational with anchor
+ * links targeting the #features / #about / #contact sections.
+ *
+ * @returns {JSX.Element} Landing page shell.
+ */
 const HomePage = () => {
   return (
     <div className="hp">

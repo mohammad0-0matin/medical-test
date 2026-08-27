@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+/** Brand pulse logo icon shared by Login/Register brand panel. */
 export const PulseIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -7,6 +8,7 @@ export const PulseIcon = () => (
   </svg>
 );
 
+/** Username field icon for auth forms. */
 export const UserIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -15,6 +17,7 @@ export const UserIcon = () => (
   </svg>
 );
 
+/** Password field icon for auth forms. */
 export const LockIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -24,6 +27,7 @@ export const LockIcon = () => (
   </svg>
 );
 
+/** Show-password toggle glyph. */
 export const EyeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -32,6 +36,7 @@ export const EyeIcon = () => (
   </svg>
 );
 
+/** Hide-password toggle glyph. */
 export const EyeOffIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -42,6 +47,7 @@ export const EyeOffIcon = () => (
   </svg>
 );
 
+/** Back-navigation chevron used on auth screens. */
 export const ChevronRightIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -49,6 +55,7 @@ export const ChevronRightIcon = () => (
   </svg>
 );
 
+/** Return-to-home icon inside the brand panel nav chip. */
 export const HomeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -57,6 +64,7 @@ export const HomeIcon = () => (
   </svg>
 );
 
+/** Private perk icon group member: data-security highlight. */
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -65,6 +73,7 @@ const ShieldIcon = () => (
   </svg>
 );
 
+/** Private perk icon group member: trend-charts highlight. */
 const ChartIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -73,6 +82,7 @@ const ChartIcon = () => (
   </svg>
 );
 
+/** Private perk icon group member: family-access highlight. */
 const FamilyIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -83,6 +93,7 @@ const FamilyIcon = () => (
   </svg>
 );
 
+/** Marketing highlights rendered as the brand panel perk list. */
 const perks = [
   {
     icon: <ShieldIcon />,
@@ -104,6 +115,15 @@ const perks = [
   },
 ];
 
+/**
+ * Decorative brand sidebar for the Login/Register split layout:
+ * logo, tagline and the three product-perk highlights above.
+ *
+ * Exported icons in this module (`UserIcon`, `LockIcon`, …) are shared
+ * primitives consumed directly by those page components.
+ *
+ * @returns {JSX.Element} Brand aside element.
+ */
 const AuthBrand = () => (
   <aside className="auth-brand">
     <div className="auth-brand-holo" />

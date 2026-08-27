@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import './AddHealthSummaryItemModal.css';
 
+/** Modal header close-button glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -9,8 +10,22 @@ const CloseGlyph = () => (
 );
 
 /**
- * مودال عمومی افزودن/ویرایش برای بخش‌های خلاصه پرونده سلامت
- * fields: [{ name, label, type: 'text'|'date'|'select'|'textarea', options, required, placeholder, suggestions }]
+ * Generic add/edit modal shared by every Health Summary section.
+ * Form layout is fully data-driven through a `fields` descriptor array:
+ * `{ name, label, type: 'text'|'date'|'select'|'textarea', options?,
+ *    required?, placeholder?, suggestions?, defaultValue?, min? }`.
+ *
+ * @param {{isOpen: boolean, onClose: Function, sectionTitle: string,
+ *          emoji: string, fields: Array<object>, initialItem: object|null,
+ *          onSubmit: Function}} props - Modal configuration and callbacks.
+ * @param {boolean} props.isOpen - Whether the modal is currently visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {string} props.sectionTitle - Title shown in the modal header.
+ * @param {string} props.emoji - Emoji prefix rendered before the title.
+ * @param {Array<object>} props.fields - Field descriptors driving the form.
+ * @param {object|null} props.initialItem - Existing item when editing; null when adding.
+ * @param {Function} props.onSubmit - Called with the collected form values after validation.
+ * @returns {JSX.Element|null} Modal element, or null when closed.
  */
 const AddHealthSummaryItemModal = ({
   isOpen,
@@ -24,7 +39,7 @@ const AddHealthSummaryItemModal = ({
   const [formData, setFormData] = useState(() => initialItem || {});
   const [formError, setFormError] = useState(null);
 
-  // ریست فرم هر بار که هدف (بخش/آیتم) تغییر می‌کند
+  // Reset the form whenever the target (section/item) changes.
   const [syncedKey, setSyncedKey] = useState('');
   const openKey = isOpen ? `${sectionTitle}-${initialItem?.id || 'new'}` : 'closed';
 

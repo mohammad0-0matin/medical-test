@@ -2,9 +2,17 @@ import { useRef } from 'react';
 import MedicalRoleBadge from './MedicalRoleBadge';
 import './HealthCard.css';
 
+/** Converts Western digits inside any value to Persian digits. */
 const toFaDigits = (value) =>
   String(value).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/**
+ * Formats a national code for card display:
+ * groups ten-digit codes as `12345 67890`, falls back to raw digits otherwise.
+ *
+ * @param {string|number} code - National code from the patient profile.
+ * @returns {string} Persian-digit display string or '—' when absent.
+ */
 const formatNationalCode = (code) => {
   if (!code) return '—';
   const digits = String(code).replace(/\D/g, '');
@@ -13,6 +21,7 @@ const formatNationalCode = (code) => {
     : toFaDigits(digits);
 };
 
+/** Decorative fixed QR-style matrix purely for visual authenticity. */
 const QR_MATRIX = [
   '11100000111',
   '10110101101',
@@ -27,6 +36,7 @@ const QR_MATRIX = [
   '11100011100',
 ];
 
+/** Placeholder QR graphic rendered with crisp edges over the matrix data. */
 const MockQrCode = () => (
   <svg viewBox="0 0 33 33" shapeRendering="crispEdges" aria-hidden="true">
     {QR_MATRIX.map((row, y) =>
@@ -39,6 +49,7 @@ const MockQrCode = () => (
   </svg>
 );
 
+/** Card brand pulse icon in the health-card header. */
 const PulseIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -46,6 +57,22 @@ const PulseIcon = () => (
   </svg>
 );
 
+/**
+ * Digital health card with pointer-driven 3D tilt.
+ *
+ * Mouse position over the card computes normalized x/y coordinates used to
+ * rotate the card (`rotateX`/`rotateY`) and position a CSS-variable shine
+ * highlight; leaving the viewport resets the transform to flat.
+ *
+ * @param {{firstName?: string, lastName?: string, nationalCode?: string,
+ *          medicalRole?: string, medicalId?: string}} props - Component props.
+ * @param {string} [props.firstName] - Patient first name.
+ * @param {string} [props.lastName] - Patient last name.
+ * @param {string} [props.nationalCode] - National code formatted on the card.
+ * @param {string} [props.medicalRole='standard'] - Passed through to MedicalRoleBadge.
+ * @param {string} [props.medicalId=''] - Passed through to MedicalRoleBadge.
+ * @returns {JSX.Element} Health-card section element.
+ */
 const HealthCard = ({ firstName, lastName, nationalCode, medicalRole = 'standard', medicalId = '' }) => {
   const cardRef = useRef(null);
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();

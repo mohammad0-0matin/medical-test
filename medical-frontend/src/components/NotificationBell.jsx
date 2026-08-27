@@ -4,6 +4,7 @@ import './NotificationBell.css';
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Bell trigger icon shown when notifications exist. */
 const BellIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -12,6 +13,7 @@ const BellIcon = () => (
   </svg>
 );
 
+/** Empty-state icon rendered when no notifications remain. */
 const BellOffIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -22,6 +24,7 @@ const BellOffIcon = () => (
   </svg>
 );
 
+/** Category icon for access-request notifications. */
 const RequestsIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -32,6 +35,7 @@ const RequestsIcon = () => (
   </svg>
 );
 
+/** Category icon for pending-test notifications. */
 const FlaskIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -41,6 +45,13 @@ const FlaskIcon = () => (
   </svg>
 );
 
+/**
+ * Describes a date relative to today for notification rows:
+ * 'امروز', 'دیروز', or a full Persian calendar date for older items.
+ *
+ * @param {string} dateString - ISO-ish datetime string.
+ * @returns {string} Relative label; '' when invalid or absent.
+ */
 const describeDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
@@ -57,12 +68,29 @@ const describeDate = (dateString) => {
   return new Intl.DateTimeFormat('fa-IR').format(date);
 };
 
+/** Tab definitions for the notification panel filter bar. */
 const TABS = [
   { key: 'all', label: 'همه' },
   { key: 'requests', label: 'درخواست‌ها' },
   { key: 'tests', label: 'آزمایش‌ها' },
 ];
 
+/**
+ * Notification center aggregating pending access requests and tests
+ * already available in dashboard state — no extra polling.
+ *
+ * Features tabbed filtering (all / requests / tests), a live unread badge
+ * backed by dismissable read-keys, per-item approve/reject callbacks and
+ * mark-all-as-read dismissal. Clicks outside or Escape close the dialog.
+ *
+ * @param {{pendingTests?: Array<object>, accessRequests?: Array<object>,
+ *          onReviewTest?: Function, onRespondAccess?: Function}} props - Component props.
+ * @param {Array<object>} [props.pendingTests] - Tests awaiting review.
+ * @param {Array<object>} [props.accessRequests] - Access requests awaiting approval.
+ * @param {Function} [props.onReviewTest] - Handler receiving (testId, 'approve'|'reject').
+ * @param {Function} [props.onRespondAccess] - Handler receiving (requestId, 'approve'|'reject').
+ * @returns {JSX.Element} Bell trigger plus conditional notification panel.
+ */
 const NotificationBell = ({
   pendingTests = [],
   accessRequests = [],
@@ -98,7 +126,7 @@ const NotificationBell = ({
     };
   }, [isOpen]);
 
-  // تجمیع اعلان‌ها از داده‌های موجود داشبورد
+  // Aggregate notifications from existing dashboard state.
   const notifications = useMemo(() => {
     const items = [];
 

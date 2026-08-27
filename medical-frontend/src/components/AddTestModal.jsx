@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import './AddTestModal.css';
 
+/** Patient picker icon. */
 const UserGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -10,6 +11,7 @@ const UserGlyph = () => (
     </svg>
 );
 
+/** Test-type picker icon. */
 const FlaskGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -19,6 +21,7 @@ const FlaskGlyph = () => (
     </svg>
 );
 
+/** Date field icon. */
 const CalendarGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -27,6 +30,7 @@ const CalendarGlyph = () => (
     </svg>
 );
 
+/** Numeric-result field icon. */
 const NumberGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,6 +38,7 @@ const NumberGlyph = () => (
     </svg>
 );
 
+/** Round close-button glyph for the modal header. */
 const CloseGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
         strokeLinecap="round" aria-hidden="true">
@@ -41,11 +46,24 @@ const CloseGlyph = () => (
     </svg>
 );
 
+/**
+ * New test-result entry form with dynamic patients/test-types loading,
+ * national-code search and toast-based validation feedback.
+ * On open it fetches both dropdown datasets and preselects the first entry;
+ * an empty dataset simply leaves the pickers blank.
+ *
+ * @param {{isOpen: boolean, onClose: Function,
+ *          onTestAdded?: Function}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {Function} [props.onTestAdded] - Notifies the dashboard to refetch results.
+ * @returns {JSX.Element|null} Entry form modal, or null when closed.
+ */
 const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     const [testTypes, setTestTypes] = useState([]);
     const [patients, setPatients] = useState([]);
 
-    // استیت‌های سیستم جستجو
+    // National-code search state
     const [searchQuery, setSearchQuery] = useState('');
     const [searchedPatient, setSearchedPatient] = useState(null);
     const [searchError, setSearchError] = useState('');
@@ -60,10 +78,9 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
     });
 
     const [loading, setLoading] = useState(false);
-    // 👈 استیت پیام‌های لوکال حذف شد
-
-    useEffect(() => {
+        useEffect(() => {
         if (!isOpen) return;
+        /** Fetches both dropdown datasets and defaults the selects to their first option. */
         const fetchData = async () => {
             const token = localStorage.getItem('access_token');
             if (!token) return;
@@ -83,13 +100,15 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                     setTestTypes(testTypesData);
                     if (testTypesData.length > 0) setFormData(prev => ({ ...prev, test_type: testTypesData[0].id }));
                 }
-            } catch (error) {
-                console.error('خطا در دریافت اطلاعات:', error);
+            } catch {
+                /* Bootstrap failures are ignored: patient / test-type
+                   pickers simply stay empty until the next open. */
             }
         };
         fetchData();
     }, [isOpen]);
 
+    /** Searches patients by national-code fragment and locks onto the first match. */
     const handleSearch = async () => {
         if (!searchQuery) return;
         setIsSearching(true);
@@ -114,7 +133,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
             } else {
                 setSearchError('بیماری با این کدملی یافت نشد.');
             }
-        } catch (error) {
+        } catch {
             setSearchError('خطای ارتباط با سرور.');
         } finally {
             setIsSearching(false);
@@ -125,6 +144,10 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    /**
+     * Posts the form payload to `test-results/`, clears value/notes fields on
+     * success, then closes the modal and resets any national-code search state.
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -138,19 +161,19 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
             });
 
             if (response.ok) {
-                toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!'); // 👈 جادوی توست
+                toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!');
                 setFormData({ ...formData, result_value: '', notes: '' });
 
                 if (onTestAdded) onTestAdded();
 
-                // فرم بلافاصله بسته و ریست می‌شود
+                // Close immediately and reset search state.
                 onClose();
                 setSearchedPatient(null);
                 setSearchQuery('');
             } else {
                 toast.error('❌ خطا در ثبت آزمایش. اطلاعات را بررسی کنید.');
             }
-        } catch (error) {
+        } catch {
             toast.error('❌ خطای ارتباط با سرور');
         } finally {
             setLoading(false);
@@ -170,9 +193,7 @@ const AddTestModal = ({ isOpen, onClose, onTestAdded }) => {
                 </div>
 
                 <div className="modal-body">
-                    {/* 👈 باکس پیام خطای قدیمی از اینجا حذف شد */}
-
-                    <form onSubmit={handleSubmit}>
+                                        <form onSubmit={handleSubmit}>
                         <div className="patient-picker form-group">
                             <label className="form-label">بیمار (انتخاب از لیست یا جستجو):</label>
 

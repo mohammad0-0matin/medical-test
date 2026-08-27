@@ -10,6 +10,7 @@ import {
 } from '../utils/emergencyPass';
 import './EmergencyPassView.css';
 
+/** Warning banner shield glyph. */
 const ShieldGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -18,6 +19,7 @@ const ShieldGlyph = () => (
   </svg>
 );
 
+/** Countdown clock glyph. */
 const ClockGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -26,6 +28,7 @@ const ClockGlyph = () => (
   </svg>
 );
 
+/** Invalid/expired state triangle glyph. */
 const WarnGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -35,6 +38,7 @@ const WarnGlyph = () => (
   </svg>
 );
 
+/** PIN gate lock glyph. */
 const LockGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -43,6 +47,17 @@ const LockGlyph = () => (
   </svg>
 );
 
+/**
+ * Public, read-only emergency pass viewer (`/pass/:token`).
+ *
+ * Decodes the Base64URL token once per navigation (memoized), then gates
+ * rendering through four states: invalid → expired/revoked → PIN required
+ * → ready summary. A 1-second interval drives the remaining-time countdown.
+ * Results are rendered chronologically with per-test normal-range checks
+ * and any embedded clinical-note fragments (`cn.{f,m,d,n}`).
+ *
+ * @returns {JSX.Element} Standalone emergency pass page.
+ */
 const EmergencyPassView = () => {
   const { token } = useParams();
 
@@ -59,7 +74,7 @@ const EmergencyPassView = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // وضعیت نهایی: نامعتبر / لغو شده / منقضی / نیازمند PIN / آماده
+  // Resolved states: invalid / revoked / expired / PIN required / ready.
   const revokedIds = useMemo(() => getRevokedIds(), []);
   const isRevoked = resolved.ok && resolved.data.jti && revokedIds.has(resolved.data.jti);
   const expired = isPassExpired(resolved.ok ? resolved.data : null, null) && resolved.ok;
@@ -67,6 +82,10 @@ const EmergencyPassView = () => {
 
   const remainingMs = resolved.ok ? Math.max(0, resolved.data.exp - now) : 0;
 
+  /**
+   * Asynchronous PIN gate: hashes the entered digits through {@link verifyPin}
+   * and flips between the verified view and an error-flagged retry state.
+   */
   const handlePinSubmit = async (e) => {
     e.preventDefault();
     setCheckingPin(true);
@@ -81,6 +100,7 @@ const EmergencyPassView = () => {
     }
   };
 
+  /** Chronological copy of the embedded approved tests, oldest first. */
   const sortedTests = useMemo(() => {
     if (!resolved.ok) return [];
     return [...(resolved.data.ts || [])].sort((a, b) => new Date(a.dt) - new Date(b.dt));
@@ -88,7 +108,7 @@ const EmergencyPassView = () => {
 
   return (
     <div className="epv" dir="rtl">
-      {/* نوار هشدار دسترسی موقت */}
+      {/* Temporary-access warning banner */}
       <div className="epv-banner">
         <WarnGlyph />
         دسترسی موقت اضطراری - دارای محدودیت زمانی

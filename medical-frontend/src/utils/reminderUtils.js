@@ -1,10 +1,17 @@
 /**
- * یادآور و تقویم دوره‌ای آزمایش‌ها — CRUD و منطق وضعیت
- * ذخیره‌سازی: localStorage → salamatyar_test_reminders
+ * Medical test schedule & reminders — CRUD and status logic.
+ * Persistence: localStorage → `salamatyar_test_reminders`.
+ *
+ * @module utils/reminderUtils
  */
 
+/** localStorage key holding the reminder list. */
 export const REMINDERS_KEY = 'salamatyar_test_reminders';
 
+/**
+ * Available recurrence options.
+ * `months` drives the next-due calculation on completion (0 = one-time).
+ */
 export const FREQUENCIES = [
   { value: 'once', label: 'یک‌بار', months: 0 },
   { value: 'monthly', label: 'هر ۱ ماه', months: 1 },
@@ -13,14 +20,26 @@ export const FREQUENCIES = [
   { value: 'yearly', label: 'سالانه', months: 12 },
 ];
 
+/** Converts Western digits inside any value to Persian digits. */
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/**
+ * Resolves the display label for a frequency key.
+ *
+ * @param {string} value - Frequency key (`once`, `monthly`, ...).
+ * @returns {string} Persian label or the raw key when unknown.
+ */
 export const frequencyLabel = (value) =>
   FREQUENCIES.find((f) => f.value === value)?.label || value;
 
 /* ---------- Persistence ---------- */
 
+/**
+ * Reads all reminders from localStorage.
+ *
+ * @returns {Array<object>} Reminder list (empty array when unavailable).
+ */
 export const getReminders = () => {
   try {
     const raw = localStorage.getItem(REMINDERS_KEY);
@@ -31,6 +50,7 @@ export const getReminders = () => {
   }
 };
 
+/** Safely persists a reminder list. */
 const persist = (list) => {
   try {
     localStorage.setItem(REMINDERS_KEY, JSON.stringify(list));
@@ -41,11 +61,27 @@ const persist = (list) => {
 
 /* ---------- Sorting ---------- */
 
+/**
+ * Returns a new list sorted by due date (oldest first).
+ *
+ * @param {Array<object>} list - Reminder list.
+ * @returns {Array<object>} Sorted copy.
+ */
 export const sortByDueDate = (list) =>
   [...list].sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate));
 
 /* ---------- CRUD ---------- */
 
+/**
+ * Creates a reminder and returns the updated, re-sorted list.
+ *
+ * @param {object} payload - New reminder data.
+ * @param {string} payload.title - Test name / description.
+ * @param {string} payload.targetDate - Due date (`YYYY-MM-DD`).
+ * @param {string} [payload.frequency='once'] - Recurrence key.
+ * @param {string} [payload.notes=''] - Preparation notes.
+ * @returns {Array<object>} Updated reminder list.
+ */
 export const addReminder = ({ title, targetDate, frequency = 'once', notes = '' }) => {
   const reminder = {
     id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
@@ -61,6 +97,12 @@ export const addReminder = ({ title, targetDate, frequency = 'once', notes = '' 
   return updated;
 };
 
+/**
+ * Deletes a reminder by ID.
+ *
+ * @param {string} id - Reminder ID.
+ * @returns {Array<object>} Updated reminder list.
+ */
 export const deleteReminder = (id) => {
   const updated = getReminders().filter((r) => r.id !== id);
   persist(updated);
@@ -68,9 +110,12 @@ export const deleteReminder = (id) => {
 };
 
 /**
- * تکمیل یادآور:
- * یک‌بار → isCompleted = true
- * دوره‌ای → محاسبه تاریخ دوره بعد و حفظ یادآور فعال
+ * Marks a reminder as completed.
+ * One-shot reminders are flagged `isCompleted`; recurring reminders keep
+ * running and their due date is advanced by the configured recurrence.
+ *
+ * @param {string} id - Reminder ID.
+ * @returns {Array<object>} Updated (re-sorted) reminder list.
  */
 export const completeReminder = (id) => {
   const current = getReminders();
@@ -97,6 +142,14 @@ export const completeReminder = (id) => {
 
 /* ---------- Helpers ---------- */
 
+/**
+ * Adds months to an ISO date while clamping day overflow
+ * (e.g. Jan 31 + 1 month → Feb 28/29 instead of rolling into March).
+ *
+ * @param {string} isoDate - `YYYY-MM-DD` input.
+ * @param {number} months - Months to add.
+ * @returns {string} Adjusted `YYYY-MM-DD` string.
+ */
 const addMonthsIso = (isoDate, months) => {
   const parts = String(isoDate).split('-').map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) return isoDate;
@@ -105,7 +158,6 @@ const addMonthsIso = (isoDate, months) => {
   const originalDay = date.getDate();
   date.setMonth(date.getMonth() + months);
 
-  // جلوگیری از پرش روز در ماه‌های کوتاه‌تر (مثلاً ۳۱ خرداد ← ۳۱ شهریور ندارد)
   if (date.getDate() !== originalDay) {
     date.setDate(0);
   }
@@ -116,6 +168,7 @@ const addMonthsIso = (isoDate, months) => {
   return `${y}-${m}-${d}`;
 };
 
+/** Normalizes any parseable date to local midnight. */
 const startOfDay = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -124,8 +177,16 @@ const startOfDay = (value) => {
 };
 
 /**
- * وضعیت پویا نسبت به امروز:
- * overdue (قرمز) | today | soon ≤۳ روز (کهربایی) | upcoming (سبز/آبی)
+ * Computes the dynamic status of a reminder relative to today.
+ *
+ * Status keys:
+ * - `overdue` (red): past due.
+ * - `today` / `soon` ≤ 3 days (amber): imminent.
+ * - `upcoming` (green/blue): further away.
+ * - `done` / `unknown`: completed or unparsable.
+ *
+ * @param {object} reminder - Reminder record.
+ * @returns {{key:string,label:string,tone:string,diffDays:number|null}}
  */
 export const getReminderStatus = (reminder) => {
   const due = startOfDay(reminder.targetDate);
@@ -153,6 +214,11 @@ export const getReminderStatus = (reminder) => {
   return { key: 'upcoming', label: `${toFaDigits(diffDays)} روز مانده`, tone: 'ok', diffDays };
 };
 
-/** فقط یادآورهای فعال (تکمیل نشده) مرتب بر اساس موعد */
+/**
+ * Returns only active (non-completed) reminders, sorted by due date.
+ *
+ * @param {Array<object>} list - Reminder list.
+ * @returns {Array<object>} Active reminders.
+ */
 export const getActiveReminders = (list) =>
   sortByDueDate(list.filter((r) => !r.isCompleted));

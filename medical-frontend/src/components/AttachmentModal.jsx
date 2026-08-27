@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import './AddTestModal.css';
 import './AttachmentModal.css';
 
+/** Attachment card document icon. */
 const FileGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -12,6 +13,7 @@ const FileGlyph = () => (
   </svg>
 );
 
+/** Dropzone cloud-upload icon. */
 const UploadCloudGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -21,6 +23,7 @@ const UploadCloudGlyph = () => (
   </svg>
 );
 
+/** External-view action icon opening the stored file in a new tab. */
 const EyeGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -30,6 +33,7 @@ const EyeGlyph = () => (
   </svg>
 );
 
+/** Delete-attachment action icon (swap-in spinner during pending delete). */
 const TrashGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -39,6 +43,7 @@ const TrashGlyph = () => (
   </svg>
 );
 
+/** Modal header close-button glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -46,17 +51,40 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/**
+ * Formats a timestamp as a Persian date, or '—' when absent/unparsable.
+ *
+ * @param {string} value - ISO-ish datetime string.
+ * @returns {string} Formatted date or em-dash placeholder.
+ */
 const formatDate = (value) => {
   if (!value) return '—';
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? '—' : new Intl.DateTimeFormat('fa-IR').format(parsed);
 };
 
+/** Renders a byte count as a human-readable kilobyte label (minimum 1 KB). */
 const formatSize = (bytes) => `${Math.max(1, Math.round((bytes || 0) / 1024))} کیلوبایت`;
 
+/** Accepts only images (by MIME prefix) or PDF files (by extension). */
 const isAllowedFile = (file) =>
   !!file && (file.type.startsWith('image/') || (file.name || '').toLowerCase().endsWith('.pdf'));
 
+/**
+ * Attachment manager for a test result: drag-&-drop upload zone with live
+ * progress bar, attachment cards (view/delete) and optimistic local list sync.
+ *
+ * Uses a render-phase sync-key pattern instead of effects to reset transient
+ * state each time the modal opens for a given test id.
+ *
+ * @param {{isOpen: boolean, onClose: Function, testData: object|null,
+ *          onUploadSuccess?: Function}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {object|null} props.testData - Test record whose attachments are managed.
+ * @param {Function} [props.onUploadSuccess] - Refreshes the dashboard table.
+ * @returns {JSX.Element|null} Attachment manager modal, or null when closed.
+ */
 const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -67,8 +95,8 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
   const [attachments, setAttachments] = useState([]);
   const inputRef = useRef(null);
 
-  // همگام‌سازی لیست پیوست‌ها با testData هر بار که مودال برای یک آزمایش باز می‌شود
-  // (الگوی رسمی «تنظیم وضعیت هنگام تغییر پراپس» به‌جای useEffect)
+  // Re-sync the attachment list from testData whenever the modal opens for a test.
+  // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedKey, setSyncedKey] = useState('idle');
   const syncKey = isOpen && testData ? `att-${testData.id}` : 'idle';
 
@@ -85,6 +113,7 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
 
   if (!isOpen || !testData) return null;
 
+  /** Validates then stages a picked/dropped file in the upload chip. */
   const acceptFile = (file) => {
     if (!isAllowedFile(file)) {
       setError('فقط فایل‌های PDF یا تصویر مجاز هستند.');
@@ -117,6 +146,11 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
 
   const clearSelected = () => setSelectedFile(null);
 
+  /**
+   * Uploads the staged file as multipart form data through axios so the
+   * progress event can drive the progress bar; appends the created record
+   * to the local list and notifies the parent on success.
+   */
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -131,10 +165,10 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
     const formData = new FormData();
     formData.append('test_result', testData.id);
 
-    // 👈 هماهنگ‌سازی دقیق با مدل دیتابیس شما
-    formData.append('file_path', selectedFile);           // خود فایل
-    formData.append('file_name', selectedFile.name);      // نام فایل
-    formData.append('mime_type', selectedFile.type);      // نوع فایل (مثلا image/png یا application/pdf)
+    // Field names match the Attachment model exactly.
+    formData.append('file_path', selectedFile);           // The uploaded file itself
+    formData.append('file_name', selectedFile.name);      // Original display name
+    formData.append('mime_type', selectedFile.type);      // MIME type, e.g. image/png or application/pdf
 
     try {
       const response = await API.post('attachments/', formData, {
@@ -150,10 +184,10 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
       }
 
       setLoading(false);
-      setSelectedFile(null); // پاک کردن فایل انتخاب شده
+      setSelectedFile(null); // Clear the selected-file chip after a successful upload
       setUploadProgress(0);
       toast.success('📎 فایل پیوست با موفقیت آپلود شد!');
-      onUploadSuccess(); // آپدیت جدول داشبورد
+      onUploadSuccess(); // Let the dashboard refresh its data table
     } catch (err) {
       setLoading(false);
       console.error('Upload Error:', err.response?.data || err.message);
@@ -161,6 +195,7 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
     }
   };
 
+  /** Confirm-guarded DELETE of one attachment with spinner-driven pending state. */
   const handleDelete = async (attachment) => {
     if (!window.confirm(`حذف پیوست «${attachment.file_name}»؟ این عملیات قابل بازگشت نیست.`)) return;
 
@@ -203,7 +238,7 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
                     <span className="att-date">آپلود: {formatDate(file.uploaded_at)}</span>
                   </span>
                   <span className="att-actions">
-                    {/* 👈 استفاده از file_path برای لینک دانلود */}
+                    {/* file_path holds the download URL */}
                     <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="att-view">
                       <EyeGlyph />
                       مشاهده

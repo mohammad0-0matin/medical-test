@@ -50,6 +50,23 @@ const LogoutIcon = () => (
   </svg>
 );
 
+/**
+ * Header user dropdown: identity header with role badge and online status,
+ * profile-completion shortcut, theme switcher, tour replay and logout.
+ * Closed automatically on outside clicks and Escape.
+ *
+ * @param {{fullName?: string, nationalCode?: string, medicalRole?: string,
+ *          medicalId?: string, onOpenProfile?: Function,
+ *          onOpenTour?: Function, onLogout?: Function}} props - Component props.
+ * @param {string} [props.fullName] - Display name (falls back to a generic label).
+ * @param {string} [props.nationalCode] - National code shown as fallback badge text.
+ * @param {string} [props.medicalRole='standard'] - Role key driving the MedicalRoleBadge.
+ * @param {string} [props.medicalId] - Clinical ID forwarded to the role badge.
+ * @param {Function} [props.onOpenProfile] - Opens the CompleteProfileModal.
+ * @param {Function} [props.onOpenTour] - Replays the OnboardingTour.
+ * @param {Function} [props.onLogout] - Signs the user out.
+ * @returns {JSX.Element} Trigger button plus conditional dropdown panel.
+ */
 const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onOpenTour, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef(null);

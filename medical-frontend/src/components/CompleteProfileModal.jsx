@@ -3,6 +3,7 @@ import { toast } from 'react-toastify';
 import { MEDICAL_ROLES, ROLE_LABELS, getStoredIdentity, storeIdentity } from '../utils/medicalIdentity';
 import './AddTestModal.css';
 
+/** Name/national-code field icon. */
 const UserGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -11,6 +12,7 @@ const UserGlyph = () => (
     </svg>
 );
 
+/** Medical-ID card field icon. */
 const IdCardGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -21,6 +23,7 @@ const IdCardGlyph = () => (
     </svg>
 );
 
+/** Modal header close-button glyph. */
 const CloseGlyph = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
         strokeLinecap="round" aria-hidden="true">
@@ -28,6 +31,20 @@ const CloseGlyph = () => (
     </svg>
 );
 
+/**
+ * Health-profile completion form (names, national code) plus optional
+ * medical role & identity fields powering role badges. Existing values are
+ * fetched from `/patients/me/` on open; when absent, the local identity
+ * snapshot pre-fills role/id. Staff and doctor roles conditionally reveal
+ * their dedicated ID field.
+ *
+ * @param {{isOpen: boolean, onClose: Function,
+ *          onProfileUpdated?: Function}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {Function} [props.onProfileUpdated] - Notifies parent after successful save.
+ * @returns {JSX.Element|null} Profile form modal, or null when closed.
+ */
 const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     const [formData, setFormData] = useState({
         first_name: '',
@@ -38,9 +55,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
     });
 
     const [loading, setLoading] = useState(false);
-    // استیت قدیمی پیام‌ها حذف شد تا توست جایگزین آن شود
-
-    // وقتی فرم باز می‌شود، چک می‌کند آیا قبلاً اطلاعاتی ثبت شده یا نه
+        // Load existing profile data when the modal opens.
     useEffect(() => {
         if (!isOpen) return;
 
@@ -53,7 +68,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
 
                 if (res.ok) {
                     const data = await res.json();
-                    // اولویت: مقدار سرور → مقدار ذخیره شده محلی → پیش‌فرض استاندارد
+                    // Precedence: server value -> local snapshot -> standard default.
                     const identity = getStoredIdentity();
                     setFormData({
                         first_name: data.first_name || '',
@@ -82,6 +97,11 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
+    /**
+     * POSTs the payload to `patients/me/`, mirrors the medical identity to
+     * localStorage so badges work even without backend persistence, and
+     * closes instantly — the toast renders floating on the main page.
+     */
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -104,11 +124,12 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
             });
 
             if (response.ok) {
-                // ذخیره محلی هویت پزشکی تا نشان‌ها بدون پشتیبانی بک‌اند هم کار کنند
+                // Mirror identity locally so badges work without backend support.
                 storeIdentity({ role: payload.medical_role, id: payload.medical_id });
-                toast.success('🩺 پرونده سلامت شما با موفقیت تکمیل شد!'); // 👈 جادوی توست
+                toast.success('🩺 پرونده سلامت شما با موفقیت تکمیل شد!');
                 if (onProfileUpdated) onProfileUpdated();
-                onClose(); // 👈 فرم بلافاصله بسته می‌شود چون توست روی صفحه اصلی شناور می‌ماند
+                // Close right away — the success toast floats over the page behind.
+                onClose();
             } else {
                 toast.error('❌ خطا در ثبت اطلاعات. لطفاً کدملی را بررسی کنید.');
             }
@@ -136,9 +157,7 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                         برای اینکه دیگران بتوانند برای شما نتیجه آزمایش ارسال کنند، لطفاً کدملی خود را با دقت وارد کنید.
                     </div>
 
-                    {/* کدهای قدیمی نمایش ارور از اینجا حذف شد */}
-
-                    <form onSubmit={handleSubmit}>
+                                        <form onSubmit={handleSubmit}>
                         <div className="form-row">
                             <div>
                                 <label className="form-label">نام:</label>

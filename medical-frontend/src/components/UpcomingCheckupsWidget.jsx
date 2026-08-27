@@ -9,6 +9,7 @@ import './UpcomingCheckupsWidget.css';
 const toLocalFa = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Complete-action check icon. */
 const CheckGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -16,6 +17,7 @@ const CheckGlyph = () => (
   </svg>
 );
 
+/** Google Calendar action icon. */
 const CalendarGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -24,6 +26,7 @@ const CalendarGlyph = () => (
   </svg>
 );
 
+/** .ics download action icon. */
 const DownloadGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -33,6 +36,7 @@ const DownloadGlyph = () => (
   </svg>
 );
 
+/** Delete-reminder action icon. */
 const TrashGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -42,9 +46,24 @@ const TrashGlyph = () => (
   </svg>
 );
 
+/**
+ * Reminders carousel showing upcoming checkups with tone-coded status chips
+ * driven by {@link getReminderStatus}, plus per-card completion (advances
+ * recurring schedules), Google-Calendar / .ics export and delete actions.
+ * Completed reminders are filtered out entirely from this view.
+ *
+ * @param {{reminders?: Array<object>, onAddClick?: Function,
+ *          onComplete?: Function, onDelete?: Function}} props - Widget props.
+ * @param {Array<object>} [props.reminders] - Full reminder list state.
+ * @param {Function} [props.onAddClick] - Opens the AddReminderModal.
+ * @param {Function} [props.onComplete] - Marks a reminder complete by id.
+ * @param {Function} [props.onDelete] - Deletes a reminder by id.
+ * @returns {JSX.Element} Reminder region with empty-state call-to-action.
+ */
 const UpcomingCheckupsWidget = ({ reminders = [], onAddClick, onComplete, onDelete }) => {
   const activeReminders = reminders.filter((r) => !r.isCompleted);
 
+  /** Opens Google Calendar's add-event template for this reminder in a new tab. */
   const handleGoogleCalendar = (reminder) => {
     const url = buildGoogleCalendarUrl({
       title: reminder.title,
@@ -54,6 +73,7 @@ const UpcomingCheckupsWidget = ({ reminders = [], onAddClick, onComplete, onDele
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  /** Downloads a single-event .ics file named after the reminder title. */
   const handleIcsDownload = (reminder) => {
     const ok = downloadIcs([reminder], `salamatyar_${reminder.title.replace(/\s+/g, '_')}.ics`);
     if (ok) toast.success('📅 فایل تقویم دانلود شد.');

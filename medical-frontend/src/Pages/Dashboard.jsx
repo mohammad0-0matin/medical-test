@@ -11,12 +11,7 @@ import TemporaryAccessModal from '../components/TemporaryAccessModal';
 import HealthCard from '../components/HealthCard';
 import PrintableReport from '../components/PrintableReport';
 import ClinicalNotesModal from '../components/ClinicalNotesModal';
-import {
-  getAllClinicalNotes,
-  saveClinicalNote,
-  deleteClinicalNote,
-  getClinicalNotePreview,
-} from '../utils/clinicalNotesUtils';
+import { getAllClinicalNotes, getClinicalNotePreview } from '../utils/clinicalNotesUtils';
 import UserMenu from '../components/UserMenu';
 import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
@@ -220,6 +215,24 @@ const TableSkeleton = () => (
   </div>
 );
 
+/**
+ * Main application dashboard (route `/dashboard`).
+ *
+ * Aggregates the digital health card, reminders widget, access-request and
+ * pending-test inboxes, statistics row, filter/sort/export toolbar and the
+ * three result views (table / timeline / health-summary). Hosts every modal
+ * workflow: add/edit test, attachments, trend chart, comparison, clinical
+ * notes, profile completion, temporary access and the onboarding tour.
+ *
+ * Initial data loads once via Promise.all over six fetchers; the clinical
+ * notes map mirrors localStorage so table, timeline and print views stay
+ * synchronized without extra requests. Render-phase gates reset pagination
+ * and schedule the first-visit tour instead of extra effects.
+ *
+ * @module Pages/Dashboard
+ * @returns {JSX.Element} Full dashboard layout.
+ */
+
 const Dashboard = () => {
   const { logout } = useContext(AuthContext);
   const [tests, setTests] = useState([]);
@@ -249,23 +262,23 @@ const Dashboard = () => {
   const [pendingTests, setPendingTests] = useState([]);
   const [profile, setProfile] = useState(null);
 
-  // استیت افراد تحت مراقبت من
+  // Dependents managed by me
   const [myDependents, setMyDependents] = useState([]);
 
-  // استیت دسترسی‌های فعال به پرونده من
+  // Active accesses granted to my record
   const [grantedAccesses, setGrantedAccesses] = useState([]);
 
-  // استیت صندوق پیام درخواست‌های دسترسی
+  // Access-request inbox state
   const [accessRequests, setAccessRequests] = useState([]);
 
-  // استیت‌های اسکلتون بارگذاری اولیه
+  // Initial-load skeleton states
   const [profileLoading, setProfileLoading] = useState(true);
   const [accessLoading, setAccessLoading] = useState(true);
 
-  // استیت خروجی اکسل
+  // Excel export state
   const [isExporting, setIsExporting] = useState(false);
 
-  // حالت نمایش نتایج: جدول / تایم‌لاین / خلاصه پرونده (ذخیره محلی)
+  // Results view mode: table / timeline / health summary (persisted)
   const VIEW_MODE_KEY = 'salamatyar_view_mode';
   const [viewMode, setViewMode] = useState(() => {
     const stored = localStorage.getItem(VIEW_MODE_KEY);
@@ -281,17 +294,17 @@ const Dashboard = () => {
     }
   };
 
-  // خلاصه پرونده سلامت (برای همگام‌سازی با دسترسی اضطراری)
+  // Health summary (synced into the emergency pass)
   const [healthSummary, setHealthSummary] = useState(() => getHealthSummary());
 
-  // تنظیمات پرینت و خروجی PDF
+  // PDF print setup
   const printRef = useRef(null);
   const handlePrintReport = useReactToPrint({
     contentRef: printRef,
     documentTitle: 'گزارش آزمایش‌ها - سلامت‌یار',
   });
 
-  // خروجی اکسل از نتایج فیلتر و مرتب شده (کل لیست، نه فقط صفحه جاری)
+  // Excel export of the filtered & sorted list (full list, not just current page)
   const handleExportExcel = () => {
     if (!visibleTests.length) {
       toast.info('هیچ آزمایشی برای خروجی اکسل وجود ندارد.');
@@ -310,20 +323,20 @@ const Dashboard = () => {
     }
   };
 
-  // دریافت اطلاعات پروفایل کاربر لاگین شده
+  // Fetch the logged-in user's profile
   const fetchProfile = async () => {
     setProfileLoading(true);
     try {
       const res = await API.get('patients/me/');
       setProfile(res.data);
-    } catch (err) {
+    } catch {
       setProfile(null);
     } finally {
       setProfileLoading(false);
     }
   };
 
-  // دریافت لیست افراد تحت مراقبت
+  // Fetch dependents under my care
   const fetchMyDependents = async () => {
     try {
       const response = await API.get('access/dependents/');
@@ -333,7 +346,7 @@ const Dashboard = () => {
     }
   };
 
-  // دریافت لیست کسانی که به پرونده من دسترسی دارند
+  // Fetch people who have access to my record
   const fetchGrantedAccesses = async () => {
     try {
       const response = await API.get('access/granted/');
@@ -343,7 +356,7 @@ const Dashboard = () => {
     }
   };
 
-  // دریافت درخواست‌های در انتظار تایید دسترسی
+  // Fetch pending access requests
   const fetchAccessRequests = async () => {
     try {
       const response = await API.get('access/inbox/');
@@ -353,7 +366,7 @@ const Dashboard = () => {
     }
   };
 
-  // دریافت صندوق آزمایش‌های در انتظار تایید
+  // Fetch tests awaiting approval
   const fetchPendingTests = async () => {
     try {
       const response = await API.get('test-results/inbox/');
@@ -363,7 +376,7 @@ const Dashboard = () => {
     }
   };
 
-  // دریافت تمام آزمایش‌ها
+  // Fetch all test results
   const fetchTests = async () => {
     setLoading(true);
     try {
@@ -392,20 +405,25 @@ const Dashboard = () => {
     bootstrap();
   }, []);
 
-  // راهنمای تعاملی: اجرای خودکار فقط برای بازدید اول پس از اتمام بارگذاری اولیه
+  // Onboarding tour: auto-start once for first-time visitors after initial load finishes
+  // (render-phase gate instead of useEffect)
   const [isTourActive, setIsTourActive] = useState(false);
+  const [tourGateChecked, setTourGateChecked] = useState(false);
 
-  useEffect(() => {
-    if (loading || accessLoading || profileLoading) return undefined;
-    let firstVisit = false;
+  const initialLoadDone = !loading && !accessLoading && !profileLoading;
+  if (initialLoadDone && !tourGateChecked) {
+    setTourGateChecked(true);
+
+    let firstVisit;
     try {
       firstVisit = !localStorage.getItem('salamatyar_tour_completed');
     } catch {
+      /* storage unavailable */
       firstVisit = false;
     }
+
     if (firstVisit) setIsTourActive(true);
-    return undefined;
-  }, [loading, accessLoading, profileLoading]);
+  }
 
   const finishTour = () => {
     setIsTourActive(false);
@@ -450,10 +468,11 @@ const Dashboard = () => {
   ];
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Intentional reset: pagination must return to page 1 whenever any filter changes.
     setCurrentPage(1);
   }, [searchTerm, filterStatus, typeFilter, personFilter]);
 
-  // لغو دسترسی یک شخص
+  // Revoke a person's access
   const handleRevokeAccess = async (id) => {
     if (!window.confirm("آیا از لغو دسترسی این شخص مطمئن هستید؟")) return;
     try {
@@ -465,7 +484,7 @@ const Dashboard = () => {
     }
   };
 
-  // تایید یا رد درخواست دسترسی
+  // Approve or reject an access request
   const handleRespondAccess = async (id, actionType) => {
     try {
       const res = await API.post(`access/${id}/respond/`, { action: actionType });
@@ -477,7 +496,7 @@ const Dashboard = () => {
     }
   };
 
-  // ارسال درخواست دسترسی به پرونده یک شخص با کد ملی
+  // Send an access request for a person by national code
   const handleAddDependent = async (e) => {
     e.preventDefault();
     if (!childNationalCode) return;
@@ -490,7 +509,7 @@ const Dashboard = () => {
     }
   };
 
-  // تایید یا رد آزمایش ثبت شده توسط دیگران
+  // Approve or reject tests submitted by others
   const handleReviewTest = async (testId, actionType) => {
     try {
       await API.post(`test-results/${testId}/review/`, { action: actionType });
@@ -510,7 +529,7 @@ const Dashboard = () => {
       await API.delete(`test-results/${id}/`);
       toast.success('آزمایش با موفقیت حذف شد!');
       fetchTests();
-    } catch (err) {
+    } catch {
       toast.error('خطا در حذف آزمایش.');
     }
   };
@@ -520,7 +539,7 @@ const Dashboard = () => {
     setIsEditModalOpen(true);
   };
 
-  /* ---------- یادآور آزمایش‌ها ---------- */
+  /* ---------- Test reminders ---------- */
 
   const handleAddReminder = (payload) => {
     setReminders(addReminder(payload));
@@ -584,14 +603,14 @@ const Dashboard = () => {
     }
   };
 
-  // گزینه‌های نوع آزمایش به صورت پویا از داده‌های بارگذاری شده
+  // Dynamic test-type options derived from loaded data
   const testTypeOptions = useMemo(
     () => [...new Set(tests.map((t) => t.test_type_name).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'fa')),
     [tests]
   );
 
-  // کدهای ملی افراد تحت مراقبت برای فیلتر مالکیت
+  // Dependent national codes used by the ownership filter
   const dependentCodes = useMemo(
     () => new Set(myDependents.map((d) => d.national_code).filter(Boolean)),
     [myDependents]
@@ -599,7 +618,7 @@ const Dashboard = () => {
 
   const profileNationalCode = profile?.national_code || '';
 
-  // نقش کاربری و هویت پزشکی (سرور → محلی → استاندارد)
+  // Medical role & identity (server -> local -> standard)
   const medicalIdentity = useMemo(
     () => resolveMedicalIdentity(profile),
     [profile]
@@ -610,7 +629,7 @@ const Dashboard = () => {
       ? `دکتر ${profile?.first_name || ''} ${profile?.last_name || ''}`.trim()
       : '';
 
-  /* ---------- یادداشت‌های بالینی ---------- */
+  /* ---------- Clinical notes ---------- */
 
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const [notesTest, setNotesTest] = useState(null);
@@ -633,7 +652,7 @@ const Dashboard = () => {
     });
   };
 
-  // مرحله ۱: فیلتر (جستجو + وضعیت + نوع آزمایش + مالکیت)
+  // Stage 1: filter (search + status + test type + ownership)
   const filteredTests = tests.filter((test) => {
     const fullName = `${test.patient?.first_name || ''} ${test.patient?.last_name || ''}`.toLowerCase();
     const matchesSearch = fullName.includes(searchTerm.toLowerCase());
@@ -651,7 +670,7 @@ const Dashboard = () => {
     return matchesSearch && matchesStatus && matchesType && matchesPerson;
   });
 
-  // مرحله ۲: مرتب‌سازی ستونی (تاریخ / نتیجه) با پایداری و هندل مقادیر خالی
+  // Stage 2: column sorting (date / result) — stable, nulls last
   let visibleTests = filteredTests;
   if (sortConfig.key && sortConfig.direction !== 'none') {
     const parseValue = (test) => {
@@ -672,7 +691,7 @@ const Dashboard = () => {
       const valueA = parseValue(a);
       const valueB = parseValue(b);
 
-      // مقادیر خالی همیشه در انتها قرار می‌گیرند
+      // Null values always sort last
       if (valueA === null && valueB === null) return 0;
       if (valueA === null) return 1;
       if (valueB === null) return -1;
@@ -693,7 +712,7 @@ const Dashboard = () => {
   const currentTests = visibleTests.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(visibleTests.length / itemsPerPage);
 
-  // تغییر جهت مرتب‌سازی: صعودی → نزولی → بدون مرتب‌سازی
+  // Sort cycle: ascending -> descending -> none
   const handleSort = (key) => {
     setSortConfig((prev) => {
       if (prev.key !== key) return { key, direction: 'asc' };
@@ -803,7 +822,7 @@ const Dashboard = () => {
       <main style={styles.main}>
         {error && <div style={styles.errorMessage}>{error}</div>}
 
-        {/* کارت سلامت دیجیتال */}
+        {/* Digital health card */}
         {profileLoading && !profile ? (
           <HealthCardSkeleton />
         ) : (
@@ -816,7 +835,7 @@ const Dashboard = () => {
           />
         )}
 
-        {/* یادآور و تقویم دوره‌ای آزمایش‌ها */}
+        {/* Recurring test reminders */}
         <UpcomingCheckupsWidget
           reminders={reminders}
           onAddClick={() => setIsReminderModalOpen(true)}
@@ -824,7 +843,7 @@ const Dashboard = () => {
           onDelete={handleDeleteReminder}
         />
 
-        {/* ۱ و ۲. صندوق‌های پیام (آزمایش‌ها و درخواست‌های دسترسی) */}
+        {/* 1 & 2. Inboxes (pending tests and access requests) */}
         {accessLoading ? (
           <InboxSkeleton />
         ) : (
@@ -858,7 +877,7 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* ۲. صندوق پیام درخواست‌های دسترسی دیگران */}
+        {/* 2. Inbox for other users' access requests */}
         {accessRequests.length > 0 && (
           <div style={{ backgroundColor: 'var(--info-bg, #eff6ff)', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '20px', marginBottom: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <h3 style={{ color: '#1e3a8a', marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.2rem' }}>
@@ -887,7 +906,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* ۳ و ۴. مدیریت دسترسی‌ها و افراد تحت مراقبت */}
+        {/* 3 & 4. Access management and dependents */}
         {accessLoading ? (
           <>
             <AccessListSkeleton titleWidth="68%" />
@@ -895,7 +914,7 @@ const Dashboard = () => {
           </>
         ) : (
           <>
-        {/* ۳. مدیریت افرادی که به پرونده من دسترسی دارند */}
+        {/* 3. People who have access to my record */}
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
           <h3 style={{ color: 'var(--text-strong)', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
             🛡️ افرادی که به پرونده شما دسترسی دارند:
@@ -921,7 +940,7 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* ۴. افرادی که تحت مراقبت من هستند */}
+        {/* 4. People under my care */}
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
           <h3 style={{ color: 'var(--text-strong)', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
             📋 افرادی که تحت مراقبت من هستند (دسترسی دارم):
@@ -947,7 +966,7 @@ const Dashboard = () => {
           </>
         )}
 
-        {/* آمار آزمایش‌ها */}
+        {/* Test statistics */}
         {loading ? (
           <StatsRowSkeleton />
         ) : (
@@ -971,7 +990,7 @@ const Dashboard = () => {
         </div>
         )}
 
-        {/* فرم ارسال درخواست مراقبت */}
+        {/* Care/access request form */}
         <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid var(--border)' }}>
           <h3 style={{ margin: '0 0 12px 0', color: 'var(--text-body)', fontSize: '15px' }}>درخواست دسترسی و افزودن فرد تحت مراقبت</h3>
           <form onSubmit={handleAddDependent} style={{ display: 'flex', gap: '12px' }}>
@@ -988,7 +1007,7 @@ const Dashboard = () => {
           </form>
         </div>
 
-        {/* بخش جستجو، فیلتر و دکمه پرینت */}
+        {/* Search, filters and export actions */}
         <div style={styles.filterSection} className="dashboard-filter-bar">
           <input
             type="text"
@@ -1046,7 +1065,7 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* سوییچ حالت نمایش: جدول / تایم‌لاین */}
+        {/* View switcher: table / timeline / summary */}
         <div className="view-toggle-row" role="group" aria-label="حالت نمایش نتایج">
           <span className="vt-label">نمایش نتایج:</span>
           <div className="seg">
@@ -1068,7 +1087,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* محتوای اصلی بر اساس حالت نمایش */}
+        {/* Main content by view mode */}
         {loading ? (
           <TableSkeleton />
         ) : viewMode === 'summary' ? (
@@ -1219,7 +1238,7 @@ const Dashboard = () => {
         onDeleted={handleDeleteClinicalNote}
       />
 
-      {/* کامپوننت مخصوص خروجی چاپ و PDF */}
+      {/* PDF print output component */}
       <PrintableReport
         ref={printRef}
         tests={visibleTests}
@@ -1227,7 +1246,7 @@ const Dashboard = () => {
         clinicalNotesMap={clinicalNotesMap}
       />
 
-      {/* راهنمای تعاملی گام‌به‌گام */}
+      {/* Interactive step-by-step tour */}
       <OnboardingTour steps={TOUR_STEPS} active={isTourActive} onFinish={finishTour} />
     </div>
   );

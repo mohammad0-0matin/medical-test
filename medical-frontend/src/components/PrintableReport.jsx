@@ -1,14 +1,22 @@
 import { forwardRef, Fragment } from 'react';
 import './PrintableReport.css';
 
+/** Converts Western digits inside any value to Persian digits. */
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Persian date formatter with '—' fallback for empty inputs. */
 const formatDate = (dateString) => {
   if (!dateString) return '—';
   return new Intl.DateTimeFormat('fa-IR').format(new Date(dateString));
 };
 
+/**
+ * Classifies a result against its reference range.
+ *
+ * @param {object} test - Test record (value + min/max, either key style).
+ * @returns {'نرمال'|'غیرنرمال'|'نامشخص'} Persian medical-status label.
+ */
 const getMedicalStatus = (test) => {
   const value = parseFloat(test.result_value);
   const min = parseFloat(test.min_range ?? test.lab_min_range);
@@ -19,6 +27,7 @@ const getMedicalStatus = (test) => {
   return value >= min && value <= max ? 'نرمال' : 'غیرنرمال';
 };
 
+/** Maps backend approval status values onto Persian report labels. */
 const approvalLabel = (status) => {
   switch (status) {
     case 'approved':
@@ -32,6 +41,7 @@ const approvalLabel = (status) => {
   }
 };
 
+/** Inline style sheet for the print document (static, non-themed by design). */
 const styles = {
   doc: {
     direction: 'rtl',
@@ -119,6 +129,13 @@ const styles = {
   emptyRow: { textAlign: 'center', padding: '18px', color: '#6b7280' },
 };
 
+/**
+ * Flattens one clinical-note entry into its single printed line,
+ * preserving field order and skipping blanks.
+ *
+ * @param {object|null} note - Clinical-note entry keyed like clinicalNotesUtils entries.
+ * @returns {string} Joined preview text or '' when absent.
+ */
 const buildNoteLine = (note) => {
   if (!note) return '';
   const parts = [];
@@ -129,6 +146,22 @@ const buildNoteLine = (note) => {
   return parts.join(' | ');
 };
 
+/**
+ * A4 printable test report (react-to-print target).
+ *
+ * Renders patient info grid, results table with medical-status and approval
+ * columns, live-computed summary chips, optional clinical-note sub-rows and
+ * a physician disclaimer. `ref` lands on the printable root div; `displayName`
+ * is assigned below for react-to-print compatibility.
+ *
+ * @param {{tests?: Array<object>, profile?: object|null,
+ *          clinicalNotesMap?: object}} props - Report data props.
+ * @param {Array<object>} [props.tests] - Visible test results to print.
+ * @param {object|null} [props.profile] - Patient identity for the report header.
+ * @param {object} [props.clinicalNotesMap] - Clinical notes keyed by test id.
+ * @param {import('react').Ref<Object>} ref - Forwarded to the printable wrapper div.
+ * @returns {JSX.Element} Print-ready static markup.
+ */
 const PrintableReport = forwardRef(({ tests = [], profile, clinicalNotesMap = {} }, ref) => {
   const fullName =
     [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim() || '—';

@@ -1,5 +1,6 @@
 import './Footer.css';
 
+/** Brand pulse icon rendered next to the footer logo. */
 const PulseIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -7,6 +8,12 @@ const PulseIcon = () => (
   </svg>
 );
 
+/**
+ * Global site footer: brand mark, placeholder navigation links and copyright.
+ * Purely presentational — takes no props and holds no state.
+ *
+ * @returns {JSX.Element} Footer element.
+ */
 const Footer = () => (
   <footer className="ft">
     <div className="ft-inner">

@@ -18,8 +18,9 @@ import './HealthSummaryView.css';
 const toFa = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
-/* ---------- پیکربندی بخش‌ها و فیلدهای فرم ---------- */
+/* ---------- Section & form field configuration ---------- */
 
+/** Emoji/title/item-title/form-field configuration for every summary section. */
 const SECTION_DEFS = {
   conditions: {
     emoji: '🩺',
@@ -79,6 +80,7 @@ const SECTION_DEFS = {
   },
 };
 
+/** Fallback screening ideas shown when no active reminders exist yet. */
 const SCREENING_SUGGESTIONS = [
   'فشار خون — هر ۶ ماه',
   'قند خون ناشتا — سالانه',
@@ -88,6 +90,25 @@ const SCREENING_SUGGESTIONS = [
 
 /* ---------- Component ---------- */
 
+/**
+ * Personal-Health-Record view rendered as the dashboard's 'summary' mode.
+ * Cards for allergies, conditions, medications, immunizations and care-plan
+ * goals share one data-driven editor modal plus a dedicated preventive-care
+ * card fed by upcoming reminders (with screening suggestions when empty).
+ *
+ * Every mutation writes through {@link addItem}/{@link updateItem}/
+ * {@link deleteItem} into localStorage, then re-reads and pushes the fresh
+ * summary upward through `onChange`. A hidden react-to-print host holds
+ * {@link HealthSummaryPrintDossier} for the print action.
+ *
+ * @param {{profile?: object|null, reminders?: Array<object>,
+ *          summary: object, onChange: Function}} props - View props.
+ * @param {object|null} [props.profile] - Patient profile for printed headers.
+ * @param {Array<object>} [props.reminders] - Active reminders feeding preventive card.
+ * @param {object} props.summary - Current health-summary state.
+ * @param {Function} props.onChange - Receives the refreshed summary after edits.
+ * @returns {JSX.Element} Grid of section cards with editors and print support.
+ */
 const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
   const [editor, setEditor] = useState({ open: false, section: null, item: null });
 
@@ -131,7 +152,7 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
     onChange(getHealthSummary());
   };
 
-  /* ---------- رندر آیتم هر بخش ---------- */
+  /* ---------- Per-section item rendering ---------- */
 
   const renderItem = (section, item) => {
     switch (section) {
@@ -296,7 +317,7 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
         {renderSectionCard('conditions')}
         {renderSectionCard('medications')}
 
-        {/* ستون پیشگیرانه */}
+        {/* Preventive care pillar */}
         <section className="hs-card">
           <header className="hs-card-head">
             <h3><span aria-hidden="true">🛡️</span> مراقبت‌های پیشگیرانه و غربالگری</h3>
@@ -335,7 +356,7 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
         {renderSectionCard('carePlan')}
       </div>
 
-      {/* نسخه چاپی A4 */}
+      {/* Printable A4 dossier */}
       <div className="phr-print-host">
         <div ref={dossierRef}>
           <HealthSummaryPrintDossier summary={summary} profile={profile} />

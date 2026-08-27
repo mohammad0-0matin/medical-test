@@ -5,6 +5,17 @@ import { toast } from 'react-toastify';
 import AuthBrand, { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon } from '../components/AuthBrand';
 import './Auth.css';
 
+/**
+ * Registration page — mirrors the login layout and creates an account
+ * through POST `/register/`.
+ *
+ * Server-side DRF validation errors are mapped field-by-field (username /
+ * password / generic detail) onto an error toast. Success shows a welcome
+ * toast and defers navigation to `/login` by 2 seconds so the confirmation
+ * stays visible.
+ *
+ * @returns {JSX.Element} Full-page registration layout.
+ */
 const Register = () => {
   const [formData, setFormData] = useState({
     username: '',
@@ -18,6 +29,10 @@ const Register = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  /**
+   * Creates the account, maps DRF field errors onto the toast (username /
+   * password / detail precedence) and schedules the login redirect.
+   */
   const handleSubmit = async (e) => {
       e.preventDefault();
       setLoading(true);

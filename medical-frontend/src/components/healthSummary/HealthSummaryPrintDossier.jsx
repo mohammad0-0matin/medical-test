@@ -1,6 +1,16 @@
 /**
- * نسخه چاپی یک‌صفحه‌ای «خلاصه سوابق بالینی بیمار»
- * برای بستری یا مراجعه به پزشک
+ * One-page printable snapshot of the patient's clinical history, designed
+ * for hospitalization paperwork or doctor visits.
+ *
+ * Rendered off-screen inside HealthSummaryView and printed via react-to-print;
+ * empty sections are omitted entirely so the sheet stays compact.
+ *
+ * @param {{innerRef: import('react').Ref<Object>,
+ *          summary: object, profile: object|null}} props - Print-target props.
+ * @param {import('react').Ref<Object>} props.innerRef - Attached to the printable wrapper div.
+ * @param {object} props.summary - Full health-summary state (five sections).
+ * @param {object|null} props.profile - Patient profile used in the identity header.
+ * @returns {JSX.Element} Static printable document markup.
  */
 const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
   const fullName =

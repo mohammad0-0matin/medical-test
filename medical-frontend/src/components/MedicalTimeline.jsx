@@ -1,8 +1,30 @@
+/**
+ * Visual timeline of test results grouped by Jalali month/year.
+ *
+ * Props:
+ * - tests: filtered & sorted dataset from the dashboard pipeline.
+ * - clinicalNotesMap: existing clinical notes keyed by test id
+ *   (rendered inside each card as an expandable `<details>` block).
+ * - onChart / onAttachments / onEdit / onNotes: modal-open callbacks.
+ *
+ * Events are bucketed by month using a Map (guarantees insertion order);
+ * each card shows a category chip from the keyword classifier, approval /
+ * medical status chips, the result value with its normal-range pill,
+ * and a footer of modal actions.
+ *
+ * @module components/MedicalTimeline
+ */
 import { useMemo } from 'react';
 import './MedicalTimeline.css';
 
 /* ---------- Category classification ---------- */
 
+/**
+ * Category metadata: display label plus lowercase keyword list.
+ * A test name matching any keyword maps to the category; keyword sets are
+ * intentionally bilingual (English abbreviations + Persian names) because
+ * lab test titles arrive mixed-language from the backend.
+ */
 const CATEGORIES = {
   hematology: {
     label: 'هماتولوژی',
@@ -22,6 +44,13 @@ const CATEGORIES = {
   },
 };
 
+/**
+ * Classifies a test name into a medical category based on keywords.
+ * Priority order: hormone > biochemistry > hematology > general.
+ *
+ * @param {string} name - Test name to classify.
+ * @returns {string} Category key: 'hematology' | 'biochemistry' | 'hormone' | 'general'
+ */
 const classifyTest = (name = '') => {
   const lowered = name.toLowerCase();
 
@@ -33,6 +62,7 @@ const classifyTest = (name = '') => {
 
 /* ---------- SVG glyphs ---------- */
 
+/** Category chip icon: hematology. */
 const BloodGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -41,6 +71,7 @@ const BloodGlyph = () => (
   </svg>
 );
 
+/** Category chip icon: biochemistry. */
 const FlaskGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -50,6 +81,7 @@ const FlaskGlyph = () => (
   </svg>
 );
 
+/** Category chip icon: hormone / serology. */
 const DnaGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -60,6 +92,7 @@ const DnaGlyph = () => (
   </svg>
 );
 
+/** Category chip icon: general / fallback. */
 const StethoscopeGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -69,6 +102,7 @@ const StethoscopeGlyph = () => (
   </svg>
 );
 
+/** Map of category key → prebuilt chip icon element for timeline cards. */
 const CATEGORY_GLYPHS = {
   hematology: <BloodGlyph />,
   biochemistry: <FlaskGlyph />,
@@ -78,11 +112,23 @@ const CATEGORY_GLYPHS = {
 
 /* ---------- Date helpers ---------- */
 
+/**
+ * Parses an ISO date string to a Date object, returning null on invalid input.
+ * 
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @returns {Date|null} Parsed Date object or null if invalid
+ */
 const toDate = (dateString) => {
   const date = new Date(dateString);
   return Number.isNaN(date.getTime()) ? null : date;
 };
 
+/**
+ * Formats a date string as a full Jalali date (e.g. "۱۴۰۴ مهر ۳").
+ * 
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @returns {string} Full Jalali date string or '—' if invalid
+ */
 const fullJalali = (dateString) => {
   const date = toDate(dateString);
   return date
@@ -90,6 +136,12 @@ const fullJalali = (dateString) => {
     : '—';
 };
 
+/**
+ * Formats a date string as a Jalali month-year string (e.g. "مهر ۱۴۰۴").
+ * 
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @returns {string} Jalali month-year string or 'تاریخ نامشخص' if invalid
+ */
 const monthYearJalali = (dateString) => {
   const date = toDate(dateString);
   return date
@@ -97,6 +149,14 @@ const monthYearJalali = (dateString) => {
     : 'تاریخ نامشخص';
 };
 
+/**
+ * Formats a date string as a relative Persian time string.
+ * Returns relative time (e.g., "امروز", "دیروز", "۳ روز پیش", "۲ هفته پیش")
+ * or falls back to month-year format for older dates.
+ * 
+ * @param {string} dateString - ISO date string (YYYY-MM-DD)
+ * @returns {string} Relative Persian time string or empty string if invalid
+ */
 const relativeTimeFa = (dateString) => {
   const date = toDate(dateString);
   if (!date) return '';
@@ -117,15 +177,28 @@ const relativeTimeFa = (dateString) => {
   return monthYearJalali(dateString);
 };
 
+/**
+ * Converts Western digits to Persian digits.
+ * 
+ * @param {*} value - Input value (number or string)
+ * @returns {string} Value with Persian digits (۰۱۲۳۴۵۶۷۸۹)
+ */
 const toLocalFa = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
+/** Approval status display labels and CSS class mappings. */
 const APPROVAL_LABELS = {
   approved: { text: 'تایید شده', className: 'tl-st-approved' },
   pending: { text: 'در انتظار تایید', className: 'tl-st-pending' },
   rejected: { text: 'رد شده', className: 'tl-st-rejected' },
 };
 
+/**
+ * Determines the medical status of a test result against its reference range.
+ * 
+ * @param {object} test - Test result object with result_value, min/max ranges
+ * @returns {object|null} { text, className } or null if values missing
+ */
 const medicalStatus = (test) => {
   const value = parseFloat(test.result_value);
   const min = parseFloat(test.min_range ?? test.lab_min_range);
@@ -138,6 +211,14 @@ const medicalStatus = (test) => {
 
 /* ---------- Component ---------- */
 
+/**
+ * Visual timeline of test results grouped by Persian month.
+ *
+ * Props:
+ * - tests: filtered & sorted dataset from the dashboard pipeline.
+ * - clinicalNotesMap: existing notes keyed by test id (expandable block).
+ * - onChart/onAttachments/onEdit/onNotes: modal open callbacks.
+ */
 const MedicalTimeline = ({
   tests = [],
   clinicalNotesMap = {},

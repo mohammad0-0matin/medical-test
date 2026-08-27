@@ -2,6 +2,7 @@ import { useState } from 'react';
 import API from '../api';
 import './AddTestModal.css';
 
+/** Patient identity (read-only) icon. */
 const UserGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -10,6 +11,7 @@ const UserGlyph = () => (
   </svg>
 );
 
+/** Test-type label (read-only) icon. */
 const FlaskGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -19,6 +21,7 @@ const FlaskGlyph = () => (
   </svg>
 );
 
+/** Date field icon. */
 const CalendarGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -27,6 +30,7 @@ const CalendarGlyph = () => (
   </svg>
 );
 
+/** Numeric-result field icon. */
 const NumberGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,6 +38,7 @@ const NumberGlyph = () => (
   </svg>
 );
 
+/** Free-text result field icon. */
 const TextGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -41,6 +46,7 @@ const TextGlyph = () => (
   </svg>
 );
 
+/** Lower bound field icon. */
 const MinGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -50,6 +56,7 @@ const MinGlyph = () => (
   </svg>
 );
 
+/** Upper bound field icon. */
 const MaxGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -59,6 +66,7 @@ const MaxGlyph = () => (
   </svg>
 );
 
+/** Round close-button glyph for the modal header. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
     strokeLinecap="round" aria-hidden="true">
@@ -66,6 +74,20 @@ const CloseGlyph = () => (
   </svg>
 );
 
+/**
+ * Edits an existing test result via PUT `test-results/:id/`.
+ * Patient and test type render read-only; remaining fields prefill from
+ * `testData` on every open. Server-side validation errors are surfaced
+ * as the first field error returned by DRF.
+ *
+ * @param {{isOpen: boolean, onClose: Function,
+ *          onTestUpdated?: Function, testData: object|null}} props - Modal props.
+ * @param {boolean} props.isOpen - Whether the modal is visible.
+ * @param {Function} props.onClose - Requests closing the modal.
+ * @param {Function} [props.onTestUpdated] - Notifies the dashboard to refetch.
+ * @param {object|null} props.testData - Test record currently being edited.
+ * @returns {JSX.Element|null} Edit form modal, or null when closed.
+ */
 const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   const [formData, setFormData] = useState({
     patient: '',
@@ -81,8 +103,8 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // وقتی مودال برای هر آزمایشی باز می‌شود، اطلاعات آن را در فرم قرار می‌دهیم
-  // (الگوی رسمی «تنظیم وضعیت هنگام تغییر پراپس» به‌جای useEffect)
+  // Prefill the form each time the modal opens for a test.
+  // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedTestId, setSyncedTestId] = useState('closed');
   const openTestId = isOpen && testData ? `edit-${testData.id}` : 'closed';
 
@@ -110,6 +132,11 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
     setFormData({ ...formData, [name]: value });
   };
 
+  /**
+   * Sends the PUT request with coerced numeric fields (IDs parsed to ints,
+   * numeric ranges/result values kept null when left blank) and maps the
+   * first server validation error onto the inline alert.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -125,11 +152,11 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
     };
 
     try {
-      // استفاده از متد PUT برای آپدیت رکورد
+      // Update the record via PUT.
       await API.put(`test-results/${testData.id}/`, payload);
       setLoading(false);
-      onTestUpdated(); // آپدیت کردن جدول
-      onClose(); // بستن مودال
+      onTestUpdated(); // Refresh the results table in the parent page
+      onClose(); // Close the modal
     } catch (err) {
       setLoading(false);
       if (err.response && err.response.data) {
@@ -153,7 +180,7 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
         </div>
 
         <div className="modal-body">
-          {/* برای سادگی ویرایش، نام بیمار و نوع آزمایش را فقط خواندنی (Read-Only) می‌کنیم */}
+          {/* Patient and test type stay read-only while editing */}
           {error && (
             <div className="modal-alert" role="alert">⚠️ {error}</div>
           )}

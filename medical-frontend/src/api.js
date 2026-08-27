@@ -1,3 +1,12 @@
+/**
+ * Central axios instance for every API call in the app.
+ *
+ * A request interceptor attaches the stored JWT as `Authorization: Bearer …`
+ * to all requests except token endpoints, which must stay anonymous so they
+ * can be reached before/outside an authenticated session.
+ *
+ * @module api
+ */
 import axios from 'axios';
 
 const API = axios.create({
@@ -5,7 +14,7 @@ const API = axios.create({
 });
 
 API.interceptors.request.use((config) => {
-  // 👈 اگر مسیر مربوط به دریافت توکن (لاگین) است، بدون هیچ توکنی درخواست رو بفرست
+  // Token endpoints must be requested without the Authorization header.
   if (config.url.includes('token')) {
     return config;
   }

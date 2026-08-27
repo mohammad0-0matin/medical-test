@@ -5,6 +5,15 @@ import API from '../api';
 import AuthBrand, { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon } from '../components/AuthBrand';
 import './Auth.css';
 
+/**
+ * Login page — split-screen layout with brand panel and credentials form.
+ *
+ * Submit flow: POST `/token/` → persist the JWT pair via {@link login} from
+ * AuthContext → navigate to `/dashboard`. Any failure clears the spinner,
+ * shows a generic Persian error inline and keeps the form mounted.
+ *
+ * @returns {JSX.Element} Full-page login layout.
+ */
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -15,23 +24,27 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  /**
+   * Requests the JWT pair from `/token/`, stores it through the auth context
+   * and redirects to the dashboard; failures surface as a generic error.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      // 👈 ۱. درخواست به سرور
+      // 1) Request tokens from the server
       const response = await API.post('token/', {
         username: username.trim(),
         password: password.trim()
       });
 
-      // 👈 ۲. ارسال توکن‌ها به کانتکست برای ذخیره‌سازی
+      // 2) Store tokens in the auth context
       login(response.data.access, response.data.refresh);
 
-      // 👈 ۳. انتقال به داشبورد
+      // 3) Navigate to the dashboard
       navigate('/dashboard');
-    } catch (err) {
+    } catch {
       setError('نام کاربری یا رمز عبور اشتباه است.');
       setLoading(false);
     }

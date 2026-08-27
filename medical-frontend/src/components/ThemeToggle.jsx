@@ -16,6 +16,12 @@ const MoonIcon = () => (
   </svg>
 );
 
+/**
+ * Animated dark/light mode switch backed by {@link useTheme}.
+ * Semantically exposed as a switch whose checked state mirrors the theme.
+ *
+ * @returns {JSX.Element} Toggle button element.
+ */
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
