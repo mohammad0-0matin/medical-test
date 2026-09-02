@@ -1,3 +1,10 @@
+"""Database models for the SalamatYar medical-test management domain.
+
+Covers patient records, family/dependent access grants (with a message-inbox
+style approval workflow), the lab-test taxonomy (categories and types), and
+individual test results with file attachments. Runtime-facing labels
+(verbose names and choice labels) are intentionally Persian for the admin UI.
+"""
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
@@ -6,6 +13,13 @@ User = get_user_model()
 
 # 1. Patients Table
 class Patient(models.Model):
+    """Personal health record owned by exactly one registered user.
+
+    Serves as the identity anchor for all medical data: test results,
+    attachments and access grants reference it either directly or through
+    :class:`UserPatientAccess`.
+    """
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -13,18 +27,27 @@ class Patient(models.Model):
     national_code = models.CharField(max_length=10, unique=True, null=True, blank=True, verbose_name="کد ملی")
 
     def __str__(self):
+        """Return the patient's display name for admin listings."""
         return f"{self.first_name} {self.last_name}"
 
 
 # 2. UserPatientAccess Table
 class UserPatientAccess(models.Model):
+    """Grant of one user's access to another user's health record.
+
+    Doubles as the access-request inbox: rows start as ``pending`` when
+    someone requests access by national code and become ``approved`` or
+    ``rejected`` once the record owner responds. Uniqueness of (user,
+    patient) pairs is enforced at the database level.
+    """
+
     ACCESS_LEVEL_CHOICES = [
         ('owner', 'Owner'),
         ('read_only', 'Read Only'),
         ('read_write', 'Read Write'),
     ]
     
-    # 👇 وضعیت برای صندوق پیام
+    # Inbox workflow status; drives pending/approved filtering everywhere.
     STATUS_CHOICES = (
         ('pending', 'در انتظار تایید'),
         ('approved', 'تایید شده'),
@@ -35,34 +58,49 @@ class UserPatientAccess(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.RESTRICT, related_name='user_accesses')
     access_level = models.CharField(max_length=20, choices=ACCESS_LEVEL_CHOICES, default='read_only')
     
-    # 👇 اضافه شدن فیلد وضعیت
+    # Approval status of the underlying access grant.
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     
     granted_at = models.DateTimeField(auto_now_add=True)
     granted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='granted_accesses')
 
     class Meta:
+        """A user may hold at most one access record per patient."""
+
         constraints = [
             models.UniqueConstraint(fields=['user', 'patient'], name='unique_user_patient_access')
         ]
 
     def __str__(self):
+        """Summarize grant direction and current status."""
         return f"{self.user.username} -> {self.patient} ({self.get_status_display()})"
 
 # 3. TestCategories Table
 class TestCategory(models.Model):
+    """Grouping bucket for lab tests (e.g. biochemistry, hematology)."""
+
     name = models.CharField(max_length=100)
     description = models.TextField(max_length=500, null=True, blank=True)
 
     class Meta:
+        """Natural plural name for the Django admin index."""
+
         verbose_name_plural = "Test Categories"
 
     def __str__(self):
+        """Return the category name."""
         return self.name
 
 
 # 4. TestTypes Table
 class TestType(models.Model):
+    """Catalog definition of a lab test with its default reference range.
+
+    Each instance represents a specific analyte (e.g. FBS, CBC) together
+    with its unit of measurement and the normal min/max values used to flag
+    out-of-range results.
+    """
+
     category = models.ForeignKey(TestCategory, on_delete=models.RESTRICT, related_name='test_types')
     name = models.CharField(max_length=150)
     unit = models.CharField(max_length=20, null=True, blank=True)
@@ -70,11 +108,19 @@ class TestType(models.Model):
     max_normal = models.FloatField(null=True, blank=True)
 
     def __str__(self):
+        """Return the test type name."""
         return self.name
 
 
 # 5. TestResults Table
 class TestResult(models.Model):
+    """One measured result for a patient/test-type pair on a given date.
+
+    Supports both numeric values and qualitative text results; the
+    per-record ``lab_min_range``/``lab_max_range`` columns override the
+    catalog defaults when the reporting lab uses different ranges.
+    """
+
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='test_results')
     test_type = models.ForeignKey(TestType, on_delete=models.RESTRICT, related_name='results')
     result_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -93,17 +139,25 @@ class TestResult(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='approved')
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='submitted_tests')
     class Meta:
-        # ایندکس ترکیبی برای افزایش سرعت رسم نمودارها بر اساس تاریخ و بیمار
+        """Composite index accelerating trend charts filtered by patient/date."""
+
         indexes = [
             models.Index(fields=['patient', 'test_date']),
         ]
 
     def __str__(self):
+        """Label used across the admin and API error surfaces."""
         return f"{self.patient} - {self.test_type.name} ({self.test_date})"
 
 
 # 6. Attachments Table
 class Attachment(models.Model):
+    """File (PDF or image) attached to a single test result.
+
+    Stores the uploaded file with its original name, MIME type and upload
+    timestamp; deletion cascades with the parent test result.
+    """
+
     test_result = models.ForeignKey(TestResult, on_delete=models.CASCADE, related_name='attachments')
     file_path = models.FileField(upload_to='attachments/')
     file_name = models.CharField(max_length=200)
@@ -111,11 +165,18 @@ class Attachment(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
+        """Return the original file name."""
         return self.file_name
 
 
 # 7. AuditLogs Table
 class AuditLog(models.Model):
+    """Security audit-trail entry describing who performed which action.
+
+    Captures the acting user, action type, target object id, client IP,
+    user-agent string and timestamp. Rows are append-only in practice.
+    """
+
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     action = models.CharField(max_length=50)
     target_id = models.BigIntegerField(null=True, blank=True)
@@ -124,4 +185,5 @@ class AuditLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
+        """One-line summary of the audit entry."""
         return f"{self.user} - {self.action} at {self.created_at}"

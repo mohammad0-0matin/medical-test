@@ -12,7 +12,7 @@ User = get_user_model()
 class MedicalAPITestCase(APITestCase):
 
     def setUp(self):
-        # ۱. ساخت کاربر ادمین و دو کاربر عادی
+        # 1. Create one staff user and two regular users.
         self.staff_user = User.objects.create_user(
             username='staff_user',
             password='Password123',
@@ -29,7 +29,7 @@ class MedicalAPITestCase(APITestCase):
             is_staff=False
         )
 
-        # ۲. ساخت دو بیمار (همراه با مقداردهی فیلد اجباری user)
+        # 2. Create two patients (the mandatory user field is assigned here).
         self.patient_1 = Patient.objects.create(
             first_name='علی',
             last_name='محمدی',
@@ -41,13 +41,13 @@ class MedicalAPITestCase(APITestCase):
             user=self.other_user
         )
 
-        # ۳. اعطای دسترسی به کاربر عادی فقط برای بیمار اول در جدول واسط
+        # 3. Grant the regular user access to patient 1 only, via the through-table.
         UserPatientAccess.objects.create(
             user=self.normal_user,
             patient=self.patient_1
         )
 
-        # ۴. ساخت دسته و نوع آزمایش تستی
+        # 4. Create a lab-test category and test type.
         self.category = TestCategory.objects.create(name='بیوشیمی')
         self.test_type = TestType.objects.create(
             category=self.category,
@@ -55,7 +55,7 @@ class MedicalAPITestCase(APITestCase):
             unit='mg/dL'
         )
 
-        # ۵. ساخت نتیجه آزمایش برای بیمار دوم (که کاربر عادی نباید آن را ببیند)
+        # 5. Create a result for patient 2, which the regular user must not see.
         self.test_result_p2 = TestResult.objects.create(
             patient=self.patient_2,
             test_type=self.test_type,
@@ -64,7 +64,7 @@ class MedicalAPITestCase(APITestCase):
         )
 
     def test_jwt_token_obtain(self):
-        """تست دریافت توکن لاگین"""
+        """JWT access/refresh tokens can be obtained with valid credentials."""
         url = reverse('token_obtain_pair')
         data = {
             'username': 'normal_user',
@@ -76,8 +76,8 @@ class MedicalAPITestCase(APITestCase):
         self.assertIn('refresh', response.data)
 
     def test_patient_access_restriction(self):
-        """تست عدم دسترسی کاربر عادی به آزمایش بیماران دیگر"""
-        # لاگین به عنوان کاربر عادی
+        """A regular user cannot list another patient's test results."""
+        # Authenticate as the regular user.
         self.client.force_authenticate(user=self.normal_user)
         
         url = reverse('test-result-list')
@@ -85,15 +85,15 @@ class MedicalAPITestCase(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         
-        # استخراج داده‌ها چه در حالت Pagination چه بدون آن
+        # Extract the results whether pagination is enabled or not.
         results = response.data['results'] if isinstance(response.data, dict) and 'results' in response.data else response.data
         patient_ids = [res['patient']['id'] if isinstance(res['patient'], dict) else res['patient'] for res in results]
         
-        # کاربر عادی نباید آزمایش بیمار دوم را در لیست ببیند
+        # The regular user must not see patient 2's result in the list.
         self.assertNotIn(self.patient_2.id, patient_ids)
 
     def test_future_test_date_validation_fails(self):
-        """تست رد شدن آزمایش با تاریخ در آینده"""
+        """A submission carrying a future test date is rejected."""
         self.client.force_authenticate(user=self.staff_user)
         
         url = reverse('test-result-list')

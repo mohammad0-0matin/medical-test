@@ -1,27 +1,55 @@
+"""Serializers translating between ORM models and API payloads.
+
+Two read/write serializer pairs exist by design: ``TestResultReadSerializer``
+returns the fully denormalized dashboard shape, while
+``TestResultWriteSerializer`` validates incoming submissions. Persian string
+literals (the "نامشخص"/"سیستم" fallbacks and validation messages) are runtime
+values consumed by the UI and are intentionally preserved.
+"""
 from django.utils import timezone
 from rest_framework import serializers
 from .models import Patient, TestResult, TestType, Attachment
 from django.contrib.auth.models import User
-from rest_framework import serializers
-from .models import TestType
 
 class TestTypeSerializer(serializers.ModelSerializer):
+    """Expose test types together with their category name for dropdowns.
+
+    Read-only projection of :class:`~core.models.TestType` rows enriched
+    with the parent category name, used by frontend test-selection
+    dropdowns.
+    """
+
     category_name = serializers.CharField(source='category.name', read_only=True)
 
     class Meta:
+        """Fields mirrored from :class:`~core.models.TestType`."""
+
         model = TestType
         fields = ['id', 'name', 'category_name', 'unit', 'min_normal', 'max_normal']
 
 class RegisterSerializer(serializers.ModelSerializer):
-    # رمز عبور فقط برای نوشتن است و در پاسخ‌های API نمایش داده نمی‌شود
+    """Create a Django user account from a public registration payload.
+
+    The password is declared write-only so it can never echo back in
+    responses.
+    """
+
+    # Write-only: the password is never serialized back out.
     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
     class Meta:
+        """Username plus optional real-name fields."""
+
         model = User
         fields = ['username', 'password', 'first_name', 'last_name']
 
     def create(self, validated_data):
-        # استفاده از create_user بسیار مهم است تا رمز عبور هش شود!
+        """Persist the account via ``create_user`` so the password is hashed.
+
+        :param dict validated_data: Cleaned fields from the request payload.
+        :returns: The newly created ``User`` instance.
+        """
+        # create_user() is essential here - it hashes the password.
         user = User.objects.create_user(
             username=validated_data['username'],
             password=validated_data['password'],
@@ -31,19 +59,42 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 class PatientSerializer(serializers.ModelSerializer):
+    """Basic patient identity serialization shared by profile endpoints.
+
+    Exposes the identity fields of a :class:`~core.models.Patient` record
+    for profile views and nested representations.
+    """
+
     class Meta:
+        """Identity and national-code fields of the patient record."""
+
         model = Patient
         fields = ['id', 'first_name', 'last_name', 'birth_date', 'user', 'national_code']
 
 
 class AttachmentSerializer(serializers.ModelSerializer):
+    """Serialize uploaded report files attached to a test result.
+
+    Exposes the file and its metadata (original name, MIME type, upload
+    timestamp) for the dashboard attachment lists.
+    """
+
     class Meta:
+        """All attachment columns; the upload timestamp stays read-only."""
+
         model = Attachment
         fields = ['id', 'test_result', 'file_path', 'file_name', 'mime_type', 'uploaded_at']
         read_only_fields = ['uploaded_at']
 
 
 class TestResultReadSerializer(serializers.ModelSerializer):
+    """Fully denormalized read shape consumed by the dashboard tables/timeline.
+
+    Joins patient identity, test-type naming, catalog-derived reference
+    range, nested attachments and creator attribution into a single payload,
+    saving the frontend several round trips.
+    """
+
     patient = PatientSerializer(read_only=True)
     test_type_name = serializers.ReadOnlyField(source='test_type.name')
     attachments = AttachmentSerializer(many=True, read_only=True)
@@ -51,7 +102,10 @@ class TestResultReadSerializer(serializers.ModelSerializer):
     creator_name = serializers.SerializerMethodField()
     min_range = serializers.FloatField(source='test_type.min_normal', read_only=True)
     max_range = serializers.FloatField(source='test_type.max_normal', read_only=True)
+
     class Meta:
+        """Complete dashboard field list (read side only)."""
+
         model = TestResult
         fields = [
             'id',
@@ -72,11 +126,21 @@ class TestResultReadSerializer(serializers.ModelSerializer):
             'status'
         ]
     def get_patient_name(self, obj):
+        """Resolve a human-readable patient name.
+
+        Reads straight off the ``Patient`` row rather than the user relation
+        and falls back to the owning account's username when the name fields
+        are blank.
+
+        :param obj: A ``TestResult`` instance.
+        :returns: Display string, or the Persian "نامشخص" marker when no
+            usable name is available.
+        """
         if obj.patient:
-            # 👈 اینجا به جای user، مستقیماً از خود patient می‌خوانیم
+            # Read straight from the patient record instead of the user relation.
             full_name = f"{obj.patient.first_name} {obj.patient.last_name}".strip()
             
-            # اگر نام و نام خانوادگی خالی بود، به عنوان پلن B یوزرنیم را نشان بده
+            # Plan B when the names are blank: show the account username.
             if full_name:
                 return full_name
             elif hasattr(obj.patient, 'user') and obj.patient.user:
@@ -84,14 +148,23 @@ class TestResultReadSerializer(serializers.ModelSerializer):
                 
         return "نامشخص"
     def get_creator_name(self, obj):
+        """Resolve who submitted the result (real name -> username -> system label)."""
         if obj.created_by:
             full_name = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
-            # اگر نام و نام خانوادگی داشت آن را نشان بده، در غیر این صورت یوزرنیم را برگردان
+            # Prefer the real name; fall back to the username otherwise.
             return full_name if full_name else obj.created_by.username
         return "سیستم"
 
 class TestResultWriteSerializer(serializers.ModelSerializer):
+    """Validated write shape for creating/updating test results.
+
+    Accepts the editable submission columns only; identity and attribution
+    fields are filled in server-side by the viewset.
+    """
+
     class Meta:
+        """Editable submission columns only (identity fields stay server-side)."""
+
         model = TestResult
         fields = [
             'id',
@@ -106,12 +179,29 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
         ]
 
     def validate_test_date(self, value):
+        """Reject future test dates with a field-level 400 error.
+
+        :param value: Parsed date taken from the request payload.
+        :raises serializers.ValidationError: When the date lies in the future.
+        :returns: The validated date unchanged otherwise.
+        """
         today = timezone.localdate()
         if value > today:
             raise serializers.ValidationError("تاریخ آزمایش نمی‌تواند در آینده باشد.")
         return value
 
     def validate(self, attrs):
+        """Require at least one measurable result across the two carriers.
+
+        A submission carrying neither a numeric ``result_value`` nor a
+        qualitative ``result_text`` would be unreadable downstream, so it is
+        rejected before any database write occurs.
+
+        :param dict attrs: Cross-field payload being assembled.
+        :raises serializers.ValidationError: When both result carriers are
+            missing.
+        :returns: The attributes unchanged when validation passes.
+        """
         result_value = attrs.get('result_value')
         result_text = attrs.get('result_text')
 

@@ -19,7 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Third Party Apps
-    'corsheaders',  # 👈 حتما در بالای پکیج‌های ثالث باشد
+    'corsheaders',  # Must be listed above the other third-party packages.
     'rest_framework',
     'rest_framework_simplejwt',
     'django_filters',
@@ -30,7 +30,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # 👈 حتما اولین یا دومین مورد باشد!
+    'corsheaders.middleware.CorsMiddleware',  # Must be the first or second middleware.
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -98,7 +98,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Media Files Configuration (برای فایل‌های آپلودی کاربر)
+# Media Files Configuration (for user-uploaded files).
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -139,8 +139,8 @@ CORS_ALLOW_METHODS = [
     'POST',
     'PUT',
 ]
-# CORS Settings (اصلاح شده)
-CORS_ALLOW_ALL_ORIGINS = True  # 👈 این را False کنید چون لیست پایین را تعریف کرده‌اید
+# CORS Settings (adjusted).
+CORS_ALLOW_ALL_ORIGINS = True  # Flip to False now that an explicit origin allowlist is defined below.
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
