@@ -164,17 +164,7 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
             💡 راهنمای سامانه
           </button>
 
-          <button
-            type="button"
-            role="menuitem"
-            className="um-item"
-            title="به‌زودی"
-            disabled
-          >
-            <HelpIcon />
-            راهنما و پشتیبانی
-            <span className="um-soon">به‌زودی</span>
-          </button>
+        
 
           <div className="um-divider" />
 

@@ -50,6 +50,9 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
         first_name: '',
         last_name: '',
         national_code: '',
+        phone_number: '',      
+        birth_date: '',        
+        insurance_provider: 'none',
         medical_role: MEDICAL_ROLES.STANDARD,
         medical_id: ''
     });
@@ -74,6 +77,9 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                         first_name: data.first_name || '',
                         last_name: data.last_name || '',
                         national_code: data.national_code || '',
+                        phone_number: data.phone_number || '',
+                        birth_date: data.birth_date || '',
+                        insurance_provider: data.insurance_provider || 'none',
                         medical_role: data.medical_role || identity.role,
                         medical_id: data.medical_id || identity.id
                     });
@@ -110,12 +116,12 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
             ...formData,
             medical_role: formData.medical_role || MEDICAL_ROLES.STANDARD,
             medical_id: formData.medical_role === MEDICAL_ROLES.STANDARD ? '' : formData.medical_id
-        };
+        };  
 
         const token = localStorage.getItem('access_token');
         try {
             const response = await fetch('http://127.0.0.1:8000/api/patients/me/', {
-                method: 'POST',
+                method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -182,7 +188,58 @@ const CompleteProfileModal = ({ isOpen, onClose, onProfileUpdated }) => {
                                 <input type="text" name="national_code" value={formData.national_code} onChange={handleChange} required placeholder="مثلاً 1234567890" className="form-input" dir="ltr" autoComplete="off" />
                             </div>
                         </div>
+                        {/* شماره تماس */}
+                        <div className="form-group">
+                            <label className="form-label">شماره تلفن همراه:</label>
+                            <div className="input-shell">
+                                <span className="input-icon"><IdCardGlyph /></span>
+                                <input
+                                    type="tel"
+                                    name="phone_number"
+                                    value={formData.phone_number}
+                                    onChange={handleChange}
+                                    placeholder="مثال: 09123456789"
+                                    className="form-input"
+                                    dir="ltr"
+                                    maxLength={11}
+                                    autoComplete="tel"
+                                />
+                            </div>
+                        </div>
 
+                        {/* تاریخ تولد و بیمه در یک ردیف */}
+                        <div className="form-row">
+                            <div>
+                                <label className="form-label">تاریخ تولد:</label>
+                                <div className="input-shell">
+                                    <input
+                                        type="date"
+                                        name="birth_date"
+                                        value={formData.birth_date}
+                                        onChange={handleChange}
+                                        className="form-input"
+                                    />
+                                </div>
+                            </div>
+                        <div>
+                            <label className="form-label" htmlFor="insurance-provider">بیمه طرف قرارداد:</label>
+                            <div className="input-shell">
+                                <select
+                                    id="insurance-provider"
+                                    name="insurance_provider"
+                                    value={formData.insurance_provider}
+                                    onChange={handleChange}
+                                    className="form-input"
+                                >
+                                    <option value="none">فاقد بیمه پایه</option>
+                                    <option value="tamin">تأمین اجتماعی</option>
+                                    <option value="salamat">بیمه سلامت ایرانیان</option>
+                                    <option value="mosahlar">خدمات درمانی نیروهای مسلح</option>
+                                    <option value="other">سایر</option>
+                                </select>
+                            </div>
+                        </div>
+                        </div>
                         <div className="form-group">
                             <label className="form-label" htmlFor="medical-role">نقش کاربری و هویت پزشکی:</label>
                             <div className="input-shell">

@@ -211,6 +211,7 @@ const RangeBar = ({ value, range }) => {
  * @returns {JSX.Element|null} Comparison modal, or null when closed.
  */
 const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
+  if (!isOpen) return null;
   const [selectedType, setSelectedType] = useState('');
   const [baseId, setBaseId] = useState(null);
   const [targetId, setTargetId] = useState(null);

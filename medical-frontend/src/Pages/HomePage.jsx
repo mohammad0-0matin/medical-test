@@ -152,17 +152,16 @@ const HomePage = () => {
           <div id="about" className="hp-footer-col">
             <h4>درباره سازنده</h4>
             <p>
-              این پروژه با علاقه توسط <strong>ماتین</strong> طراحی و توسعه داده شده است؛
-              توسعه‌دهنده فول‌استک متخصص در Django REST Framework و React.
+              این پروژه  توسط <strong>mohammad0_0matin</strong> طراحی و توسعه داده شده است.
             </p>
           </div>
 
           <div id="contact" className="hp-footer-col">
             <h4>تماس با ما</h4>
             <ul className="hp-contact-list">
-              <li><a href="#">ایمیل</a></li>
-              <li><a href="#">گیت‌هاب</a></li>
-              <li><a href="#">لینکدین</a></li>
+              <li><a href="mailto:mohammadmatinbadfar@gmail.com">ایمیل</a></li>
+              <li><a href="https://github.com/mohammad0-0matin" target="_blank" rel="noopener noreferrer">گیت‌هاب</a></li>
+              <li><a href="https://www.linkedin.com/in/mohammad-matin-07b01531a?utm_source=share_via&utm_content=profile&utm_medium=member_android" target="_blank" rel="noopener noreferrer">لینکدین</a></li>
             </ul>
           </div>
         </div>

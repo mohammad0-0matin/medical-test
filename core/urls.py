@@ -16,8 +16,8 @@ router.register('test-types', views.TestTypeViewSet, basename='test-type')
 
 urlpatterns = [
     path('register/', views.RegisterView.as_view(), name='auth_register'),
-    path('patients/add-dependent/', views.AddDependentView.as_view(), name='add-dependent'), 
-    
+    # path('patients/add-dependent/', views.AddDependentView.as_view(), name='add-dependent'), 
+    path('access/grant/', views.GrantAccessView.as_view(), name='access-grant'),
     # --- Access-request inbox / dependents workflow ---
     path('access/request/', views.RequestAccessView.as_view(), name='access-request'),
     path('access/inbox/', views.PendingAccessRequestsView.as_view(), name='access-inbox'),

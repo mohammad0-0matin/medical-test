@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './OnboardingTour.css';
 
 /* ---------- Geometry helpers ---------- */
@@ -66,7 +67,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
   const isLast = index === steps.length - 1;
 
   /* Measure the target element position */
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!active) return undefined;
 
     const measure = () => {
@@ -82,7 +83,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
       }
 
       const box = el.getBoundingClientRect();
-      if (box.width === 0 && box.height === 0) {
+      if (box.width === 0 || box.height === 0) {
         setTargetRect(null);
         return;
       }
@@ -108,10 +109,18 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
     window.addEventListener('resize', scheduleMeasure);
     window.addEventListener('scroll', scheduleMeasure, true);
 
+    let resizeObserver;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(scheduleMeasure);
+      resizeObserver.observe(document.documentElement);
+      if (el) resizeObserver.observe(el);
+    }
+
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', scheduleMeasure);
       window.removeEventListener('scroll', scheduleMeasure, true);
+      resizeObserver?.disconnect();
     };
   }, [active, index, step]);
 
@@ -162,10 +171,13 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
 
   let popoverStyle;
   if (targetRect) {
+    /* Mirrors the CSS width: min(330px, calc(100vw - 24px)) so the JS
+       clamp math matches what actually gets rendered on narrow viewports. */
+    const popoverWidth = Math.min(POPOVER_WIDTH, vw - 24);
     const fitsBelow = targetRect.y + targetRect.h + POPOVER_EST_HEIGHT + 20 < vh;
     const rawLeft = Math.min(
-      Math.max(12, targetRect.x + targetRect.w / 2 - POPOVER_WIDTH / 2),
-      vw - POPOVER_WIDTH - 12
+      Math.max(12, targetRect.x + targetRect.w / 2 - popoverWidth / 2),
+      vw - popoverWidth - 12
     );
     popoverStyle = {
       top: fitsBelow ? targetRect.y + targetRect.h + 14 : undefined,
@@ -180,7 +192,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
     };
   }
 
-  return (
+  return createPortal(
     <div className="ot" role="dialog" aria-modal="true" aria-label="راهنمای تعاملی سلامت‌یار">
       <svg className="ot-overlay" width={vw} height={vh}>
         <path
@@ -228,7 +240,8 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
           </div>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

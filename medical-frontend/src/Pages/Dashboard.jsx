@@ -34,6 +34,8 @@ import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { useReactToPrint } from 'react-to-print';
 import './Dashboard.css';
 
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+
 const SpreadsheetGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -238,6 +240,17 @@ const Dashboard = () => {
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [confirmAction, setConfirmAction] = useState({
+  isOpen: false,
+  title: '',
+  message: '',
+  onConfirm: null,
+  loading: false,
+  });
+  const [isDeleting, setIsDeleting] = useState(false);
+
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -259,6 +272,7 @@ const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [childNationalCode, setChildNationalCode] = useState('');
+  const [granteeNationalCode, setGranteeNationalCode] = useState('');
   const [pendingTests, setPendingTests] = useState([]);
   const [profile, setProfile] = useState(null);
 
@@ -409,22 +423,21 @@ const Dashboard = () => {
   // (render-phase gate instead of useEffect)
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourGateChecked, setTourGateChecked] = useState(false);
-
+  useEffect(() => {
   const initialLoadDone = !loading && !accessLoading && !profileLoading;
   if (initialLoadDone && !tourGateChecked) {
     setTourGateChecked(true);
-
-    let firstVisit;
+    let firstVisit = false;
     try {
       firstVisit = !localStorage.getItem('salamatyar_tour_completed');
     } catch {
-      /* storage unavailable */
       firstVisit = false;
     }
-
-    if (firstVisit) setIsTourActive(true);
+    if (firstVisit) {
+      setIsTourActive(true);
+    }
   }
-
+}, [loading, accessLoading, profileLoading, tourGateChecked]);
   const finishTour = () => {
     setIsTourActive(false);
     try {
@@ -473,17 +486,36 @@ const Dashboard = () => {
   }, [searchTerm, filterStatus, typeFilter, personFilter]);
 
   // Revoke a person's access
-  const handleRevokeAccess = async (id) => {
-    if (!window.confirm("آیا از لغو دسترسی این شخص مطمئن هستید؟")) return;
-    try {
-      const res = await API.delete(`access/${id}/revoke/`);
-      toast.success(res.data?.message || 'دسترسی با موفقیت لغو شد.');
-      fetchGrantedAccesses();
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'خطا در لغو دسترسی.');
-    }
+  // const handleRevokeAccess = async (id) => {
+  //   if (!window.confirm("آیا از لغو دسترسی این شخص مطمئن هستید؟")) return;
+  //   try {
+  //     const res = await API.delete(`access/${id}/revoke/`);
+  //     toast.success(res.data?.message || 'دسترسی با موفقیت لغو شد.');
+  //     fetchGrantedAccesses();
+  //   } catch (err) {
+  //     toast.error(err.response?.data?.error || 'خطا در لغو دسترسی.');
+  //   }
+  // };
+  const handleRevokeAccess = (id) => {
+  setConfirmAction({
+    isOpen: true,
+    title: 'لغو دسترسی کاربر',
+    message: 'آیا از لغو دسترسی این شخص به پرونده آزمایش‌های خود مطمئن هستید؟',
+    loading: false,
+    onConfirm: async () => {
+      setConfirmAction((prev) => ({ ...prev, loading: true }));
+      try {
+        const res = await API.delete(`access/${id}/revoke/`);
+        toast.success(res.data?.message || 'دسترسی با موفقیت لغو شد.');
+        fetchGrantedAccesses();
+      } catch (err) {
+        toast.error(err.response?.data?.error || 'خطا در لغو دسترسی.');
+      } finally {
+        setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
+      }
+    },
+  });
   };
-
   // Approve or reject an access request
   const handleRespondAccess = async (id, actionType) => {
     try {
@@ -509,6 +541,20 @@ const Dashboard = () => {
     }
   };
 
+  // اعطای مستقیم دسترسی به پزشک یا مراقب توسط خود بیمار
+const handleGrantAccess = async (e) => {
+  e.preventDefault();
+  if (!granteeNationalCode.trim()) return;
+
+  try {
+    const res = await API.post('access/grant/', { national_code: granteeNationalCode.trim() });
+    toast.success(res.data?.message || 'دسترسی با موفقیت اعطا شد.');
+    setGranteeNationalCode('');
+    fetchGrantedAccesses(); // لیست افراد دارای دسترسی بلافاصله بروز می‌شود
+  } catch (err) {
+    toast.error(err.response?.data?.error || 'خطا در اعطای دسترسی.');
+  }
+};
   // Approve or reject tests submitted by others
   const handleReviewTest = async (testId, actionType) => {
     try {
@@ -522,15 +568,69 @@ const Dashboard = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    const isConfirmed = window.confirm('آیا از حذف این نتیجه آزمایش اطمینان دارید؟');
-    if (!isConfirmed) return;
+  // const handleDelete = async (id) => {
+  //   const isConfirmed = window.confirm('آیا از حذف این نتیجه آزمایش اطمینان دارید؟');
+  //   if (!isConfirmed) return;
+  //   try {
+  //     await API.delete(`test-results/${id}/`);
+  //     toast.success('آزمایش با موفقیت حذف شد!');
+  //     fetchTests();
+  //   } catch {
+  //     toast.error('خطا در حذف آزمایش.');
+  //   }
+  // };
+  // هنگام کلیک روی دکمه حذف در سطر جدول / کارت:
+  // const handleDelete = (id) => {
+  //   setDeleteTargetId(id);
+  // };
+  const handleDelete = (id) => {
+  setConfirmAction({
+    isOpen: true,
+    title: 'حذف رکورد آزمایش',
+    message: 'آیا از حذف این نتیجه آزمایش اطمینان دارید؟ این عملیات غیرقابل بازگشت است.',
+    loading: false,
+    onConfirm: async () => {
+      setConfirmAction((prev) => ({ ...prev, loading: true }));
+      try {
+        await API.delete(`test-results/${id}/`);
+        toast.success('نتیجه آزمایش با موفقیت حذف شد.');
+        setTests((prevTests) => prevTests.filter((t) => t.id !== id));
+      } catch (error) {
+        console.error('Delete error:', error);
+        toast.error('خطا در حذف آزمایش.');
+      } finally {
+        setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
+      }
+    },
+  });
+  };
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetId) return;
+
+    setIsDeleting(true);
+    const token = localStorage.getItem('access_token');
+
     try {
-      await API.delete(`test-results/${id}/`);
-      toast.success('آزمایش با موفقیت حذف شد!');
-      fetchTests();
-    } catch {
-      toast.error('خطا در حذف آزمایش.');
+        const response = await fetch(`http://127.0.0.1:8000/api/test-results/${deleteTargetId}/`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (response.ok || response.status === 204) {
+            toast.success('نتیجه آزمایش با موفقیت حذف شد.');
+            // بروزرسانی لیست استیت آزمایش‌ها (حذف آیتم از UI)
+            setTests(prevTests => prevTests.filter(t => t.id !== deleteTargetId));
+            setDeleteTargetId(null); // بستن مودال
+        } else {
+            toast.error('خطا در حذف آزمایش.');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        toast.error('خطای ارتباط با سرور.');
+    } finally {
+        setIsDeleting(false);
     }
   };
 
@@ -552,12 +652,24 @@ const Dashboard = () => {
     toast.success('✔️ تکمیل شد؛ در صورت دوره‌ای بودن، موعد بعدی برنامه‌ریزی شد.');
   };
 
+  // const handleDeleteReminder = (id) => {
+  //   if (!window.confirm('آیا از حذف این یادآور مطمئن هستید؟')) return;
+  //   setReminders(deleteReminder(id));
+  //   toast.success('یادآور حذف شد.');
+  // };
   const handleDeleteReminder = (id) => {
-    if (!window.confirm('آیا از حذف این یادآور مطمئن هستید؟')) return;
-    setReminders(deleteReminder(id));
-    toast.success('یادآور حذف شد.');
+  setConfirmAction({
+    isOpen: true,
+    title: 'حذف یادآور چکاپ',
+    message: 'آیا از حذف این یادآور اطمینان دارید؟',
+    loading: false,
+    onConfirm: () => {
+      setReminders(deleteReminder(id));
+      toast.success('یادآور با موفقیت حذف شد.');
+      setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
+    },
+  });
   };
-
   const handleAttachmentClick = (test) => {
     setSelectedTest(test);
     setIsAttachmentModalOpen(true);
@@ -920,6 +1032,23 @@ const Dashboard = () => {
             🛡️ افرادی که به پرونده شما دسترسی دارند:
           </h3>
           
+          {/* فرم اعطای مستقیم دسترسی به پزشک یا مراقب */}
+          <form onSubmit={handleGrantAccess} style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder="کد ملی پزشک یا مراقب مورد نظر را وارد کنید..."
+              value={granteeNationalCode}
+              onChange={(e) => setGranteeNationalCode(e.target.value)}
+              style={styles.searchInput}
+            />
+            <button 
+              type="submit" 
+              style={{ ...styles.addBtn, backgroundColor: '#10b981', padding: '0.6rem 1.5rem', whiteSpace: 'nowrap' }}
+            >
+              + اعطای دسترسی مستقیم
+            </button>
+          </form>
+
           {grantedAccesses.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', backgroundColor: 'var(--bg-subtle)', padding: '16px', borderRadius: '8px', border: '1px dashed var(--border)' }}>
               در حال حاضر هیچ شخص دیگری به نتایج آزمایش‌های شما دسترسی ندارد.
@@ -939,7 +1068,6 @@ const Dashboard = () => {
             </div>
           )}
         </div>
-
         {/* 4. People under my care */}
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px', marginBottom: '24px' }}>
           <h3 style={{ color: 'var(--text-strong)', marginTop: 0, marginBottom: '16px', fontSize: '1.2rem' }}>
@@ -966,6 +1094,23 @@ const Dashboard = () => {
           </>
         )}
 
+                {/* Care/access request form */}
+        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid var(--border)' }}>
+          <h3 style={{ margin: '0 0 12px 0', color: 'var(--text-body)', fontSize: '15px' }}>درخواست دسترسی و افزودن فرد تحت مراقبت</h3>
+          <form onSubmit={handleAddDependent} style={{ display: 'flex', gap: '12px' }}>
+            <input
+              type="text"
+              placeholder="کد ملی شخص مورد نظر را وارد کنید..."
+              value={childNationalCode}
+              onChange={(e) => setChildNationalCode(e.target.value)}
+              style={styles.searchInput}
+            />
+            <button type="submit" style={{ ...styles.addBtn, padding: '0.6rem 1.5rem' }}>
+              ارسال درخواست
+            </button>
+          </form>
+        </div>
+
         {/* Test statistics */}
         {loading ? (
           <StatsRowSkeleton />
@@ -989,23 +1134,6 @@ const Dashboard = () => {
           </div>
         </div>
         )}
-
-        {/* Care/access request form */}
-        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', marginBottom: '1.5rem', border: '1px solid var(--border)' }}>
-          <h3 style={{ margin: '0 0 12px 0', color: 'var(--text-body)', fontSize: '15px' }}>درخواست دسترسی و افزودن فرد تحت مراقبت</h3>
-          <form onSubmit={handleAddDependent} style={{ display: 'flex', gap: '12px' }}>
-            <input
-              type="text"
-              placeholder="کد ملی شخص مورد نظر را وارد کنید..."
-              value={childNationalCode}
-              onChange={(e) => setChildNationalCode(e.target.value)}
-              style={styles.searchInput}
-            />
-            <button type="submit" style={{ ...styles.addBtn, padding: '0.6rem 1.5rem' }}>
-              ارسال درخواست
-            </button>
-          </form>
-        </div>
 
         {/* Search, filters and export actions */}
         <div style={styles.filterSection} className="dashboard-filter-bar">
@@ -1236,6 +1364,40 @@ const Dashboard = () => {
         doctorPrefill={doctorPrefill}
         onSaved={handleSaveClinicalNote}
         onDeleted={handleDeleteClinicalNote}
+      />
+
+      {/* 👇 کامپوننت تایید حذف دقیقاً اینجا قرار می‌گیرد */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(deleteTargetId)}
+        onClose={() => setDeleteTargetId(null)}
+        onConfirm={handleConfirmDelete}
+        loading={isDeleting}
+        title="حذف رکورد آزمایش"
+        message="آیا از حذف این نتیجه آزمایش اطمینان دارید؟ این عملیات غیرقابل بازگشت است."
+      />
+
+      {/* PDF print output component */}
+      <PrintableReport
+        ref={printRef}
+        tests={visibleTests}
+        profile={profile}
+        clinicalNotesMap={clinicalNotesMap}
+      />
+      <ClinicalNotesModal
+        isOpen={isNotesModalOpen}
+        onClose={() => setIsNotesModalOpen(false)}
+        test={notesTest}
+        doctorPrefill={doctorPrefill}
+        onSaved={handleSaveClinicalNote}
+        onDeleted={handleDeleteClinicalNote}
+      />
+      <ConfirmDeleteModal
+        isOpen={confirmAction.isOpen}
+        onClose={() => setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false })}
+        onConfirm={confirmAction.onConfirm}
+        title={confirmAction.title}
+        message={confirmAction.message}
+        loading={confirmAction.loading}
       />
 
       {/* PDF print output component */}

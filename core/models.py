@@ -10,7 +10,39 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 User = get_user_model()
 
+class UserRole(models.Model):
+    """Clinical authorization role and credentials bound to an auth user."""
 
+    ROLE_STANDARD = 'standard'
+    ROLE_DOCTOR = 'doctor'
+    ROLE_STAFF = 'staff'
+
+    ROLE_CHOICES = [
+        (ROLE_STANDARD, 'بیمار / کاربر عادی'),
+        (ROLE_DOCTOR, 'پزشک'),
+        (ROLE_STAFF, 'کادر درمان / پرستار'),
+    ]
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='user_role'
+    )
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default=ROLE_STANDARD
+    )
+    medical_id = models.CharField(
+        max_length=50,
+        blank=True,
+        default=''
+    )
+
+    def __str__(self):
+        """Return user and human-readable role."""
+        return f"{self.user.username} - {self.get_role_display()}"
+    
 # 1. Patients Table
 class Patient(models.Model):
     """Personal health record owned by exactly one registered user.
@@ -19,12 +51,34 @@ class Patient(models.Model):
     attachments and access grants reference it either directly or through
     :class:`UserPatientAccess`.
     """
+    INSURANCE_NONE = 'none'
+    INSURANCE_TAMIN = 'tamin'
+    INSURANCE_SALAMAT = 'salamat'
+    INSURANCE_MOSAHLAR = 'mosahlar'
+    INSURANCE_OTHER = 'other'
 
+    INSURANCE_CHOICES = [
+        (INSURANCE_NONE, 'فاقد بیمه پایه'),
+        (INSURANCE_TAMIN, 'تأمین اجتماعی'),
+        (INSURANCE_SALAMAT, 'بیمه سلامت ایرانیان'),
+        (INSURANCE_MOSAHLAR, 'خدمات درمانی نیروهای مسلح'),
+        (INSURANCE_OTHER, 'سایر'),
+    ]
+    insurance_provider = models.CharField(
+        max_length=30,
+        choices=INSURANCE_CHOICES,
+        default=INSURANCE_NONE
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='patient_profile')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     birth_date = models.DateField(null=True, blank=True)
     national_code = models.CharField(max_length=10, unique=True, null=True, blank=True, verbose_name="کد ملی")
+    phone_number = models.CharField(
+    max_length=11,
+    blank=True,
+    null=True,
+    verbose_name="شماره تماس")
 
     def __str__(self):
         """Return the patient's display name for admin listings."""

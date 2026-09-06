@@ -57,20 +57,43 @@ class RegisterSerializer(serializers.ModelSerializer):
             last_name=validated_data.get('last_name', '')
         )
         return user
-
 class PatientSerializer(serializers.ModelSerializer):
-    """Basic patient identity serialization shared by profile endpoints.
+    """Serializer exposing unified clinical patient and authorization role data.
 
-    Exposes the identity fields of a :class:`~core.models.Patient` record
-    for profile views and nested representations.
+    Exposes related personal names and authorization attributes as read-only
+    context fields while managing core patient demographic properties.
     """
 
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    last_name = serializers.CharField(source='user.last_name', read_only=True)
+    medical_role = serializers.SerializerMethodField()
+    medical_id = serializers.SerializerMethodField()
+
     class Meta:
-        """Identity and national-code fields of the patient record."""
-
         model = Patient
-        fields = ['id', 'first_name', 'last_name', 'birth_date', 'user', 'national_code']
+        fields = [
+            'id',
+            'user',
+            'first_name',
+            'last_name',
+            'national_code',
+            'birth_date',
+            'insurance_provider',
+            'phone_number',
+            'medical_role',
+            'medical_id',
+        ]
+        read_only_fields = ['id', 'user']
 
+    def get_medical_role(self, obj):
+        """Safely retrieve role from related UserRole or return standard default."""
+        role_profile = getattr(obj.user, 'user_role', None)
+        return role_profile.role if role_profile else 'standard'
+
+    def get_medical_id(self, obj):
+        """Safely retrieve professional registry identifier or return empty string."""
+        role_profile = getattr(obj.user, 'user_role', None)
+        return role_profile.medical_id if role_profile else ''
 
 class AttachmentSerializer(serializers.ModelSerializer):
     """Serialize uploaded report files attached to a test result.

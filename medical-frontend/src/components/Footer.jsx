@@ -23,9 +23,10 @@ const Footer = () => (
       </div>
 
       <nav className="ft-links" aria-label="پیوندهای پاورقی">
-        <a href="#">درباره ما</a>
-        <a href="#">حریم خصوصی</a>
-        <a href="#">پشتیبانی</a>
+        <a href="https://t.me/mohammad0_0matin"target="_blank"
+    rel="noopener noreferrer">آیدی پشتیبانی در تگلرام</a>
+        <a href="https://eitaa.com/mohammad0_0matin" target="_blank"
+    rel="noopener noreferrer">آیدی پشتیبانی در ایتا</a>
       </nav>
 
       <p className="ft-copy">© ۱۴۰۵ سلامت‌یار — تمامی حقوق محفوظ است.</p>

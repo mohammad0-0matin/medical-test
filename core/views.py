@@ -10,7 +10,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Patient, TestResult, UserPatientAccess, Attachment
+from .models import Patient, TestResult, UserPatientAccess, Attachment, UserRole
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from .permissions import IsPatientOwnerOrStaff
@@ -53,6 +53,7 @@ class RegisterView(generics.CreateAPIView):
 
     queryset = User.objects.all()
     # Allow everyone, including logged-out visitors, to register.
+    authentication_classes = ()
     permission_classes = (AllowAny,)
     serializer_class = RegisterSerializer
 
@@ -113,70 +114,73 @@ class PatientViewSet(ModelViewSet):
         # Serialize the matching patients and return them.
         serializer = self.get_serializer(patients, many=True)
         return Response(serializer.data)
-    @action(detail=False, methods=['get', 'post', 'put'], url_path='me')
+    
+    @action(detail=False, methods=['get', 'post', 'put', 'patch'], url_path='me')
     def my_profile(self, request):
-        """Retrieve (GET) or complete/update (POST/PUT) the caller's profile.
+        """Retrieve or update unified personal, clinical, and authorization profile.
 
-        GET returns the caller's patient profile or 404 when it has not been
-        completed yet. POST/PUT inject the logged-in user's id into the
-        payload, sync the account's real-name fields, then create or
-        partially update the ``Patient`` record.
+        GET returns the caller's complete profile combining base auth account
+        names, clinical identifiers (:class:`~core.models.Patient`), and system
+        privileges (:class:`~core.models.UserRole`). Write methods
+        (POST/PUT/PATCH) synchronize real-name properties onto ``User``, assign
+        clinical roles/credentials onto ``UserRole``, and create or partially
+        update demographic and insurance attributes on the underlying
+        ``Patient`` record.
 
+        :param request: Incoming HTTP request context carrying the authenticated
+            user and submitted payload.
         :returns:
-            * 200 -- serialized profile after a successful read or write.
-            * 400 -- validation errors on POST/PUT.
-            * 404 -- GET on a profile that does not exist yet.
+            * 200 -- Serialized profile dataset after successful retrieval or
+              state mutation.
+            * 400 -- Payload validation errors returned by
+              :class:`~core.serializers.PatientSerializer`.
+            * 404 -- Returned on GET requests when no initialized medical profile
+              exists for the authenticated user.
         """
         user = request.user
         patient = Patient.objects.filter(user=user).first()
 
-        # 1. Handle GET (fetch the current profile).
+        # 1. Fetch current medical and authorization record.
         if request.method == 'GET':
             if patient:
                 serializer = self.get_serializer(patient)
                 return Response(serializer.data)
-            return Response({"detail": "پرونده تکمیل نشده است."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "پرونده تکمیل نشده است."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # 2. Handle POST/PUT (create or update the profile).
-        # Work on a mutable copy of the payload and inject the user id up
-        # front so the serializer does not fail on the required "user" field.
-        data = request.data.copy()
-        data['user'] = user.id
-        
+        # 2. Extract payload for side-effects
+        data = request.data
+
+        # 3. Synchronize core user legal name fields.
         if 'first_name' in data:
-            user.first_name = data['first_name']
+            user.first_name = data.get('first_name', user.first_name)
         if 'last_name' in data:
-            user.last_name = data['last_name']
+            user.last_name = data.get('last_name', user.last_name)
         user.save()
-        
+
+        # 4. Synchronize clinical identity and professional identifiers on UserRole.
+        role_profile, _ = UserRole.objects.get_or_create(user=user)
+        if 'medical_role' in data:
+            role_profile.role = data['medical_role']
+        if 'medical_id' in data:
+            role_profile.medical_id = (
+                data['medical_id'] if data.get('medical_role') != UserRole.ROLE_STANDARD else ''
+            )
+        role_profile.save()
+
+        # 5. Persist demographic, insurance, and national code on Patient record.
         if patient:
             serializer = self.get_serializer(patient, data=data, partial=True)
         else:
             serializer = self.get_serializer(data=data)
 
-        # 3. Validate and persist.
         if serializer.is_valid():
             serializer.save(user=user)
-            return Response(serializer.data)
-        
-        # Reached only when validation fails; the errors go back to the client.
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    @action(detail=False, methods=['get'])
-    def me(self, request):
-        """Return the caller's own patient profile.
-
-        :returns:
-            * 200 -- serialized ``Patient`` profile.
-            * 404 -- when the logged-in user has no patient profile yet.
-        """
-        try:
-            # Fetch the profile belonging to the currently logged-in user.
-            patient = Patient.objects.get(user=request.user)
-            serializer = self.get_serializer(patient)
             return Response(serializer.data, status=status.HTTP_200_OK)
-        except Patient.DoesNotExist:
-            return Response({"error": "پروفایل یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
-    
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)     
 class TestResultViewSet(ModelViewSet):
     """CRUD for test results with dashboard-oriented read/write serializers.
 
@@ -196,20 +200,28 @@ class TestResultViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated, IsPatientOwnerOrStaff]
     
     def get_queryset(self):
-        """Scope results to owned, approved-shared, or self-submitted records.
+        """Scope results to submitter audit logs and approved patient records.
 
-        :returns: A distinct ``TestResult`` queryset (patient and test type
-            pre-fetched) limited to results on the user's own profile,
-            results shared through an ``approved`` access grant, or results
-            the user personally submitted.
+        Submitters retain visibility over all records they personally authored
+        (including those marked as ``rejected``), while patient profile owners
+        and approved access grantees only see tests in the ``approved`` state.
+
+        :returns: A distinct ``TestResult`` queryset with related patient and
+            test type entities pre-fetched.
         """
         user = self.request.user
         base_queryset = TestResult.objects.select_related('patient', 'test_type')
-        return base_queryset.filter(
+
+        # 1. Submitter retains audit visibility over all authored entries.
+        created_by_user = Q(created_by=user)
+
+        # 2. Patients and approved delegates only observe confirmed tests.
+        accessible_as_patient = (
             Q(patient__user=user) |
-            Q(patient__user_accesses__user=user, patient__user_accesses__status='approved') |  # Only approved grants count.
-            Q(created_by=user)
-        ).distinct()
+            Q(patient__user_accesses__user=user, patient__user_accesses__status='approved')
+        ) & Q(status='approved')
+
+        return base_queryset.filter(created_by_user | accessible_as_patient).distinct()
 
     def get_serializer_class(self):
         """Return the read serializer for list/retrieve, write serializer otherwise."""
@@ -262,40 +274,40 @@ class TestResultViewSet(ModelViewSet):
         return Response(serializer.data)
     @action(detail=True, methods=['post'], url_path='review')
     def review(self, request, pk=None):
-        """Approve or reject a result submitted to the caller's profile.
+        """Approve or reject a test result submitted to the caller's profile.
 
-        Only the profile owner may decide: a dedicated ownership lock
-        returns 403 for anyone else. The payload ``action`` must be
-        ``approve`` or ``reject``.
+        Applies a soft status transition to prevent physical deletion and
+        maintain clinical audit history. Only the profile owner holding the
+        underlying patient record may perform this action.
 
-        :param pk: Primary key of the ``TestResult`` under review.
+        :param pk: Primary key of the target ``TestResult`` to review.
         :returns:
-            * 200 -- status updated (approved/rejected).
-            * 400 -- unrecognized ``action`` value.
-            * 403 -- caller does not own the profile the result belongs to.
-            * 404 -- unknown result id.
+            * 200 -- Confirmation message after successfully updating status.
+            * 400 -- Unrecognized ``action`` value in payload.
+            * 403 -- Caller does not own the target patient record.
+            * 404 -- Test result matching ``pk`` does not exist.
         """
-        # Fetch directly by pk (bypasses queryset scoping); the ownership
-        # lock below is the actual security gate.
         test_result = get_object_or_404(TestResult, pk=pk)
-        
-        action_type = request.data.get('action')  # Expected: 'approve' or 'reject'.
+        action_type = request.data.get('action')
 
-        # Security lock: the result must belong to the caller's own profile.
+        # Security lock: the target record must belong directly to the caller.
         if test_result.patient.user_id != request.user.id:
-            return Response({"detail": "شما اجازه تغییر وضعیت این آزمایش را ندارید."}, status=403)
+            return Response(
+                {"detail": "شما اجازه تغییر وضعیت این آزمایش را ندارید."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         if action_type == 'approve':
             test_result.status = 'approved'
-            test_result.save()
+            test_result.save(update_fields=['status'])
             return Response({"detail": "آزمایش با موفقیت تایید و به پرونده اضافه شد."})
+
         elif action_type == 'reject':
             test_result.status = 'rejected'
-            test_result.save()
-            return Response({"detail": "آزمایش رد و حذف شد."})
+            test_result.save(update_fields=['status'])
+            return Response({"detail": "آزمایش رد شد و از دید پرونده شما خارج گردید."})
         
-        return Response({"detail": "عملیات نامعتبر است."}, status=400)
-
+        return Response({"detail": "عملیات نامعتبر است."}, status=status.HTTP_400_BAD_REQUEST)
 class AttachmentViewSet(ModelViewSet):
     """CRUD for report files attached to test results.
 
@@ -322,54 +334,60 @@ class AttachmentViewSet(ModelViewSet):
         return Attachment.objects.filter(test_result__patient_id__in=allowed_patient_ids)
 
 
-class AddDependentView(APIView):
-    """Legacy endpoint adding a dependent record directly by national code.
+# class AddDependentView(APIView):
+#     """Legacy endpoint adding a dependent record directly by national code.
 
-    Unlike :class:`RequestAccessView`, the access row is created immediately
-    without the pending-approval step. Responds 200 when the record is
-    linked, 400 when the national code is missing, 404 when no record
-    matches and 500 for unexpected failures.
-    """
+#     Unlike :class:`RequestAccessView`, the access row is created immediately
+#     without the pending-approval step. Responds 200 when the record is
+#     linked, 400 when the national code is missing, 404 when no record
+#     matches and 500 for unexpected failures.
+#     """
 
-    permission_classes = [IsAuthenticated]
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        """Create (or reuse) an access row for the given national code.
+#     def post(self, request):
+#         """Create (or reuse) an access row for the given national code.
 
-        :param request: POST payload with a ``national_code`` field.
-        :returns:
-            * 200 -- access linked; confirmation message with the patient name.
-            * 400 -- missing national code.
-            * 404 -- no medical record with that national code.
-            * 500 -- unexpected internal error.
-        """
-        search_value = request.data.get('national_code')
-        if not search_value:
-            return Response({'error': 'لطفاً کد ملی فرزند را وارد کنید.'}, status=status.HTTP_400_BAD_REQUEST)
+#         :param request: POST payload with a ``national_code`` field.
+#         :returns:
+#             * 200 -- access linked; confirmation message with the patient name.
+#             * 400 -- missing national code.
+#             * 404 -- no medical record with that national code.
+#             * 500 -- unexpected internal error.
+#         """
+#         search_value = request.data.get('national_code')
+#         if not search_value:
+#             return Response({'error': 'لطفاً کد ملی فرزند را وارد کنید.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        try:
-            # Look the patient record up directly by national code.
-            patient = Patient.objects.get(national_code=search_value)
+#         try:
+#             # Look the patient record up directly by national code.
+#             patient = Patient.objects.filter(national_code=search_value).first()
+#             if not patient:
+#                 return Response(
+#                     {'error': 'هیچ پرونده پزشکی با این کد ملی در سیستم ثبت نشده است.'}, 
+#                     status=status.HTTP_404_NOT_FOUND
+#                 )
+#             # Create (or reuse) the access row for the requesting guardian.
+#             UserPatientAccess.objects.get_or_create(user=request.user, patient=patient)
 
-            # Create (or reuse) the access row for the requesting guardian.
-            UserPatientAccess.objects.get_or_create(user=request.user, patient=patient)
+#             display_name = f"{patient.first_name} {patient.last_name}".strip()
 
-            display_name = f"{patient.first_name} {patient.last_name}".strip()
+#             return Response({
+#                 'message': f'اطلاعات {display_name} با موفقیت به پنل شما اضافه شد.'
+#             }, status=status.HTTP_200_OK)
 
-            return Response({
-                'message': f'اطلاعات {display_name} با موفقیت به پنل شما اضافه شد.'
-            }, status=status.HTTP_200_OK)
-
-        except Patient.DoesNotExist:
-            return Response({'error': 'هیچ پرونده پزشکی با این کد ملی در سیستم ثبت نشده است.'}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({'error': f'خطای سیستمی: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-# 1. API for submitting an access request (by the guardian/relative).
+#         except Patient.DoesNotExist:
+#             return Response({'error': 'هیچ پرونده پزشکی با این کد ملی در سیستم ثبت نشده است.'}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({'error': f'خطای سیستمی: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# # 1. API for submitting an access request (by the guardian/relative).
 class RequestAccessView(APIView):
-    """Submit a read-only access request to another patient's record.
+    """Submit a read-only access request to another patient's medical record.
 
-    Creates a ``pending`` :class:`~core.models.UserPatientAccess` row that
-    the target record's owner later approves or rejects from their inbox.
+    Looks up the target record by national code using a non-throwing lookup,
+    ensures the requester cannot request access to their own profile, and
+    creates a ``pending`` :class:`~core.models.UserPatientAccess` grant awaiting
+    record owner approval.
     """
 
     permission_classes = [IsAuthenticated]
@@ -377,28 +395,35 @@ class RequestAccessView(APIView):
     def post(self, request):
         """Request access to the record identified by ``national_code``.
 
-        :param request: POST payload with a ``national_code`` field.
+        :param request: The incoming HTTP request carrying ``national_code``.
         :returns:
-            * 201 -- request created and awaiting owner approval.
-            * 400 -- missing code, self-request, or an earlier request
-              still open.
-            * 404 -- no patient record with that national code.
+            * 201 -- Access request created successfully with ``pending`` status.
+            * 400 -- Missing national code, self-request attempt, or duplicate open request.
+            * 404 -- No patient profile found matching the provided national code.
         """
         national_code = request.data.get('national_code')
         if not national_code:
-            return Response({"error": "لطفا کد ملی را وارد کنید."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "لطفا کد ملی را وارد کنید."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        try:
-            # Find the patient record carrying this national code.
-            target_patient = Patient.objects.get(national_code=national_code)
-        except Patient.DoesNotExist:
-            return Response({"error": "بیماری با این کد ملی در سیستم یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
+        # Safe lookup preventing MultipleObjectsReturned / unhandled 500 errors.
+        target_patient = Patient.objects.filter(national_code=national_code).first()
+        if not target_patient:
+            return Response(
+                {"error": "بیماری با این کد ملی در سیستم یافت نشد."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Prevent requesting access to one's own record.
+        # Security check: prevent requesting access to one's own medical record.
         if target_patient.user == request.user:
-            return Response({"error": "شما مالک این پرونده هستید و نیازی به درخواست ندارید."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "شما مالک این پرونده هستید و نیازی به درخواست ندارید."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Create the request or detect an earlier one.
+        # Create the authorization record or identify an existing application.
         access, created = UserPatientAccess.objects.get_or_create(
             user=request.user,
             patient=target_patient,
@@ -406,35 +431,47 @@ class RequestAccessView(APIView):
         )
 
         if not created:
-            return Response({"error": f"شما قبلاً درخواستی داده‌اید که در وضعیت '{access.get_status_display()}' است."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": f"شما قبلاً درخواستی داده‌اید که در وضعیت '{access.get_status_display()}' است."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return Response({"message": "درخواست با موفقیت ارسال شد و در انتظار تایید بیمار است."}, status=status.HTTP_201_CREATED)
-
+        return Response(
+            {"message": "درخواست با موفقیت ارسال شد و در انتظار تایید بیمار است."}, 
+            status=status.HTTP_201_CREATED
+        )
 
 # 2. Inbox API (requests others have sent to my record).
 class PendingAccessRequestsView(APIView):
-    """Inbox listing the pending access requests for the caller's own record."""
+    """Inbox listing the pending access requests for the caller's own record.
+
+    Retrieves incoming access authorization requests targeting the logged-in
+    patient's profile. Employs ``select_related('user')`` to avoid N+1 queries
+    when resolving the requester's full name or username.
+    """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """Return the pending requests targeting the caller's patient profile.
 
-        :returns: 200 with a plain list of ``id``/``requester_name``/
-            ``requested_at`` objects; an empty list when the caller has no
-            patient profile yet.
+        :param request: The incoming HTTP request containing the authenticated user.
+        :returns:
+            * 200 -- A list of dictionary payloads containing ``id``,
+              ``requester_name``, and ``requested_at`` timestamps.
+            * 200 -- An empty list when the caller has no associated patient profile.
         """
-        # Bail out with an empty inbox when the caller has no record yet.
+        # Bail out with an empty inbox when the caller has no medical record yet.
         if not hasattr(request.user, 'patient_profile'):
             return Response([])
 
-        # Collect every request targeting my record that is still pending.
+        # Collect every request targeting this record with user details pre-fetched.
         pending_requests = UserPatientAccess.objects.filter(
             patient=request.user.patient_profile,
             status='pending'
-        )
+        ).select_related('user')
         
-        # Build a small plain list for the frontend.
+        # Build the denormalized response payload for the UI inbox.
         data = [
             {
                 "id": req.id,
@@ -444,7 +481,6 @@ class PendingAccessRequestsView(APIView):
             for req in pending_requests
         ]
         return Response(data, status=status.HTTP_200_OK)
-
 
 # 3. API for the patient to approve or reject a request.
 class RespondAccessRequestView(APIView):
@@ -575,3 +611,70 @@ class MyDependentsView(APIView):
             for access in my_accesses
         ]
         return Response(data, status=status.HTTP_200_OK)
+# 7. API for granting direct access to a doctor or caretaker by national code.
+class GrantAccessView(APIView):
+    """Grant immediate, pre-approved access to a doctor or caretaker by national code.
+
+    Bypasses the inbound request/approval cycle by allowing the profile owner
+    to directly provision an ``approved`` grant for a designated individual.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Provision or upgrade an approved access grant for the target national code.
+
+        :param request: Incoming HTTP request containing ``national_code``.
+        :returns:
+            * 200 -- Access grant provisioned or confirmed with ``approved`` status.
+            * 400 -- Missing input, missing profile, or self-grant attempt.
+            * 404 -- Target national code not found.
+        """
+        grantee_national_code = request.data.get('national_code', '').strip()
+        if not grantee_national_code:
+            return Response(
+                {"error": "کد ملی شخص مورد نظر الزامی است."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 1. پرونده سلامت خود کاربر جاری
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient:
+            return Response(
+                {"error": "ابتدا باید پرونده سلامت خود را تکمیل کنید."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 2. پیدا کردن شخص مورد نظر بر اساس کد ملی
+        grantee_patient = Patient.objects.filter(national_code=grantee_national_code).first()
+        if not grantee_patient or not grantee_patient.user:
+            return Response(
+                {"error": "کاربری با این کد ملی در سامانه یافت نشد."}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        grantee_user = grantee_patient.user
+
+        # 3. جلوگیری از اعطای دسترسی به خود
+        if grantee_user == request.user:
+            return Response(
+                {"error": "شما مالک این پرونده هستید و نمی‌توانید به خودتان دسترسی دهید."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. ایجاد رکورد یا به‌روزرسانی وضعیت به approved
+        access, created = UserPatientAccess.objects.get_or_create(
+            user=grantee_user,
+            patient=patient,
+            defaults={'status': 'approved', 'access_level': 'read_only'}
+        )
+
+        if not created and access.status != 'approved':
+            access.status = 'approved'
+            access.save()
+
+        full_name = grantee_user.get_full_name() or grantee_user.username
+        return Response(
+            {"message": f"دسترسی با موفقیت به {full_name} اعطا شد."}, 
+            status=status.HTTP_200_OK
+        )
