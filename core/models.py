@@ -241,3 +241,45 @@ class AuditLog(models.Model):
     def __str__(self):
         """One-line summary of the audit entry."""
         return f"{self.user} - {self.action} at {self.created_at}"
+class HealthSummary(models.Model):
+    patient = models.OneToOneField(
+        'Patient',
+        on_delete=models.CASCADE,
+        related_name='health_summary'
+    )
+    allergies = models.JSONField(default=list, blank=True)         # حساسیت‌ها و آلرژی‌ها
+    conditions = models.JSONField(default=list, blank=True)        # بیماری‌ها و شرایط فعال
+    medications = models.JSONField(default=list, blank=True)       # داروهای مصرفی جاری
+    care_plans = models.JSONField(default=list, blank=True)        # برنامه مراقبت و اهداف سلامت
+    immunizations = models.JSONField(default=list, blank=True)     # واکسیناسیون و ایمن‌سازی
+    screenings = models.JSONField(default=list, blank=True)        # مراقبت‌های پیشگیرانه و غربالگری
+    
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"خلاصه پرونده سلامت - {self.patient}"
+
+
+class TestReminder(models.Model):
+    FREQUENCY_CHOICES = [
+        ('once', 'یک‌بار'),
+        ('monthly', 'ماهانه'),
+        ('every_3_months', 'هر ۳ ماه'),
+        ('every_6_months', 'هر ۶ ماه'),
+        ('yearly', 'سالانه'),
+    ]
+
+    patient = models.ForeignKey(
+        'Patient',
+        on_delete=models.CASCADE,
+        related_name='reminders'
+    )
+    title = models.CharField(max_length=255)
+    due_date = models.DateField()
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='once')
+    is_completed = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.patient})"

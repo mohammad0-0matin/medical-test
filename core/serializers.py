@@ -8,7 +8,7 @@ values consumed by the UI and are intentionally preserved.
 """
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Patient, TestResult, TestType, Attachment
+from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder
 from django.contrib.auth.models import User
 
 class TestTypeSerializer(serializers.ModelSerializer):
@@ -234,3 +234,30 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+class HealthSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HealthSummary
+        fields = [
+            'allergies',
+            'conditions',
+            'medications',
+            'care_plans',
+            'immunizations',
+            'screenings',
+            'updated_at'
+        ]
+
+
+class TestReminderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TestReminder
+        fields = [
+            'id',
+            'title',
+            'due_date',
+            'frequency',
+            'is_completed',
+            'notes',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']

@@ -1,35 +1,19 @@
-/**
- * Personal Health Record (PHR) — structured clinical summary persistence.
- * Storage: localStorage → `salamatyar_health_summary`.
- *
- * Sections:
- * - conditions:    `{ id, name, status: 'active'|'managed'|'resolved', diagnosedDate, notes }`
- * - medications:   `{ id, name, dosage, frequency, instructions, isActive }`
- * - allergies:     `{ id, allergen, severity: 'mild'|'moderate'|'severe', reaction, notes }`
- * - immunizations: `{ id, vaccineName, dateAdministered, boosterDueDate, notes }`
- * - carePlan:      `{ id, title, targetMetric, targetDate, status: 'in_progress'|'achieved' }`
- *
- * @module utils/healthSummaryUtils
- */
+import API from '../api';
 
-/** localStorage key holding the health summary object. */
 export const SUMMARY_KEY = 'salamatyar_health_summary';
 
-/** Display metadata for condition statuses keyed by status value. */
 export const CONDITION_STATUSES = {
   active: { label: 'فعال', tone: 'danger' },
   managed: { label: 'تحت کنترل', tone: 'info' },
   resolved: { label: 'بهبود یافته', tone: 'success' },
 };
 
-/** Display metadata for allergy severities keyed by severity value. */
 export const ALLERGY_SEVERITIES = {
   mild: { label: 'خفیف', tone: 'neutral' },
   moderate: { label: 'متوسط', tone: 'warn' },
   severe: { label: 'شدید', tone: 'danger' },
 };
 
-/** Display metadata for care-plan statuses keyed by status value. */
 export const CARE_PLAN_STATUSES = {
   in_progress: { label: 'در حال انجام', tone: 'info' },
   achieved: { label: 'محقق شد', tone: 'success' },
@@ -40,113 +24,162 @@ const EMPTY_SUMMARY = {
   medications: [],
   allergies: [],
   immunizations: [],
+  care_plans: [],
   carePlan: [],
+  screenings: [],
 };
 
-const SECTIONS = Object.keys(EMPTY_SUMMARY);
-
-/** Generates a time-and-random-based unique id for summary items. */
 const makeId = () =>
   `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
-/** Coerces unknown stored values into arrays so sections never break rendering. */
-const sanitizeList = (value) => (Array.isArray(value) ? value : []);
+const sanitizeList = (val) => (Array.isArray(val) ? val : []);
 
-/* ---------- Persistence ---------- */
+/* ---------- ارتباط با سرور (API) ---------- */
 
-/**
- * Reads the full health summary, normalizing every section to an array.
- *
- * @returns {{conditions:Array,medications:Array,allergies:Array,immunizations:Array,carePlan:Array}}
- */
+export const getHealthSummaryApi = async () => {
+  try {
+    const res = await API.get('health-summary/');
+    const data = res.data || {};
+    const carePlans = sanitizeList(data.care_plans || data.carePlan);
+    return {
+      conditions: sanitizeList(data.conditions),
+      medications: sanitizeList(data.medications),
+      allergies: sanitizeList(data.allergies),
+      immunizations: sanitizeList(data.immunizations),
+      care_plans: carePlans,
+      carePlan: carePlans,
+      screenings: sanitizeList(data.screenings),
+      updated_at: data.updated_at || '',
+    };
+  } catch (error) {
+    console.error('خطا در دریافت خلاصه پرونده:', error);
+    return { ...EMPTY_SUMMARY };
+  }
+};
+
+export const saveHealthSummaryApi = async (summary) => {
+  const carePlans = sanitizeList(summary.care_plans || summary.carePlan);
+  const payload = {
+    conditions: sanitizeList(summary.conditions),
+    medications: sanitizeList(summary.medications),
+    allergies: sanitizeList(summary.allergies),
+    immunizations: sanitizeList(summary.immunizations),
+    care_plans: carePlans,
+    screenings: sanitizeList(summary.screenings),
+  };
+  const res = await API.put('health-summary/', payload);
+  return res.data;
+};
+
+export const addItemApi = async (currentSummary, section, item) => {
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(currentSummary[targetSection] || currentSummary[section]);
+  const updatedList = [...list, { ...item, id: makeId() }];
+  const updatedSummary = {
+    ...currentSummary,
+    [targetSection]: updatedList,
+    [section]: updatedList,
+  };
+  await saveHealthSummaryApi(updatedSummary);
+  return updatedSummary;
+};
+
+export const updateItemApi = async (currentSummary, section, itemId, patch) => {
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(currentSummary[targetSection] || currentSummary[section]);
+  const updatedList = list.map((it) => (it.id === itemId ? { ...it, ...patch } : it));
+  const updatedSummary = {
+    ...currentSummary,
+    [targetSection]: updatedList,
+    [section]: updatedList,
+  };
+  await saveHealthSummaryApi(updatedSummary);
+  return updatedSummary;
+};
+
+export const deleteItemApi = async (currentSummary, section, itemId) => {
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(currentSummary[targetSection] || currentSummary[section]);
+  const updatedList = list.filter((it) => it.id !== itemId);
+  const updatedSummary = {
+    ...currentSummary,
+    [targetSection]: updatedList,
+    [section]: updatedList,
+  };
+  await saveHealthSummaryApi(updatedSummary);
+  return updatedSummary;
+};
+
+/* ---------- توابع همگام و سازگار برای رفع ارور کامپوننت‌های فرانت ---------- */
+
 export const getHealthSummary = () => {
   try {
     const raw = localStorage.getItem(SUMMARY_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
-    const result = { ...EMPTY_SUMMARY };
-    SECTIONS.forEach((section) => {
-      result[section] = sanitizeList(parsed?.[section]);
-    });
-    return result;
+    return {
+      conditions: sanitizeList(parsed.conditions),
+      medications: sanitizeList(parsed.medications),
+      allergies: sanitizeList(parsed.allergies),
+      immunizations: sanitizeList(parsed.immunizations),
+      care_plans: sanitizeList(parsed.care_plans || parsed.carePlan),
+      carePlan: sanitizeList(parsed.care_plans || parsed.carePlan),
+      screenings: sanitizeList(parsed.screenings),
+    };
   } catch {
     return { ...EMPTY_SUMMARY };
   }
 };
 
-/**
- * Persists the full health summary (missing sections reset to empty).
- *
- * @param {object} summary - Complete summary object.
- * @returns {object} The sanitized summary that was stored.
- */
 export const saveHealthSummary = (summary) => {
-  const clean = { ...EMPTY_SUMMARY };
-  SECTIONS.forEach((section) => {
-    clean[section] = sanitizeList(summary?.[section]);
-  });
   try {
-    localStorage.setItem(SUMMARY_KEY, JSON.stringify(clean));
+    localStorage.setItem(SUMMARY_KEY, JSON.stringify(summary));
   } catch {
     /* storage unavailable */
   }
-  return clean;
+  // ارسال غیرهمگام به سرور در پس‌زمینه در صورت در دسترس بودن
+  saveHealthSummaryApi(summary).catch(() => {});
+  return summary;
 };
 
-/* ---------- Item CRUD ---------- */
-
-/** Applies a mutator to one section and persists the whole summary. */
-const mutateSection = (section, mutator) => {
-  const summary = getHealthSummary();
+export const addItem = (section, item) => {
+  const current = getHealthSummary();
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(current[targetSection] || current[section]);
+  const updatedList = [...list, { ...item, id: makeId() }];
   const updated = {
-    ...summary,
-    [section]: mutator(sanitizeList(summary[section])),
+    ...current,
+    [targetSection]: updatedList,
+    [section]: updatedList,
   };
   return saveHealthSummary(updated);
 };
 
-/**
- * Adds a new item to a section. A unique `id` is generated automatically.
- *
- * @param {string} section - Target section key.
- * @param {object} item - Item payload (without `id`).
- * @returns {object} Updated health summary.
- */
-export const addItem = (section, item) =>
-  mutateSection(section, (list) => [
-    ...list,
-    { ...item, id: makeId() },
-  ]);
+export const updateItem = (section, itemId, patch) => {
+  const current = getHealthSummary();
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(current[targetSection] || current[section]);
+  const updatedList = list.map((it) => (it.id === itemId ? { ...it, ...patch } : it));
+  const updated = {
+    ...current,
+    [targetSection]: updatedList,
+    [section]: updatedList,
+  };
+  return saveHealthSummary(updated);
+};
 
-/**
- * Partially updates an existing item by ID.
- *
- * @param {string} section - Target section key.
- * @param {string} itemId - Item ID to update.
- * @param {object} patch - Fields to merge.
- * @returns {object} Updated health summary.
- */
-export const updateItem = (section, itemId, patch) =>
-  mutateSection(section, (list) =>
-    list.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
-  );
+export const deleteItem = (section, itemId) => {
+  const current = getHealthSummary();
+  const targetSection = section === 'carePlan' ? 'care_plans' : section;
+  const list = sanitizeList(current[targetSection] || current[section]);
+  const updatedList = list.filter((it) => it.id !== itemId);
+  const updated = {
+    ...current,
+    [targetSection]: updatedList,
+    [section]: updatedList,
+  };
+  return saveHealthSummary(updated);
+};
 
-/**
- * Removes an item from a section by ID.
- *
- * @param {string} section - Target section key.
- * @param {string} itemId - Item ID to remove.
- * @returns {object} Updated health summary.
- */
-export const deleteItem = (section, itemId) =>
-  mutateSection(section, (list) => list.filter((item) => item.id !== itemId));
-
-/**
- * Returns the summary enriched with profile-derived defaults
- * (reserved for future blood-group / profile integration).
- *
- * @param {object|null} profile - Patient profile.
- * @returns {object} Summary with optional `bloodGroup` default applied.
- */
 export const resolveWithDefaults = (profile) => {
   const summary = getHealthSummary();
   if (!summary.conditions.length && !summary.medications.length && !summary.allergies.length) {

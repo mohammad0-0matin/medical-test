@@ -17,25 +17,26 @@ import NotificationBell from '../components/NotificationBell';
 import MedicalTimeline from '../components/MedicalTimeline';
 import TestComparisonModal from '../components/TestComparisonModal';
 import HealthSummaryView from '../components/healthSummary/HealthSummaryView';
-import { getHealthSummary } from '../utils/healthSummaryUtils';
 import Footer from '../components/Footer';
 import OnboardingTour from '../components/OnboardingTour';
 import UpcomingCheckupsWidget from '../components/UpcomingCheckupsWidget';
 import AddReminderModal from '../components/AddReminderModal';
-import {
-  getReminders,
-  addReminder,
-  deleteReminder,
-  completeReminder,
-} from '../utils/reminderUtils';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
 import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { useReactToPrint } from 'react-to-print';
 import './Dashboard.css';
-
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
-
+import {
+  fetchRemindersApi,
+  addReminderApi,
+  completeReminderApi,
+  deleteReminderApi,
+} from '../utils/reminderUtils';
+import {
+  getHealthSummaryApi,
+  saveHealthSummaryApi,
+} from '../utils/healthSummaryUtils';
 const SpreadsheetGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -260,7 +261,6 @@ const Dashboard = () => {
   const [isTempAccessOpen, setIsTempAccessOpen] = useState(false);
   const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
-  const [reminders, setReminders] = useState(() => getReminders());
   const [selectedTest, setSelectedTest] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -307,9 +307,15 @@ const Dashboard = () => {
       /* storage unavailable */
     }
   };
-
-  // Health summary (synced into the emergency pass)
-  const [healthSummary, setHealthSummary] = useState(() => getHealthSummary());
+const [reminders, setReminders] = useState([]);
+const [healthSummary, setHealthSummary] = useState({
+  conditions: [],
+  medications: [],
+  allergies: [],
+  immunizations: [],
+  care_plans: [],
+  screenings: [],
+});
 
   // PDF print setup
   const printRef = useRef(null);
@@ -403,6 +409,15 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+  const fetchReminders = async () => {
+  const data = await fetchRemindersApi();
+  setReminders(data);
+  };
+
+  const fetchHealthSummary = async () => {
+    const data = await getHealthSummaryApi();
+    setHealthSummary(data);
+  };
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -413,6 +428,8 @@ const Dashboard = () => {
         fetchGrantedAccesses(),
         fetchMyDependents(),
         fetchProfile(),
+        fetchReminders(),      
+        fetchHealthSummary()
       ]);
       setAccessLoading(false);
     };
@@ -641,34 +658,79 @@ const handleGrantAccess = async (e) => {
 
   /* ---------- Test reminders ---------- */
 
-  const handleAddReminder = (payload) => {
-    setReminders(addReminder(payload));
-    toast.success('🗓️ یادآور با موفقیت ثبت شد.');
+  // const handleAddReminder = (payload) => {
+  //   setReminders(addReminder(payload));
+  //   toast.success('🗓️ یادآور با موفقیت ثبت شد.');
+  // };
+  // ✅ نسخه جدید:
+  const handleAddReminder = async (payload) => {
+    try {
+      const created = await addReminderApi(payload);
+      setReminders((prev) => [...prev, created]);
+      toast.success('🗓️ یادآور با موفقیت ثبت شد.');
+    } catch (error) {
+      console.error(error);
+      toast.error('خطا در ذخیره یادآور.');
+    }
+   };
+  // const handleCompleteReminder = (id) => {
+  //   const updated = completeReminder(id);
+  //   setReminders(updated);
+  //   toast.success('✔️ تکمیل شد؛ در صورت دوره‌ای بودن، موعد بعدی برنامه‌ریزی شد.');
+  // };
+  // ✅ نسخه جدید:
+  const handleCompleteReminder = async (id) => {
+    try {
+      const target = reminders.find((r) => r.id === id);
+      if (!target) return;
+      const updated = await completeReminderApi(id, target);
+      setReminders((prev) => prev.map((r) => (r.id === id ? updated : r)));
+      toast.success('✔️ وضعیت یادآور به‌روزرسانی شد.');
+    } catch (error) {
+      console.error(error);
+      toast.error('خطا در به‌روزرسانی یادآور.');
+    }
   };
-
-  const handleCompleteReminder = (id) => {
-    const updated = completeReminder(id);
-    setReminders(updated);
-    toast.success('✔️ تکمیل شد؛ در صورت دوره‌ای بودن، موعد بعدی برنامه‌ریزی شد.');
-  };
-
   // const handleDeleteReminder = (id) => {
   //   if (!window.confirm('آیا از حذف این یادآور مطمئن هستید؟')) return;
   //   setReminders(deleteReminder(id));
   //   toast.success('یادآور حذف شد.');
   // };
+  // const handleDeleteReminder = (id) => {
+  // setConfirmAction({
+  //   isOpen: true,
+  //   title: 'حذف یادآور چکاپ',
+  //   message: 'آیا از حذف این یادآور اطمینان دارید؟',
+  //   loading: false,
+  //   onConfirm: () => {
+  //     setReminders(deleteReminder(id));
+  //     toast.success('یادآور با موفقیت حذف شد.');
+  //     setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
+  //   },
+  // });
+  // };  
+  // };
+  // ✅ نسخه جدید:
   const handleDeleteReminder = (id) => {
-  setConfirmAction({
-    isOpen: true,
-    title: 'حذف یادآور چکاپ',
-    message: 'آیا از حذف این یادآور اطمینان دارید؟',
-    loading: false,
-    onConfirm: () => {
-      setReminders(deleteReminder(id));
-      toast.success('یادآور با موفقیت حذف شد.');
-      setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
-    },
-  });
+    setConfirmAction({
+      isOpen: true,
+      title: 'حذف یادآور چکاپ',
+      message: 'آیا از حذف این یادآور از پایگاه‌داده اطمینان دارید؟',
+      loading: false,
+      onConfirm: async () => {
+        setConfirmAction((prev) => ({ ...prev, loading: true }));
+        try {
+          await deleteReminderApi(id);
+          setReminders((prev) => prev.filter((r) => r.id !== id));
+          toast.success('یادآور با موفقیت حذف شد.');
+        } catch (error) {
+          console.error(error);
+          toast.error('خطا در حذف یادآور.');
+        } finally {
+          setConfirmAction({ isOpen: false, title: '', message: '', onConfirm: null, loading: false });
+        }
+      },
+    });
   };
   const handleAttachmentClick = (test) => {
     setSelectedTest(test);
@@ -1356,32 +1418,6 @@ const handleGrantAccess = async (e) => {
         isOpen={isReminderModalOpen}
         onClose={() => setIsReminderModalOpen(false)}
         onSave={handleAddReminder}
-      />
-      <ClinicalNotesModal
-        isOpen={isNotesModalOpen}
-        onClose={() => setIsNotesModalOpen(false)}
-        test={notesTest}
-        doctorPrefill={doctorPrefill}
-        onSaved={handleSaveClinicalNote}
-        onDeleted={handleDeleteClinicalNote}
-      />
-
-      {/* 👇 کامپوننت تایید حذف دقیقاً اینجا قرار می‌گیرد */}
-      <ConfirmDeleteModal
-        isOpen={Boolean(deleteTargetId)}
-        onClose={() => setDeleteTargetId(null)}
-        onConfirm={handleConfirmDelete}
-        loading={isDeleting}
-        title="حذف رکورد آزمایش"
-        message="آیا از حذف این نتیجه آزمایش اطمینان دارید؟ این عملیات غیرقابل بازگشت است."
-      />
-
-      {/* PDF print output component */}
-      <PrintableReport
-        ref={printRef}
-        tests={visibleTests}
-        profile={profile}
-        clinicalNotesMap={clinicalNotesMap}
       />
       <ClinicalNotesModal
         isOpen={isNotesModalOpen}

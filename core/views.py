@@ -23,9 +23,9 @@ from .serializers import (
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from django.contrib.auth.models import User
-from .serializers import RegisterSerializer
+from .serializers import RegisterSerializer,HealthSummarySerializer, TestReminderSerializer
 from rest_framework import viewsets
-from .models import TestType
+from .models import TestType, HealthSummary, TestReminder, Patient
 from .serializers import TestTypeSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -678,3 +678,35 @@ class GrantAccessView(APIView):
             {"message": f"دسترسی با موفقیت به {full_name} اعطا شد."}, 
             status=status.HTTP_200_OK
         )
+class HealthSummaryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_patient(self):
+        return Patient.objects.get(user=self.request.user)
+
+    def get(self, request):
+        patient = self.get_patient()
+        summary, _ = HealthSummary.objects.get_or_create(patient=patient)
+        serializer = HealthSummarySerializer(summary)
+        return Response(serializer.data)
+
+    def put(self, request):
+        patient = self.get_patient()
+        summary, _ = HealthSummary.objects.get_or_create(patient=patient)
+        serializer = HealthSummarySerializer(summary, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TestReminderViewSet(viewsets.ModelViewSet):
+    serializer_class = TestReminderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return TestReminder.objects.filter(patient__user=self.request.user).order_by('due_date')
+
+    def perform_create(self, serializer):
+        patient = Patient.objects.get(user=self.request.user)
+        serializer.save(patient=patient)
