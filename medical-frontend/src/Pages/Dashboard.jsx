@@ -436,29 +436,69 @@ const [healthSummary, setHealthSummary] = useState({
     bootstrap();
   }, []);
 
-  // Onboarding tour: auto-start once for first-time visitors after initial load finishes
-  // (render-phase gate instead of useEffect)
+  // Onboarding tour: auto-start once for first-time visitors (Based on Auth Token)
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourGateChecked, setTourGateChecked] = useState(false);
-  useEffect(() => {
-  const initialLoadDone = !loading && !accessLoading && !profileLoading;
-  if (initialLoadDone && !tourGateChecked) {
-    setTourGateChecked(true);
-    let firstVisit = false;
+
+  // استخراج ایمن شناسه اختصاصی کاربر از توکن ورود (مستقل از اینکه پروفایل کامل شده یا نه).
+  // توجه: JWT از base64url استفاده می‌کند (کاراکترهای '-' و '_')، در حالی که atob()
+  // فقط base64 استاندارد را می‌فهمد؛ بدون تبدیل، برای بعضی توکن‌ها throw می‌کند.
+const getCurrentUserId = () => {
     try {
-      firstVisit = !localStorage.getItem('salamatyar_tour_completed');
-    } catch {
-      firstVisit = false;
+      const token = localStorage.getItem('access_token');
+      if (!token) return 'guest';
+      
+      const base64Url = token.split('.')[1];
+      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      
+      // اضافه کردن پدینگ استاندارد برای جلوگیری از کرش کردن atob
+      const pad = base64.length % 4;
+      if (pad) {
+        base64 += '='.repeat(4 - pad);
+      }
+      
+      const payload = JSON.parse(atob(base64));
+      return payload.user_id || payload.id || 'guest';
+    } catch (err) {
+      console.warn('خطا در خواندن توکن تور راهنما:', err);
+      return 'guest';
     }
-    if (firstVisit) {
-      setIsTourActive(true);
+  };
+
+  useEffect(() => {
+    const initialLoadDone = !loading && !accessLoading && !profileLoading;
+    
+    if (initialLoadDone && !tourGateChecked) {
+      setTourGateChecked(true);
+
+      const userId = getCurrentUserId();
+      const tourKey = `salamatyar_tour_completed_${userId}`;
+      const oldTourKey = 'salamatyar_tour_completed';
+
+      let hasSeenTour = localStorage.getItem(tourKey);
+
+      // کلید قدیمی سراسری بود (بدون شناسه کاربر) و برای همیشه در مرورگر می‌ماند؛
+      // یعنی به محض این‌که یک کاربر (حتی روی اکانت تستی) تور را می‌بست، همان
+      // مرورگر برای همه‌ی کاربران تازه‌ثبت‌نام بعدی هم قفل می‌شد. اینجا فقط یک‌بار
+      // آن را به کلید مخصوص همین کاربر منتقل و سپس حذف می‌کنیم تا اکانت‌های
+      // بعدی روی همین دستگاه گیر نکنند.
+      if (!hasSeenTour && localStorage.getItem(oldTourKey)) {
+        localStorage.setItem(tourKey, 'true');
+        localStorage.removeItem(oldTourKey);
+        hasSeenTour = 'true';
+      }
+
+      if (!hasSeenTour) {
+        setIsTourActive(true);
+      }
     }
-  }
-}, [loading, accessLoading, profileLoading, tourGateChecked]);
+  }, [loading, accessLoading, profileLoading, tourGateChecked]);
+
   const finishTour = () => {
     setIsTourActive(false);
     try {
-      localStorage.setItem('salamatyar_tour_completed', 'true');
+      const userId = getCurrentUserId();
+      localStorage.setItem(`salamatyar_tour_completed_${userId}`, 'true');
     } catch {
       /* storage unavailable */
     }

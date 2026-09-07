@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API from '../api';
 import { toast } from 'react-toastify';
+import { AuthContext } from '../context/AuthContext';
 import AuthBrand, { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon } from '../components/AuthBrand';
 import './Auth.css';
 
@@ -24,6 +25,7 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,11 +42,23 @@ const Register = () => {
       try {
         await API.post('register/', formData);
 
-        toast.success('🎉 ثبت‌نام با موفقیت انجام شد! حالا می‌توانید وارد شوید.');
+        try {
+          // بلافاصله با همان اطلاعات ثبت‌نامی توکن می‌گیریم تا کاربر مجبور به
+          // وارد کردن دوباره‌ی اطلاعات نشود.
+          const tokenRes = await API.post('token/', formData);
+          login(tokenRes.data.access, tokenRes.data.refresh);
 
-        setTimeout(() => {
+          toast.success('🎉 ثبت‌نام با موفقیت انجام شد! خوش آمدید.');
+          navigate('/dashboard');
+        } catch (loginErr) {
+          // اکانت ساخته شد ولی لاگین خودکار ناموفق بود؛ کاربر را به صفحه ورود
+          // می‌فرستیم تا دستی وارد شود، به‌جای این‌که با خطا روی همین صفحه بماند.
+          console.error('Auto-login after registration failed:', loginErr);
+          toast.success('🎉 ثبت‌نام با موفقیت انجام شد! لطفاً وارد شوید.');
           navigate('/login');
-        }, 2000);
+        } finally {
+          setLoading(false);
+        }
 
       } catch (err) {
         setLoading(false);
