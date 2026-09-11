@@ -1,6 +1,11 @@
 import os
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
+
+# مسیر فایل .env در ریشه پروژه
+BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -162,3 +167,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# تنظیمات AI Assistant
+AI_API_KEY = os.getenv("AI_API_KEY")
+AI_BASE_URL = os.getenv("AI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+AI_MODEL_NAME = os.getenv("AI_MODEL_NAME", "gemini-3.6-flash")

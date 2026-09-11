@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import ThemeToggle from './ThemeToggle';
 import MedicalRoleBadge from './MedicalRoleBadge';
 import './UserMenu.css';
+import API from '../api';
+import { toast } from 'react-toastify';
 
 const toFaDigits = (value) =>
   String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
@@ -41,6 +43,16 @@ const TourIcon = () => (
   </svg>
 );
 
+const DeleteAccountIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -50,25 +62,10 @@ const LogoutIcon = () => (
   </svg>
 );
 
-/**
- * Header user dropdown: identity header with role badge and online status,
- * profile-completion shortcut, theme switcher, tour replay and logout.
- * Closed automatically on outside clicks and Escape.
- *
- * @param {{fullName?: string, nationalCode?: string, medicalRole?: string,
- *          medicalId?: string, onOpenProfile?: Function,
- *          onOpenTour?: Function, onLogout?: Function}} props - Component props.
- * @param {string} [props.fullName] - Display name (falls back to a generic label).
- * @param {string} [props.nationalCode] - National code shown as fallback badge text.
- * @param {string} [props.medicalRole='standard'] - Role key driving the MedicalRoleBadge.
- * @param {string} [props.medicalId] - Clinical ID forwarded to the role badge.
- * @param {Function} [props.onOpenProfile] - Opens the CompleteProfileModal.
- * @param {Function} [props.onOpenTour] - Replays the OnboardingTour.
- * @param {Function} [props.onLogout] - Signs the user out.
- * @returns {JSX.Element} Trigger button plus conditional dropdown panel.
- */
 const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onOpenTour, onLogout }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -98,6 +95,21 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
   const displayName = fullName.trim() || 'کاربر سلامت‌یار';
   const initial = displayName.charAt(0);
   const badgeText = nationalCode ? `کد ملی: ${toFaDigits(nationalCode)}` : 'پرونده تکمیل نشده';
+
+  const handleConfirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await API.delete('delete-account/');
+      toast.success('حساب کاربری شما با موفقیت حذف شد.');
+      localStorage.clear();
+      window.location.href = '/register';
+    } catch (err) {
+      console.error(err);
+      toast.error('خطا در حذف حساب کاربری. لطفاً دوباره تلاش کنید.');
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   return (
     <div className="um" ref={menuRef}>
@@ -164,9 +176,20 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
             💡 راهنمای سامانه
           </button>
 
-        
-
           <div className="um-divider" />
+
+          <button
+            type="button"
+            role="menuitem"
+            className="um-item um-delete-account"
+            onClick={() => {
+              setIsOpen(false);
+              setShowDeleteModal(true);
+            }}
+          >
+            <DeleteAccountIcon />
+            حذف حساب کاربری
+          </button>
 
           <button
             type="button"
@@ -180,6 +203,41 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
             <LogoutIcon />
             خروج از حساب
           </button>
+        </div>
+      )}
+
+      {/* مودال تایید حذف حساب */}
+      {showDeleteModal && (
+        <div className="um-modal-backdrop" onClick={() => !isDeleting && setShowDeleteModal(false)}>
+          <div className="um-modal-card" onClick={(e) => e.stopPropagation()} dir="rtl">
+            <div className="um-modal-icon-wrap">
+              <DeleteAccountIcon />
+            </div>
+            
+            <h3 className="um-modal-title">حذف کامل حساب کاربری</h3>
+            <p className="um-modal-desc">
+              آیا از حذف حساب خود اطمینان دارید؟ با انجام این عملیات، تمامی پرونده‌های پزشکی، آزمایش‌ها و سوابق ثبت‌شده شما برای همیشه پاک شده و امکان بازگردانی وجود ندارد.
+            </p>
+
+            <div className="um-modal-actions">
+              <button
+                type="button"
+                className="um-modal-btn-confirm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'در حال حذف...' : 'بله، حذف کن'}
+              </button>
+              <button
+                type="button"
+                className="um-modal-btn-cancel"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                انصراف
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

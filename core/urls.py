@@ -13,7 +13,7 @@ router.register('patients', views.PatientViewSet, basename='patient')
 router.register('test-results', views.TestResultViewSet, basename='test-result')
 router.register('attachments', views.AttachmentViewSet, basename='attachment')
 router.register('test-types', views.TestTypeViewSet, basename='test-type')
-router.register('reminders', views.TestReminderViewSet, basename='reminder')  # 👈 اضافه شد
+router.register('reminders', views.TestReminderViewSet, basename='reminder')
 
 
 urlpatterns = [
@@ -30,5 +30,12 @@ urlpatterns = [
     path('access/<int:pk>/revoke/', views.RevokeAccessView.as_view(), name='access-revoke'),
 
     # --- Health Summary ---
-    path('health-summary/', views.HealthSummaryView.as_view(), name='health-summary'),  # 👈 اضافه شد
+    path('health-summary/', views.HealthSummaryView.as_view(), name='health-summary'),  
+    path('delete-account/', views.DeleteAccountView.as_view(), name='delete-account'),
+
+    # --- AI Health Advisor ---
+    path('ai/sessions/', views.ChatSessionListCreateView.as_view(), name='ai-sessions'),
+    path('ai/sessions/<int:session_id>/', views.ChatSessionDetailView.as_view(), name='ai-session-detail'),
+    path('ai/sessions/<int:session_id>/messages/', views.ChatMessageListView.as_view(), name='ai-session-messages'),
+    path('ai/sessions/<int:session_id>/send/', views.SendMessageView.as_view(), name='ai-send-message'),
 ] + router.urls

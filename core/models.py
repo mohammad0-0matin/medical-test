@@ -283,3 +283,76 @@ class TestReminder(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.patient})"
+
+class ChatSession(models.Model):
+    """
+    نماینده یک نشست کامل گفتگوی کاربر با دستیار هوش مصنوعی.
+    هر کاربر می‌تواند چندین گفتگوی مجزا با موضوعات مختلف داشته باشد.
+    """
+    user = models.ForeignKey(
+        User, 
+        on_delete=models.CASCADE, 
+        related_name='ai_chat_sessions',
+        verbose_name="کاربر"
+    )
+    title = models.CharField(
+        max_length=200, 
+        default="گفتگوی جدید", 
+        verbose_name="عنوان گفتگو"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name="زمان ایجاد"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True, 
+        verbose_name="آخرین به‌روزرسانی"
+    )
+
+    class Meta:
+        verbose_name = "نشست گفتگو"
+        verbose_name_plural = "نشست‌های گفتگو"
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"
+
+
+class ChatMessage(models.Model):
+    """
+    پیام‌های ردوبدل‌شده در هر نشست، شامل متن فرستنده و نقش آن (کاربر یا مدل هوش مصنوعی).
+    """
+    ROLE_USER = 'user'
+    ROLE_ASSISTANT = 'assistant'
+    
+    ROLE_CHOICES = [
+        (ROLE_USER, 'کاربر'),
+        (ROLE_ASSISTANT, 'دستیار سلامت'),
+    ]
+
+    session = models.ForeignKey(
+        ChatSession, 
+        on_delete=models.CASCADE, 
+        related_name='messages',
+        verbose_name="نشست گفتگو"
+    )
+    role = models.CharField(
+        max_length=20, 
+        choices=ROLE_CHOICES, 
+        verbose_name="نقش ارسال‌کننده"
+    )
+    content = models.TextField(
+        verbose_name="متن پیام"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, 
+        verbose_name="زمان ارسال"
+    )
+
+    class Meta:
+        verbose_name = "پیام گفتگو"
+        verbose_name_plural = "پیام‌های گفتگو"
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"[{self.get_role_display()}] {self.content[:40]}..."

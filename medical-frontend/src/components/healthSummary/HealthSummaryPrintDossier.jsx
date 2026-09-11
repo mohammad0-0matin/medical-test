@@ -22,6 +22,12 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
     day: 'numeric',
   }).format(new Date());
 
+  const allergies = summary?.allergies || [];
+  const conditions = summary?.conditions || [];
+  const medications = summary?.medications || [];
+  const immunizations = summary?.immunizations || [];
+  const carePlan = summary?.carePlan || [];
+
   return (
     <div ref={innerRef} className="phr-print">
       <header className="phr-head">
@@ -38,11 +44,11 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
         {profile?.blood_group && <span><b>گروه خونی:</b> {profile.blood_group}</span>}
       </section>
 
-      {summary.allergies.length > 0 && (
+      {allergies.length > 0 && (
         <section className="phr-block phr-alert">
           <h2>⚠️ آلرژی‌ها</h2>
           <ul>
-            {summary.allergies.map((a) => (
+            {allergies.map((a) => (
               <li key={a.id}>
                 <strong>{a.allergen}</strong>
                 {a.severity ? ` (${a.severity})` : ''}
@@ -53,11 +59,11 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
         </section>
       )}
 
-      {summary.conditions.length > 0 && (
+      {conditions.length > 0 && (
         <section className="phr-block">
           <h2>🩺 بیماری‌ها و شرایط</h2>
           <ul>
-            {summary.conditions.map((c) => (
+            {conditions.map((c) => (
               <li key={c.id}>
                 <strong>{c.name}</strong>
                 {c.status ? ` (${c.status})` : ''}
@@ -68,11 +74,11 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
         </section>
       )}
 
-      {summary.medications.length > 0 && (
+      {medications.length > 0 && (
         <section className="phr-block">
           <h2>💊 داروهای مصرفی</h2>
           <ul>
-            {summary.medications.map((m) => (
+            {medications.map((m) => (
               <li key={m.id}>
                 <strong>{m.name}</strong>
                 {m.dosage ? ` — ${m.dosage}` : ''}
@@ -84,11 +90,11 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
         </section>
       )}
 
-      {summary.immunizations.length > 0 && (
+      {immunizations.length > 0 && (
         <section className="phr-block">
           <h2>💉 واکسیناسیون</h2>
           <ul>
-            {summary.immunizations.map((v) => (
+            {immunizations.map((v) => (
               <li key={v.id}>
                 <strong>{v.vaccineName}</strong>
                 {v.dateAdministered ? ` — ${v.dateAdministered}` : ''}
@@ -99,11 +105,11 @@ const HealthSummaryPrintDossier = ({ innerRef, summary, profile }) => {
         </section>
       )}
 
-      {summary.carePlan.length > 0 && (
+      {carePlan.length > 0 && (
         <section className="phr-block">
           <h2>🎯 اهداف و برنامه مراقبت</h2>
           <ul>
-            {summary.carePlan.map((g) => (
+            {carePlan.map((g) => (
               <li key={g.id}>
                 <strong>{g.title}</strong>
                 {g.targetMetric ? ` — ${g.targetMetric}` : ''}

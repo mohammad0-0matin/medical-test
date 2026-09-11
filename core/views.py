@@ -10,7 +10,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Patient, TestResult, UserPatientAccess, Attachment, UserRole
+from .models import Patient, TestResult, UserPatientAccess, Attachment, UserRole, ChatSession, ChatMessage
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from .permissions import IsPatientOwnerOrStaff
@@ -26,11 +26,12 @@ from django.contrib.auth.models import User
 from .serializers import RegisterSerializer,HealthSummarySerializer, TestReminderSerializer
 from rest_framework import viewsets
 from .models import TestType, HealthSummary, TestReminder, Patient
-from .serializers import TestTypeSerializer
+from .serializers import TestTypeSerializer, ChatSessionSerializer, ChatMessageSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
+from .ai_service import generate_ai_reply
 
 class TestTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only catalog of lab test types with their categories pre-fetched.
@@ -682,7 +683,9 @@ class HealthSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get_patient(self):
-        return Patient.objects.get(user=self.request.user)
+        # جلوگیری از خطای DoesNotExist با ساخت خودکار رکورد پایه در صورت عدم وجود
+        patient, _ = Patient.objects.get_or_create(user=self.request.user)
+        return patient
 
     def get(self, request):
         patient = self.get_patient()
@@ -699,7 +702,6 @@ class HealthSummaryView(APIView):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 class TestReminderViewSet(viewsets.ModelViewSet):
     serializer_class = TestReminderSerializer
     permission_classes = [IsAuthenticated]
@@ -708,5 +710,104 @@ class TestReminderViewSet(viewsets.ModelViewSet):
         return TestReminder.objects.filter(patient__user=self.request.user).order_by('due_date')
 
     def perform_create(self, serializer):
-        patient = Patient.objects.get(user=self.request.user)
+        patient, _ = Patient.objects.get_or_create(user=self.request.user)
         serializer.save(patient=patient)
+class DeleteAccountView(APIView):
+    """Permanently delete the authenticated user's account and associated data."""
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        user = request.user
+        # حذف کاربر؛ به دلیل on_delete=CASCADE در مدل‌ها، پرونده و آزمایش‌ها نیز پاک می‌شوند
+        user.delete()
+        return Response(
+            {"detail": "حساب کاربری با موفقیت حذف شد."}, 
+            status=status.HTTP_200_OK
+        )
+        
+class ChatSessionListCreateView(APIView):
+    """
+    GET: لیست تمام نشست‌های گفتگوی کاربر جاری
+    POST: ایجاد یک نشست گفتگوی تازه
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        sessions = ChatSession.objects.filter(user=request.user)
+        serializer = ChatSessionSerializer(sessions, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        title = request.data.get('title', 'گفتگوی جدید').strip() or 'گفتگوی جدید'
+        session = ChatSession.objects.create(user=request.user, title=title)
+        serializer = ChatSessionSerializer(session)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ChatSessionDetailView(APIView):
+    """
+    DELETE: حذف یک نشست به همراه تمام تاریخچه پیام‌های آن
+    """
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, session_id):
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        session.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChatMessageListView(APIView):
+    """
+    GET: دریافت سابقه کامل پیام‌های یک نشست مشخص
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, session_id):
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        messages = session.messages.all()
+        serializer = ChatMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+
+class SendMessageView(APIView):
+    """
+    POST: دریافت پیام کاربر، ارسال به AI، ذخیره هر دو در دیتابیس و بازگرداندن پاسخ
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        session = get_object_or_404(ChatSession, id=session_id, user=request.user)
+        user_text = request.data.get('content', '').strip()
+
+        if not user_text:
+            return Response(
+                {"error": "متن پیام نمی‌تواند خالی باشد."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ۱. ذخیره پیام کاربر در تاریخچه
+        user_msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.ROLE_USER,
+            content=user_text
+        )
+
+        # ۲. به‌روزرسانی عنوان چت بر اساس اولین سوال کاربر در صورت پیش‌فرض بودن عنوان
+        if session.title == "گفتگوی جدید" and session.messages.count() <= 2:
+            session.title = user_text[:35] + ("..." if len(user_text) > 35 else "")
+            session.save(update_fields=['title', 'updated_at'])
+
+        # ۳. دریافت پاسخ هوشمند از سرویس AI
+        ai_reply_text = generate_ai_reply(session, user_text)
+
+        # ۴. ذخیره پاسخ دستیار سلامت در دیتابیس
+        assistant_msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.ROLE_ASSISTANT,
+            content=ai_reply_text
+        )
+
+        return Response({
+            "user_message": ChatMessageSerializer(user_msg).data,
+            "assistant_message": ChatMessageSerializer(assistant_msg).data
+        }, status=status.HTTP_201_CREATED)

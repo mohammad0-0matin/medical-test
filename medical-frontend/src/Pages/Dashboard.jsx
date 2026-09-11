@@ -27,6 +27,7 @@ import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { useReactToPrint } from 'react-to-print';
 import './Dashboard.css';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import AiHealthAdvisor from '../components/AiHealthAdvisor';
 import {
   fetchRemindersApi,
   addReminderApi,
@@ -1303,6 +1304,7 @@ const handleGrantAccess = async (e) => {
               ['table', '📋 نمای جدول'],
               ['timeline', '🌿 نمای تایم‌لاین'],
               ['summary', '🛡️ خلاصه پرونده سلامت'],
+              ['ai', '🤖 تحلیل هوشمند بالینی'],
             ].map(([mode, label]) => (
               <button
                 key={mode}
@@ -1320,6 +1322,8 @@ const handleGrantAccess = async (e) => {
         {/* Main content by view mode */}
         {loading ? (
           <TableSkeleton />
+          ) : viewMode === 'ai' ? ( 
+          <AiHealthAdvisor />
         ) : viewMode === 'summary' ? (
           <HealthSummaryView
             profile={profile}

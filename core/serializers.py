@@ -8,7 +8,7 @@ values consumed by the UI and are intentionally preserved.
 """
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder
+from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder, ChatSession, ChatMessage
 from django.contrib.auth.models import User
 
 class TestTypeSerializer(serializers.ModelSerializer):
@@ -261,3 +261,19 @@ class TestReminderSerializer(serializers.ModelSerializer):
             'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+class ChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatMessage
+        fields = ['id', 'role', 'content', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ChatSessionSerializer(serializers.ModelSerializer):
+    # تعداد پیام‌های موجود در هر نشست را برمی‌گرداند
+    messages_count = serializers.IntegerField(source='messages.count', read_only=True)
+
+    class Meta:
+        model = ChatSession
+        fields = ['id', 'title', 'created_at', 'updated_at', 'messages_count']
+        read_only_fields = ['id', 'created_at', 'updated_at']
