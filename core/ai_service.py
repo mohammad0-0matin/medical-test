@@ -5,7 +5,10 @@ from .models import Patient, TestResult, HealthSummary
 from openai import OpenAI
 from django.conf import settings
 from .models import ChatMessage
-
+import json
+import base64
+import re
+import httpx
 
 def build_clinical_context(user) -> str:
     """
@@ -152,7 +155,7 @@ def generate_ai_reply(session, user_message_text: str) -> str:
             model=settings.AI_MODEL_NAME,
             messages=messages_payload,
             temperature=0.4,  # دمای پایین‌تر برای پاسخ‌های دقیق‌تر و پایدارتر بالینی
-            max_tokens=3000,
+            max_tokens=1000000,
         )
         return response.choices[0].message.content.strip()
 
@@ -162,3 +165,97 @@ def generate_ai_reply(session, user_message_text: str) -> str:
             "متأسفانه در حال حاضر امکان برقراری ارتباط با سرویس تحلیل هوشمند وجود ندارد. "
             f"لطفاً لحظاتی بعد مجدداً تلاش کنید. (جزئیات: {str(exc)})"
         )
+
+import base64
+import json
+import re
+from django.conf import settings
+from openai import OpenAI
+
+
+def extract_lab_data_from_image(image_file) -> dict:
+    """
+    تصویر برگه آزمایش را خوانده و با Gemini فلش فاکتورهای کلیدی را به JSON تمیز تبدیل می‌کند.
+    """
+    image_bytes = image_file.read()
+    image_file.seek(0)
+    base64_encoded = base64.b64encode(image_bytes).decode('utf-8')
+    mime_type = getattr(image_file, 'content_type', 'image/jpeg') or 'image/jpeg'
+
+    http_client = httpx.Client(
+        timeout=httpx.Timeout(60.0, connect=15.0),
+    )
+    
+    client = OpenAI(
+        api_key=settings.AI_API_KEY,
+        base_url=settings.AI_BASE_URL,
+    )
+
+    system_prompt = (
+        "You are a medical OCR engine. Read the lab report image and extract data into valid JSON.\n"
+        "Rules:\n"
+        "1. Output ONLY valid, parseable JSON.\n"
+        "2. Do NOT use Python 'None', NaN, or comments. Use strictly 'null' for absent values.\n"
+        "3. Numeric fields must be real numbers or null (not strings).\n"
+        "JSON structure:\n"
+        "{\n"
+        '  "test_name": "Fasting Blood Sugar (FBS)",\n'
+        '  "result_value": 92.4,\n'
+        '  "result_text": null,\n'
+        '  "unit": "mg/dL",\n'
+        '  "min_range": 70.0,\n'
+        '  "max_range": 100.0,\n'
+        '  "test_date": "2026-09-12",\n'
+        '  "lab_name": "Farabi Lab"\n'
+        "}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Extract the primary biochemistry test from this image according to the JSON format."
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_encoded}"
+                    }
+                }
+            ]
+        }
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.AI_MODEL_NAME,
+            messages=messages,
+            temperature=0.0,
+            max_tokens=600,
+        )
+        content = response.choices[0].message.content.strip()
+
+        # حذف تگ‌های کد Markdown
+        content = re.sub(r'^```(?:json)?\s*', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'\s*```$', '', content)
+
+        # استخراج محدوده آکولاد JSON
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(0)
+
+        # اصلاح خطاهای رایج مدل (مثل نوشتن None به جای null یا مقادیر خالی)
+        content = re.sub(r':\s*None\b', ': null', content)
+        content = re.sub(r':\s*,', ': null,', content)
+        content = re.sub(r',\s*\}', '}', content)
+
+        return json.loads(content)
+
+    except Exception as exc:
+        print(f"❌ خطای کامل استخراج تصویر: {repr(exc)}")
+        if 'content' in locals():
+            print(f"📄 خروجی خام مدل: {content}")
+        return {"error": str(exc)}

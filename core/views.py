@@ -32,6 +32,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from .ai_service import generate_ai_reply
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.utils import timezone
+from .serializers import TestResultReadSerializer
+from .ai_service import extract_lab_data_from_image
 
 class TestTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only catalog of lab test types with their categories pre-fetched.
@@ -810,4 +814,84 @@ class SendMessageView(APIView):
         return Response({
             "user_message": ChatMessageSerializer(user_msg).data,
             "assistant_message": ChatMessageSerializer(assistant_msg).data
+        }, status=status.HTTP_201_CREATED)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from django.utils import timezone
+from .models import Patient, TestResult, TestType, TestCategory, Attachment
+from .serializers import TestResultReadSerializer
+from .ai_service import extract_lab_data_from_image
+
+
+class AutoExtractTestFromImageView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        image = request.FILES.get('file') or request.FILES.get('image')
+        if not image:
+            return Response({"error": "لطفاً فایل تصویر آزمایش را ارسال کنید."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ۱. دریافت پرونده بیمار جاری
+        patient = Patient.objects.filter(user=request.user).first()
+        if not patient:
+            return Response({"error": "پرونده بیماری برای حساب کاربری شما یافت نشد."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ۲. استخراج داده‌ها از تصویر با جمینای
+        extracted = extract_lab_data_from_image(image)
+        if "error" in extracted:
+            return Response({"error": f"خطا در پردازش تصویر: {extracted['error']}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        test_name = extracted.get("test_name") or "آزمایش عمومی"
+        unit = extracted.get("unit") or ""
+        min_r = extracted.get("min_range")
+        max_r = extracted.get("max_range")
+
+        # ۳. دسته‌بندی پیش‌فرض برای TestType (جهت جلوگیری از خطای نبود category)
+        default_category, _ = TestCategory.objects.get_or_create(
+            name="سایر آزمایش‌ها",
+            defaults={"description": "دسته‌بندی آزمایش‌های ثبت‌شده خودکار توسط هوش مصنوعی"}
+        )
+
+        # ۴. ایجاد یا پیدا کردن TestType منطبق با مدل
+        test_type, _ = TestType.objects.get_or_create(
+            name=test_name,
+            defaults={
+                'category': default_category,
+                'unit': unit,
+                'min_normal': float(min_r) if isinstance(min_r, (int, float)) else None,
+                'max_normal': float(max_r) if isinstance(max_r, (int, float)) else None,
+            }
+        )
+
+        # ۵. ذخیره رکورد نتیجه آزمایش
+        test_date = extracted.get("test_date") or timezone.localdate()
+        result_val = extracted.get("result_value")
+        result_txt = extracted.get("result_text") or ""
+
+        test_result = TestResult.objects.create(
+            patient=patient,
+            test_type=test_type,
+            result_value=result_val if isinstance(result_val, (int, float)) else None,
+            result_text=result_txt if not result_val else "",
+            test_date=test_date,
+            status='approved',
+            created_by=request.user
+        )
+
+        # ۶. ذخیره فایل در فیلد صحیح file_path
+        Attachment.objects.create(
+            test_result=test_result,
+            file_path=image,
+            file_name=getattr(image, 'name', 'lab_result.png'),
+            mime_type=getattr(image, 'content_type', 'image/png')
+        )
+
+        return Response({
+            "message": "آزمایش با موفقیت تحلیل و به همراه تصویر ضمیمه شد.",
+            "data": TestResultReadSerializer(test_result).data,
+            "extracted_raw": extracted
         }, status=status.HTTP_201_CREATED)

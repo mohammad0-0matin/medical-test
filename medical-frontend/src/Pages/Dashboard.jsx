@@ -28,6 +28,7 @@ import { useReactToPrint } from 'react-to-print';
 import './Dashboard.css';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import AiHealthAdvisor from '../components/AiHealthAdvisor';
+import SmartScanButton from '../components/SmartScanButton';
 import {
   fetchRemindersApi,
   addReminderApi,
@@ -444,67 +445,135 @@ const [healthSummary, setHealthSummary] = useState({
   // استخراج ایمن شناسه اختصاصی کاربر از توکن ورود (مستقل از اینکه پروفایل کامل شده یا نه).
   // توجه: JWT از base64url استفاده می‌کند (کاراکترهای '-' و '_')، در حالی که atob()
   // فقط base64 استاندارد را می‌فهمد؛ بدون تبدیل، برای بعضی توکن‌ها throw می‌کند.
-const getCurrentUserId = () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return 'guest';
+// const getCurrentUserId = () => {
+//     try {
+//       const token = localStorage.getItem('access_token');
+//       if (!token) return 'guest';
       
-      const base64Url = token.split('.')[1];
-      let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+//       const base64Url = token.split('.')[1];
+//       let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
       
-      // اضافه کردن پدینگ استاندارد برای جلوگیری از کرش کردن atob
-      const pad = base64.length % 4;
-      if (pad) {
-        base64 += '='.repeat(4 - pad);
-      }
+//       // اضافه کردن پدینگ استاندارد برای جلوگیری از کرش کردن atob
+//       const pad = base64.length % 4;
+//       if (pad) {
+//         base64 += '='.repeat(4 - pad);
+//       }
       
-      const payload = JSON.parse(atob(base64));
-      return payload.user_id || payload.id || 'guest';
-    } catch (err) {
-      console.warn('خطا در خواندن توکن تور راهنما:', err);
-      return 'guest';
-    }
-  };
+//       const payload = JSON.parse(atob(base64));
+//       return payload.user_id || payload.id || 'guest';
+//     } catch (err) {
+//       console.warn('خطا در خواندن توکن تور راهنما:', err);
+//       return 'guest';
+//     }
+//   };
+      // در فایل Dashboard.jsx
 
-  useEffect(() => {
-    const initialLoadDone = !loading && !accessLoading && !profileLoading;
+    useEffect(() => {
+      // مطمئن می‌شویم تمام دیتای اولیه از جمله profile لود شده باشد
+      const initialLoadDone = !loading && !accessLoading && !profileLoading && profile !== null;
+      
+      if (initialLoadDone && !tourGateChecked) {
+        setTourGateChecked(true); // این را تیک می‌زنیم که دیگر مدام چک نکند
+
+        // اگر کاربر در دیتابیس تور را ندیده است، آن را باز کن
+        if (profile.has_seen_tour === false) {
+          setIsTourActive(true);
+        }
+      }
+    }, [loading, accessLoading, profileLoading, profile, tourGateChecked]);
+    // useEffect(() => {
+    //     // اینجا profile !== null را اضافه کردیم تا مطمئن شویم دیتای کاربر کامل لود شده است
+    //     const initialLoadDone = !loading && !accessLoading && !profileLoading && profile !== null;
+        
+    //     if (initialLoadDone && !tourGateChecked) {
+    //       setTourGateChecked(true);
+
+    //       // گرفتن آیدی یا کد ملی مستقیم از دیتای بک‌اند
+    //       const userId = profile.national_code || profile.id || 'guest';
+    //       const tourKey = `salamatyar_tour_completed_${userId}`;
+    //       const oldTourKey = 'salamatyar_tour_completed';
+
+    //       let hasSeenTour = localStorage.getItem(tourKey);
+
+    //       // مدیریت کلیدهای قدیمی
+    //       if (!hasSeenTour && localStorage.getItem(oldTourKey)) {
+    //         localStorage.setItem(tourKey, 'true');
+    //         localStorage.removeItem(oldTourKey);
+    //         hasSeenTour = 'true';
+    //       }
+
+    //       // اگر کاربر این راهنما را ندیده بود، بازش کن
+    //       if (!hasSeenTour) {
+    //         setIsTourActive(true);
+    //       }
+    //     }
+    // // در خط پایین profile به آرایه‌های وابستگی (Dependencies) اضافه شده است
+    // }, [loading, accessLoading, profileLoading, profile, tourGateChecked]);
+  // useEffect(() => {
+  //   const initialLoadDone = !loading && !accessLoading && !profileLoading;
     
-    if (initialLoadDone && !tourGateChecked) {
-      setTourGateChecked(true);
+  //   if (initialLoadDone && !tourGateChecked) {
+  //     setTourGateChecked(true);
 
-      const userId = getCurrentUserId();
-      const tourKey = `salamatyar_tour_completed_${userId}`;
-      const oldTourKey = 'salamatyar_tour_completed';
+  //     const userId = getCurrentUserId();
+  //     const tourKey = `salamatyar_tour_completed_${userId}`;
+  //     const oldTourKey = 'salamatyar_tour_completed';
 
-      let hasSeenTour = localStorage.getItem(tourKey);
+  //     let hasSeenTour = localStorage.getItem(tourKey);
 
-      // کلید قدیمی سراسری بود (بدون شناسه کاربر) و برای همیشه در مرورگر می‌ماند؛
-      // یعنی به محض این‌که یک کاربر (حتی روی اکانت تستی) تور را می‌بست، همان
-      // مرورگر برای همه‌ی کاربران تازه‌ثبت‌نام بعدی هم قفل می‌شد. اینجا فقط یک‌بار
-      // آن را به کلید مخصوص همین کاربر منتقل و سپس حذف می‌کنیم تا اکانت‌های
-      // بعدی روی همین دستگاه گیر نکنند.
-      if (!hasSeenTour && localStorage.getItem(oldTourKey)) {
-        localStorage.setItem(tourKey, 'true');
-        localStorage.removeItem(oldTourKey);
-        hasSeenTour = 'true';
-      }
+  //     // کلید قدیمی سراسری بود (بدون شناسه کاربر) و برای همیشه در مرورگر می‌ماند؛
+  //     // یعنی به محض این‌که یک کاربر (حتی روی اکانت تستی) تور را می‌بست، همان
+  //     // مرورگر برای همه‌ی کاربران تازه‌ثبت‌نام بعدی هم قفل می‌شد. اینجا فقط یک‌بار
+  //     // آن را به کلید مخصوص همین کاربر منتقل و سپس حذف می‌کنیم تا اکانت‌های
+  //     // بعدی روی همین دستگاه گیر نکنند.
+  //     if (!hasSeenTour && localStorage.getItem(oldTourKey)) {
+  //       localStorage.setItem(tourKey, 'true');
+  //       localStorage.removeItem(oldTourKey);
+  //       hasSeenTour = 'true';
+  //     }
 
-      if (!hasSeenTour) {
-        setIsTourActive(true);
-      }
-    }
-  }, [loading, accessLoading, profileLoading, tourGateChecked]);
+  //     if (!hasSeenTour) {
+  //       setIsTourActive(true);
+  //     }
+  //   }
+  // }, [loading, accessLoading, profileLoading, tourGateChecked]);
 
-  const finishTour = () => {
-    setIsTourActive(false);
+  // const finishTour = () => {
+  //   setIsTourActive(false);
+  //   try {
+  //     const userId = getCurrentUserId();
+  //     localStorage.setItem(`salamatyar_tour_completed_${userId}`, 'true');
+  //   } catch {
+  //     /* storage unavailable */
+  //   }
+  // };
+  // const finishTour = () => {
+  //   setIsTourActive(false);
+  //   try {
+  //     // استفاده مستقیم از آبجکت profile
+  //     const userId = profile?.national_code || profile?.id || 'guest';
+  //     localStorage.setItem(`salamatyar_tour_completed_${userId}`, 'true');
+  //   } catch {
+  //     /* storage unavailable */
+  //   }
+  // };
+  const finishTour = async () => {
+    setIsTourActive(false); // فوراً تور را ببند تا کاربر منتظر نماند
+    
     try {
-      const userId = getCurrentUserId();
-      localStorage.setItem(`salamatyar_tour_completed_${userId}`, 'true');
-    } catch {
-      /* storage unavailable */
+      // ⚠️ توجه: آدرس 'patients/me/' را با آدرسی که در بک‌اند برای 
+      // آپدیت پروفایل کاربر دارید (همان آدرسی که در fetchProfile استفاده کرده‌اید) جایگزین کنید.
+      // مثلا اگر در fetchProfile نوشته‌اید API.get('patients/me/')، اینجا هم همان را بنویسید.
+      
+      await API.patch('patients/me/', { has_seen_tour: true });
+      
+      // اگر از دکمه آپدیت پروفایل استفاده کردید، استیت پروفایل را هم آپدیت کنید
+      setProfile(prev => ({ ...prev, has_seen_tour: true }));
+      
+    } catch (error) {
+      console.error('خطا در ذخیره وضعیت راهنما در دیتابیس:', error);
     }
   };
-
   const TOUR_STEPS = [
     {
       selector: '.hc-scene',
@@ -984,6 +1053,7 @@ const handleGrantAccess = async (e) => {
           >
             + ثبت آزمایش جدید
           </button>
+          <SmartScanButton onScanComplete={fetchTests} />
 
           <button
             onClick={() => setIsTempAccessOpen(true)}

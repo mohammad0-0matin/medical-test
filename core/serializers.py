@@ -82,6 +82,7 @@ class PatientSerializer(serializers.ModelSerializer):
             'phone_number',
             'medical_role',
             'medical_id',
+            'has_seen_tour',
         ]
         read_only_fields = ['id', 'user']
 

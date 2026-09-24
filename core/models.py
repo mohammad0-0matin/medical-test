@@ -79,6 +79,7 @@ class Patient(models.Model):
     blank=True,
     null=True,
     verbose_name="شماره تماس")
+    has_seen_tour = models.BooleanField(default=False)
 
     def __str__(self):
         """Return the patient's display name for admin listings."""
