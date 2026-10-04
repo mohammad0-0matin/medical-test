@@ -8,7 +8,7 @@ values consumed by the UI and are intentionally preserved.
 """
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder, ChatSession, ChatMessage
+from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder, ChatSession, ChatMessage, Prescription, PrescriptionItem
 from django.contrib.auth.models import User
 
 class TestTypeSerializer(serializers.ModelSerializer):
@@ -278,3 +278,41 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         model = ChatSession
         fields = ['id', 'title', 'created_at', 'updated_at', 'messages_count']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+class PrescriptionItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrescriptionItem
+        # آیدی را هم برمی‌گردانیم اما برای کلاینت فقط خواندنی است
+        fields = ['id', 'medicine_name', 'dosage', 'frequency', 'duration']
+        read_only_fields = ['id']
+
+class PrescriptionSerializer(serializers.ModelSerializer):
+    # قابلیت نوشتن و خواندن اقلام دارویی به صورت تودرتو
+    items = PrescriptionItemSerializer(many=True)
+
+    class Meta:
+        model = Prescription
+        fields = [
+            'id', 'patient', 'registered_doctor', 
+            'external_doctor_name', 'external_doctor_specialty',
+            'visit_date', 'diagnosis', 'notes', 'created_at', 'items'
+        ]
+        # پزشک صادرکننده را فقط خواندنی می‌کنیم تا در ویو به صورت خودکار مقداردهی شود
+        read_only_fields = ['id', 'registered_doctor', 'created_at']
+        extra_kwargs = {
+            # اگر بیمار خودش نسخه را آپلود کند، نیازی نیست آیدی خودش را بفرستد
+            'patient': {'required': False} 
+        }
+
+    def create(self, validated_data):
+        # ۱. استخراج دیتای اقلام دارویی از بدنه درخواست
+        items_data = validated_data.pop('items', [])
+        
+        # ۲. ایجاد خود شیء نسخه (بدون اقلام)
+        prescription = Prescription.objects.create(**validated_data)
+        
+        # ۳. حلقه روی اقلام دارویی و ایجاد آن‌ها با اتصال به نسخه ساخته‌شده
+        for item_data in items_data:
+            PrescriptionItem.objects.create(prescription=prescription, **item_data)
+            
+        return prescription

@@ -36,7 +36,14 @@ class UserRole(models.Model):
     medical_id = models.CharField(
         max_length=50,
         blank=True,
-        default=''
+        default='',
+        verbose_name="شماره نظام پزشکی"
+    )
+    specialty = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name="تخصص (ویژه پزشکان)"
     )
 
     def __str__(self):
@@ -357,3 +364,104 @@ class ChatMessage(models.Model):
 
     def __str__(self):
         return f"[{self.get_role_display()}] {self.content[:40]}..."
+# ==========================================
+# مدل‌های جدید مربوط به نسخه‌های پزشکی
+# ==========================================
+
+class Prescription(models.Model):
+    patient = models.ForeignKey(
+        Patient, 
+        on_delete=models.CASCADE, 
+        related_name='prescriptions',
+        verbose_name="بیمار"
+    )
+
+    # سناریو ۱: پزشک عضو سامانه
+    registered_doctor = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='issued_prescriptions', 
+        verbose_name="پزشک صادرکننده (داخل سامانه)"
+    )
+
+    # سناریو ۲: پزشک خارج از سامانه (نسخه اسکن‌شده)
+    external_doctor_name = models.CharField(
+        max_length=150, 
+        null=True, 
+        blank=True, 
+        verbose_name="نام پزشک (خارج از سامانه)"
+    )
+    external_doctor_specialty = models.CharField(
+        max_length=150, 
+        null=True, 
+        blank=True, 
+        verbose_name="تخصص پزشک (خارج از سامانه)"
+    )
+    
+    visit_date = models.DateField(verbose_name="تاریخ ویزیت")
+    diagnosis = models.TextField(
+        null=True, 
+        blank=True, 
+        verbose_name="تشخیص اولیه"
+    )
+    notes = models.TextField(
+        null=True, 
+        blank=True, 
+        verbose_name="توضیحات تکمیلی"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "نسخه"
+        verbose_name_plural = "نسخه‌ها"
+        ordering = ['-visit_date', '-created_at']
+
+    def __str__(self):
+        patient_name = f"{self.patient.first_name} {self.patient.last_name}"
+        
+        if self.registered_doctor:
+            doc_name = f"{self.registered_doctor.first_name} {self.registered_doctor.last_name}"
+            if not doc_name.strip():
+                doc_name = self.registered_doctor.username
+            return f"نسخه {doc_name} برای {patient_name} - {self.visit_date}"
+        elif self.external_doctor_name:
+            return f"نسخه {self.external_doctor_name} برای {patient_name} - {self.visit_date}"
+        else:
+            return f"نسخه ثبت‌شده برای {patient_name} - {self.visit_date}"
+
+class PrescriptionItem(models.Model):
+    prescription = models.ForeignKey(
+        Prescription, 
+        on_delete=models.CASCADE, 
+        related_name='items',
+        verbose_name="نسخه مربوطه"
+    )
+    medicine_name = models.CharField(
+        max_length=200, 
+        verbose_name="نام دارو"
+    )
+    dosage = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="دوز (مثلا 500mg)"
+    )
+    frequency = models.CharField(
+        max_length=150, 
+        verbose_name="دستور مصرف"
+    )
+    duration = models.CharField(
+        max_length=100, 
+        null=True, 
+        blank=True, 
+        verbose_name="مدت مصرف"
+    )
+    
+    class Meta:
+        verbose_name = "قلم دارویی"
+        verbose_name_plural = "اقلام دارویی"
+
+    def __str__(self):
+        return f"{self.medicine_name} - {self.frequency}"

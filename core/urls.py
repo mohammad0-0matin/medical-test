@@ -14,7 +14,7 @@ router.register('test-results', views.TestResultViewSet, basename='test-result')
 router.register('attachments', views.AttachmentViewSet, basename='attachment')
 router.register('test-types', views.TestTypeViewSet, basename='test-type')
 router.register('reminders', views.TestReminderViewSet, basename='reminder')
-
+router.register('prescriptions', views.PrescriptionViewSet, basename='prescription')
 
 urlpatterns = [
     path('register/', views.RegisterView.as_view(), name='auth_register'),

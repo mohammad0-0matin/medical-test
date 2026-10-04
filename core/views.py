@@ -36,6 +36,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from .serializers import TestResultReadSerializer
 from .ai_service import extract_lab_data_from_image
+from .models import Prescription
+from .serializers import PrescriptionSerializer
 
 class TestTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only catalog of lab test types with their categories pre-fetched.
@@ -895,3 +897,34 @@ class AutoExtractTestFromImageView(APIView):
             "data": TestResultReadSerializer(test_result).data,
             "extracted_raw": extracted
         }, status=status.HTTP_201_CREATED)
+
+class PrescriptionViewSet(viewsets.ModelViewSet):
+    serializer_class = PrescriptionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        
+        # اگر کاربر یک پزشک است، فقط نسخه‌هایی که خودش صادر کرده را ببیند
+        if hasattr(user, 'user_role') and user.user_role.role == 'doctor':
+            return Prescription.objects.filter(registered_doctor=user)
+            
+        # اگر کاربر بیمار است، فقط نسخه‌های مربوط به پرونده خودش را ببیند
+        elif hasattr(user, 'patient_profile'):
+            return Prescription.objects.filter(patient=user.patient_profile)
+            
+        # در غیر این صورت هیچ‌چیزی برنگردان
+        return Prescription.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        
+        # سناریو ۱: پزشک در حال ثبت نسخه در سیستم است
+        if hasattr(user, 'user_role') and user.user_role.role == 'doctor':
+            # نکته: پزشک باید آیدی بیمار (patient) را در ریکوئست فرستاده باشد
+            serializer.save(registered_doctor=user)
+            
+        # سناریو ۲: بیمار در حال اسکن و آپلود نسخه یک پزشک خارجی است
+        elif hasattr(user, 'patient_profile'):
+            # نیازی نیست بیمار آیدی خودش را بفرستد، سیستم خودش تنظیم می‌کند
+            serializer.save(patient=user.patient_profile)
