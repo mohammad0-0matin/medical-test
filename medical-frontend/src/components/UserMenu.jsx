@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import ThemeToggle from './ThemeToggle';
 import MedicalRoleBadge from './MedicalRoleBadge';
 import './UserMenu.css';
 import API from '../api';
@@ -24,14 +23,6 @@ const ProfileIcon = () => (
   </svg>
 );
 
-const HelpIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M9.6 9.2a2.5 2.5 0 0 1 4.86.83c0 1.67-2.46 2-2.46 3.47" />
-    <path d="M12 17h.01" />
-  </svg>
-);
 
 const TourIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
@@ -53,16 +44,14 @@ const DeleteAccountIcon = () => (
   </svg>
 );
 
-const LogoutIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
+const EmergencyPassIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M14 4h4a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 18 20h-4" />
-    <path d="M10 8l-4 4 4 4" />
-    <path d="M6 12h9" />
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 
-const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onOpenTour, onLogout }) => {
+const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', medicalId = '', onOpenProfile, onOpenTour, onOpenEmergencyPass }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -155,13 +144,22 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
             }}
           >
             <ProfileIcon />
-            تکمیل پرونده سلامت
+            <span>تکمیل پرونده سلامت</span>
           </button>
 
-          <div className="um-theme-row">
-            <span className="um-theme-label">حالت نمایش</span>
-            <ThemeToggle />
-          </div>
+          <button
+            type="button"
+            role="menuitem"
+            className="um-item um-item-emergency"
+            onClick={() => {
+              setIsOpen(false);
+              if (onOpenEmergencyPass) onOpenEmergencyPass();
+            }}
+          >
+            <EmergencyPassIcon />
+            <span>دسترسی اضطراری پزشک</span>
+            <span className="um-item-emergency-badge">کد و QR موقت</span>
+          </button>
 
           <button
             type="button"
@@ -189,19 +187,6 @@ const UserMenu = ({ fullName = '', nationalCode = '', medicalRole = 'standard', 
           >
             <DeleteAccountIcon />
             حذف حساب کاربری
-          </button>
-
-          <button
-            type="button"
-            role="menuitem"
-            className="um-item um-logout"
-            onClick={() => {
-              setIsOpen(false);
-              if (onLogout) onLogout();
-            }}
-          >
-            <LogoutIcon />
-            خروج از حساب
           </button>
         </div>
       )}

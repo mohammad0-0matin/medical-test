@@ -1,0 +1,599 @@
+/* ==========================================================================
+   TestsPage.css — Dedicated Lab Tests Dashboard
+   Follows DESIGN.md patient surface guidelines:
+   - Calm, trustworthy palette with single primary accent (var(--primary)).
+   - Control heights: 44px (h-11) for all inputs, selects, and action buttons.
+   - Rounded-md (8px) for buttons/inputs, rounded-xl (16px) for cards.
+   - Strict RTL logical properties.
+   ========================================================================== */
+
+.tests-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 8px 4px;
+  font-family: var(--font-sans, 'Yekan Bakh', sans-serif);
+  color: var(--text-body);
+}
+
+/* --------------------------------------------------------------------------
+   1. Header Section
+   -------------------------------------------------------------------------- */
+.tests-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.tests-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tests-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tests-header-icon {
+  font-size: 1.6rem;
+}
+
+.tests-title-row h1 {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.tests-count-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background-color: var(--primary-subtle);
+  color: var(--primary);
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tests-header-sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.tests-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.tests-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 8px; /* rounded-md */
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.tests-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tests-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tests-btn-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(15, 118, 110, 0.25);
+}
+
+.tests-btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.tests-btn-outline {
+  background-color: var(--bg-surface);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+}
+
+.tests-btn-outline:hover:not(:disabled) {
+  background-color: var(--bg-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tests-btn-sm {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 0.85rem;
+}
+
+.tests-btn-lg {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 1rem;
+}
+
+.tests-btn-plus {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+/* --------------------------------------------------------------------------
+   2. Toolbar & View Switcher
+   -------------------------------------------------------------------------- */
+.tests-toolbar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+
+.tests-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.tests-search-icon {
+  position: absolute;
+  inset-inline-start: 14px;
+  color: var(--text-faint);
+  pointer-events: none;
+  font-size: 0.95rem;
+}
+
+.tests-search-input {
+  width: 100%;
+  height: 44px;
+  padding-inline-start: 42px;
+  padding-inline-end: 36px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background-color: var(--bg-input);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: 0.92rem;
+  outline: none;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.tests-search-input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
+}
+
+.tests-clear-btn {
+  position: absolute;
+  inset-inline-end: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.tests-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tests-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tests-filter-item label {
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tests-filter-item select {
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  background-color: var(--bg-input);
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: 0.88rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.tests-filter-item select:focus {
+  border-color: var(--ring);
+}
+
+.tests-view-switch {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+  background-color: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.tests-mode-btn {
+  height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 6px;
+  background-color: transparent;
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+}
+
+.tests-mode-btn.active {
+  background-color: var(--bg-surface);
+  color: var(--primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   3. Workspace & Table
+   -------------------------------------------------------------------------- */
+.tests-workspace {
+  width: 100%;
+}
+
+.tests-table-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.tests-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tests-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+  font-size: 0.9rem;
+}
+
+.tests-table th {
+  padding: 14px 16px;
+  background-color: var(--bg-subtle);
+  color: var(--text-strong);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.tests-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-body);
+  vertical-align: middle;
+}
+
+.tests-table tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.tests-table tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
+
+.tests-row-abnormal {
+  background-color: rgba(234, 179, 8, 0.05);
+}
+
+.tests-td-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  width: 48px;
+  text-align: center;
+}
+
+.tests-td-patient strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: 0.92rem;
+}
+
+.tests-tag-self {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.tests-tag-dep {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tests-td-name strong {
+  display: block;
+  color: var(--text-strong);
+}
+
+.tests-lab-name {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tests-factors-count {
+  font-size: 0.85rem;
+  color: var(--primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tests-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tests-pill-normal {
+  background-color: var(--success-bg);
+  color: var(--success-text);
+}
+
+.tests-pill-warn {
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.tests-td-date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.tests-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--bg-surface);
+  color: var(--text-strong);
+  cursor: pointer;
+  font-size: 0.84rem;
+  transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.tests-icon-btn:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--primary);
+}
+
+.tests-icon-btn.has-note {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-subtle);
+}
+
+.tests-media-group,
+.tests-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tests-action-btn {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.tests-btn-edit {
+  background-color: var(--bg-subtle);
+  border-color: var(--border);
+  color: var(--text-strong);
+}
+
+.tests-btn-edit:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tests-btn-del {
+  background-color: transparent;
+  color: var(--danger-text);
+}
+
+.tests-btn-del:hover {
+  background-color: var(--danger-bg);
+}
+
+/* --------------------------------------------------------------------------
+   4. Pagination & Empty States
+   -------------------------------------------------------------------------- */
+.tests-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background-color: var(--bg-surface);
+}
+
+.tests-page-info {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tests-page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tests-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 64px 24px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.tests-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.tests-empty-card h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  margin: 0 0 8px;
+}
+
+.tests-empty-card p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  max-width: 440px;
+  line-height: 1.7;
+  margin: 0 0 24px;
+}
+
+.tests-error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 20px;
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
+  color: var(--error-text);
+  border-radius: 12px;
+  gap: 12px;
+}
+
+.tests-error-icon {
+  font-size: 2rem;
+}
+
+.tests-view-container {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Layout
+   -------------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .tests-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tests-header-actions {
+    width: 100%;
+  }
+
+  .tests-header-actions .tests-btn-primary {
+    width: 100%;
+  }
+
+  .tests-filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tests-filter-item {
+    justify-content: space-between;
+  }
+
+  .tests-view-switch {
+    margin-inline-start: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}

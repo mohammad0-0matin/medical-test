@@ -5,7 +5,11 @@ style approval workflow), the lab-test taxonomy (categories and types), and
 individual test results with file attachments. Runtime-facing labels
 (verbose names and choice labels) are intentionally Persian for the admin UI.
 """
+import uuid
+import os
 from django.db import models
+from django.utils import timezone
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 User = get_user_model()
@@ -365,10 +369,37 @@ class ChatMessage(models.Model):
     def __str__(self):
         return f"[{self.get_role_display()}] {self.content[:40]}..."
 # ==========================================
-# مدل‌های جدید مربوط به نسخه‌های پزشکی
+# مدل‌های مربوط به نسخه‌های پزشکی (Prescription)
 # ==========================================
 
+def prescription_scan_upload_to(instance, filename):
+    """ذخیره فایل اسکن با نام رندوم UUID (بدون نام اصلی) در مسیری مجزا خارج از دسترسی رسانه‌های عمومی."""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ['.jpg', '.jpeg', '.png', '.pdf', '.webp']:
+        ext = '.jpg'
+    return os.path.join('private_prescriptions', 'scans', f"{uuid.uuid4().hex}{ext}")
+
+
+class ActivePrescriptionManager(models.Manager):
+    """مدیر پیش‌فرض که رکوردهای حذف نرم‌شده را فیلتر می‌کند."""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
+class ActivePrescriptionItemManager(models.Manager):
+    """مدیر پیش‌فرض برای اقلام دارویی حذف‌نشده."""
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
+
 class Prescription(models.Model):
+    uuid = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        db_index=True,
+        verbose_name="شناسه عمومی یکتا"
+    )
     patient = models.ForeignKey(
         Patient, 
         on_delete=models.CASCADE, 
@@ -386,7 +417,7 @@ class Prescription(models.Model):
         verbose_name="پزشک صادرکننده (داخل سامانه)"
     )
 
-    # سناریو ۲: پزشک خارج از سامانه (نسخه اسکن‌شده)
+    # سناریو ۲: پزشک خارج از سامانه
     external_doctor_name = models.CharField(
         max_length=150, 
         null=True, 
@@ -399,8 +430,20 @@ class Prescription(models.Model):
         blank=True, 
         verbose_name="تخصص پزشک (خارج از سامانه)"
     )
+    external_doctor_clinic = models.CharField(
+        max_length=150, 
+        null=True, 
+        blank=True, 
+        verbose_name="مطب / کلینیک پزشک"
+    )
+    external_doctor_license_number = models.CharField(
+        max_length=50, 
+        null=True, 
+        blank=True, 
+        verbose_name="شماره نظام پزشکی پزشک خارجی"
+    )
     
-    visit_date = models.DateField(verbose_name="تاریخ ویزیت")
+    prescribed_date = models.DateField(verbose_name="تاریخ تجویز")
     diagnosis = models.TextField(
         null=True, 
         blank=True, 
@@ -411,25 +454,105 @@ class Prescription(models.Model):
         blank=True, 
         verbose_name="توضیحات تکمیلی"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    SOURCE_MANUAL = 'manual'
+    SOURCE_PAPER_UPLOAD = 'paper_upload'
+    SOURCE_AI_EXTRACTED = 'ai_extracted'
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, 'ثبت دستی'),
+        (SOURCE_PAPER_UPLOAD, 'آپلود نسخه کاغذی'),
+        (SOURCE_AI_EXTRACTED, 'استخراج با هوش مصنوعی'),
+    ]
+    source = models.CharField(
+        max_length=20,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_MANUAL,
+        verbose_name="منبع ثبت نسخه"
+    )
+    scan_file = models.FileField(
+        upload_to=prescription_scan_upload_to,
+        null=True,
+        blank=True,
+        verbose_name="فایل اسکن نسخه"
+    )
+
+    # فیلدهای حسابرسی و ردیابی تغییرات (Audit Trail)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ایجاد")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="زمان آخرین ویرایش")
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_prescriptions',
+        verbose_name="کاربر ثبت‌کننده"
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='updated_prescriptions',
+        verbose_name="کاربر ویرایش‌کننده"
+    )
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deleted_prescriptions',
+        verbose_name="کاربر حذف‌کننده"
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="زمان حذف")
+    is_deleted = models.BooleanField(default=False, db_index=True, verbose_name="حذف نرم شده")
+
+    # مدیرها
+    objects = ActivePrescriptionManager()
+    all_objects = models.Manager()
 
     class Meta:
         verbose_name = "نسخه"
         verbose_name_plural = "نسخه‌ها"
-        ordering = ['-visit_date', '-created_at']
+        ordering = ['-prescribed_date', '-created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(registered_doctor__isnull=False) & (models.Q(external_doctor_name__isnull=True) | models.Q(external_doctor_name='')))
+                    |
+                    (models.Q(registered_doctor__isnull=True) & models.Q(external_doctor_name__isnull=False) & ~models.Q(external_doctor_name=''))
+                ),
+                name='prescription_exactly_one_doctor'
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        has_registered = bool(self.registered_doctor_id)
+        has_external = bool(self.external_doctor_name and self.external_doctor_name.strip())
+        if has_registered and has_external:
+            raise ValidationError("لطفاً فقط یکی از دو گزینه (پزشک عضو سامانه یا نام پزشک خارج از سامانه) را انتخاب کنید.")
+        if not has_registered and not has_external:
+            raise ValidationError("مشخص کردن اطلاعات پزشک صادرکننده (عضو سامانه یا خارج از سامانه) الزامی است.")
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and user.is_authenticated:
+            self.deleted_by = user
+        self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
 
     def __str__(self):
         patient_name = f"{self.patient.first_name} {self.patient.last_name}"
-        
         if self.registered_doctor:
             doc_name = f"{self.registered_doctor.first_name} {self.registered_doctor.last_name}"
             if not doc_name.strip():
                 doc_name = self.registered_doctor.username
-            return f"نسخه {doc_name} برای {patient_name} - {self.visit_date}"
+            return f"نسخه {doc_name} برای {patient_name} - {self.prescribed_date}"
         elif self.external_doctor_name:
-            return f"نسخه {self.external_doctor_name} برای {patient_name} - {self.visit_date}"
+            return f"نسخه {self.external_doctor_name} برای {patient_name} - {self.prescribed_date}"
         else:
-            return f"نسخه ثبت‌شده برای {patient_name} - {self.visit_date}"
+            return f"نسخه ثبت‌شده برای {patient_name} - {self.prescribed_date}"
+
 
 class PrescriptionItem(models.Model):
     prescription = models.ForeignKey(
@@ -438,15 +561,21 @@ class PrescriptionItem(models.Model):
         related_name='items',
         verbose_name="نسخه مربوطه"
     )
-    medicine_name = models.CharField(
+    drug_name = models.CharField(
         max_length=200, 
         verbose_name="نام دارو"
     )
-    dosage = models.CharField(
+    strength_dose = models.CharField(
         max_length=100, 
         null=True, 
         blank=True, 
-        verbose_name="دوز (مثلا 500mg)"
+        verbose_name="دوز/قدرت دارو"
+    )
+    form = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="شکل دارویی (قرص، کپسول، شربت...)"
     )
     frequency = models.CharField(
         max_length=150, 
@@ -458,10 +587,58 @@ class PrescriptionItem(models.Model):
         blank=True, 
         verbose_name="مدت مصرف"
     )
-    
+    quantity = models.CharField(
+        max_length=50,
+        null=True,
+        blank=True,
+        verbose_name="تعداد / مقدار"
+    )
+    instructions = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="دستورات تکمیلی"
+    )
+    order = models.PositiveIntegerField(
+        default=0,
+        verbose_name="ترتیب نمایش"
+    )
+
+    # حسابرسی و حذف نرم اقلام
+    is_deleted = models.BooleanField(
+        default=False, 
+        db_index=True, 
+        verbose_name="حذف نرم شده"
+    )
+    deleted_at = models.DateTimeField(
+        null=True, 
+        blank=True, 
+        verbose_name="زمان حذف"
+    )
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deleted_prescription_items',
+        verbose_name="کاربر حذف‌کننده"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    objects = ActivePrescriptionItemManager()
+    all_objects = models.Manager()
+
     class Meta:
         verbose_name = "قلم دارویی"
         verbose_name_plural = "اقلام دارویی"
+        ordering = ['order', 'id']
+
+    def soft_delete(self, user=None):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        if user and user.is_authenticated:
+            self.deleted_by = user
+        self.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
 
     def __str__(self):
-        return f"{self.medicine_name} - {self.frequency}"
+        return f"{self.drug_name} - {self.frequency}"

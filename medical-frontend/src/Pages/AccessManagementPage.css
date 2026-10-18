@@ -1,0 +1,517 @@
+/* ==========================================================================
+   AccessManagementPage — مدیریت دسترسی‌ها و افراد تحت مراقبت
+   Adheres to DESIGN.md tokens, RTL, WCAG AA contrast, and smooth micro-interactions.
+   ========================================================================== */
+
+.acc-page-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  direction: rtl;
+}
+
+/* Page Header */
+.acc-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.acc-header-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acc-header-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Incoming Requests Banner (Inbox) */
+.acc-inbox-section {
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background-color: var(--banner-bg, #fffbeb);
+  border: 1px solid var(--banner-border, #fde047);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.acc-inbox-title {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--banner-title, #854d0e);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acc-inbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acc-inbox-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+
+.acc-inbox-text {
+  font-size: 0.9rem;
+  color: var(--text-strong);
+}
+
+.acc-inbox-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acc-btn-approve {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: none;
+  background-color: var(--primary, #0f766e);
+  color: #ffffff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.acc-btn-approve:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.acc-btn-reject {
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.acc-btn-reject:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Main Cards Grid */
+.acc-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Individual Content Card */
+.acc-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+
+.acc-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.acc-card-header {
+  margin-bottom: 1.25rem;
+}
+
+.acc-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.acc-card-desc {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Forms */
+.acc-form {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.acc-input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.acc-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 42px;
+  padding: 0 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-input, #d1d5db);
+  background-color: var(--bg-input, #ffffff);
+  color: var(--text-strong);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.acc-input:focus {
+  border-color: var(--ring, #0f766e);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+.acc-btn-submit {
+  height: 42px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background-color: var(--primary, #0f766e);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.2);
+  transition: all 0.2s ease;
+}
+
+.acc-btn-submit:hover:not(:disabled) {
+  background-color: var(--primary-hover, #115e59);
+  transform: translateY(-1px);
+}
+
+.acc-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* List Items */
+.acc-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acc-person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.acc-person-row:hover {
+  background-color: var(--bg-surface);
+  border-color: var(--ring, #0f766e);
+}
+
+.acc-person-info {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.acc-person-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--primary), #2563eb);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.acc-person-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acc-person-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.acc-person-meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acc-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background-color: rgba(21, 128, 61, 0.12);
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.25);
+}
+
+[data-theme='dark'] .acc-status-tag {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.acc-btn-revoke {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.acc-btn-revoke:hover {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+.acc-btn-view-tests {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.acc-btn-view-tests:hover {
+  background-color: var(--primary-subtle);
+  border-color: var(--primary);
+}
+
+/* Empty State */
+.acc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1rem;
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+}
+
+.acc-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.acc-empty-text {
+  font-size: 0.88rem;
+  max-width: 420px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Skeleton Loaders */
+.acc-skeleton-row {
+  height: 60px;
+  border-radius: 10px;
+  background-color: var(--bg-subtle);
+  animation: acc-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes acc-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+/* Confirmation Modal for Revoking Access */
+.acc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(11, 18, 32, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.acc-modal-box {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  animation: acc-scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes acc-scale-up {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.acc-modal-icon-wrap {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.acc-modal-icon-wrap svg {
+  width: 26px;
+  height: 26px;
+}
+
+.acc-modal-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.acc-modal-desc {
+  margin: 0 0 1.5rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.acc-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.acc-modal-btn-confirm {
+  height: 38px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.acc-modal-btn-confirm:hover {
+  background-color: #b91c1c;
+}
+
+.acc-modal-btn-cancel {
+  height: 38px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.acc-modal-btn-cancel:hover {
+  background-color: var(--bg-subtle);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .acc-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .acc-btn-submit {
+    width: 100%;
+  }
+
+  .acc-person-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .acc-btn-revoke,
+  .acc-btn-view-tests {
+    width: 100%;
+    justify-content: center;
+  }
+}

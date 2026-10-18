@@ -47,11 +47,11 @@ export const EyeOffIcon = () => (
   </svg>
 );
 
-/** Back-navigation chevron used on auth screens. */
+/** Back-navigation chevron used on auth screens (pointing start/back in RTL). */
 export const ChevronRightIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M9 6l6 6-6 6" />
+    <path d="M9 18l6-6-6-6" />
   </svg>
 );
 
@@ -64,7 +64,7 @@ export const HomeIcon = () => (
   </svg>
 );
 
-/** Private perk icon group member: data-security highlight. */
+/** Data security perk icon. */
 const ShieldIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -73,16 +73,17 @@ const ShieldIcon = () => (
   </svg>
 );
 
-/** Private perk icon group member: trend-charts highlight. */
+/** Trend chart perk icon. */
 const ChartIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <path d="M3 21h18" />
     <path d="M4 17l4.5-5.5 3.5 3L19 7" />
+    <circle cx="19" cy="7" r="1.6" />
   </svg>
 );
 
-/** Private perk icon group member: family-access highlight. */
+/** Family health record perk icon. */
 const FamilyIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -93,58 +94,59 @@ const FamilyIcon = () => (
   </svg>
 );
 
-/** Marketing highlights rendered as the brand panel perk list. */
+/** Trust highlights rendered inside the brand panel. */
 const perks = [
   {
     icon: <ShieldIcon />,
-    tone: 'green',
-    title: 'امنیت داده‌ها',
-    desc: 'احراز هویت امن JWT و سطوح دسترسی دقیق برای پرونده شما',
+    title: 'امنیت و محرمانگی داده‌ها',
+    desc: 'احراز هویت استاندارد JWT و حفاظت سخت‌گیرانه از اطلاعات پرونده پزشکی شما.',
   },
   {
     icon: <ChartIcon />,
-    tone: 'blue',
-    title: 'نمودارهای روند',
-    desc: 'پیگیری تغییرات هر آزمایش در طول زمان، در یک نگاه',
+    title: 'پایش مستمر و نمودار روند',
+    desc: 'پیگیری تغییرات فاکتورهای آزمایشگاهی در گذر زمان با هشدارهای بازه نرمال.',
   },
   {
     icon: <FamilyIcon />,
-    tone: 'teal',
-    title: 'دسترسی خانوادگی',
-    desc: 'مدیریت پرونده سلامت اعضای خانواده فقط با کد ملی',
+    title: 'پرونده سلامت خانواده',
+    desc: 'مدیریت متمرکز نتایج آزمایش‌های فرزندان و اعضای خانواده در یک داشبورد امن.',
   },
 ];
 
 /**
- * Decorative brand sidebar for the Login/Register split layout:
- * logo, tagline and the three product-perk highlights above.
- *
- * Exported icons in this module (`UserIcon`, `LockIcon`, …) are shared
- * primitives consumed directly by those page components.
+ * Calm, professional medical brand sidebar for Login & Register screens.
+ * Conforms strictly to DESIGN.md patient surface guidelines:
+ * - Single primary teal accent.
+ * - Quiet, trustworthy surfaces (no spinning halos or harsh gradients).
+ * - Latin digits (0-9) everywhere.
  *
  * @returns {JSX.Element} Brand aside element.
  */
 const AuthBrand = () => (
   <aside className="auth-brand">
-    <div className="auth-brand-holo" />
     <nav className="auth-brand-top">
-      <Link to="/" className="auth-chip">
+      <Link to="/" className="auth-chip" aria-label="بازگشت به صفحه اصلی سلامت‌یار">
         <HomeIcon />
-        بازگشت به صفحه اصلی
+        <span>بازگشت به صفحه اصلی</span>
       </Link>
     </nav>
 
     <div className="auth-brand-body">
-      <div className="auth-logo-lg"><PulseIcon /></div>
-      <h1>سلامت‌یار</h1>
+      <div className="auth-logo-lg">
+        <PulseIcon />
+      </div>
+      <h1 className="auth-brand-title">سلامت‌یار</h1>
       <p className="auth-tagline">
-        پرونده سلامت و نتایج آزمایش‌های پزشکی شما؛ یکجا، امن و همیشه در دسترس.
+        پرونده سلامت و آزمایش‌های پزشکی شما؛ دقیق، محرمانه و همیشه در دسترس.
       </p>
+
       <ul className="auth-perks">
         {perks.map((perk) => (
           <li key={perk.title}>
-            <span className={`auth-perk-icon auth-perk-${perk.tone}`}>{perk.icon}</span>
-            <div>
+            <span className="auth-perk-icon">
+              {perk.icon}
+            </span>
+            <div className="auth-perk-text">
               <strong>{perk.title}</strong>
               <span>{perk.desc}</span>
             </div>
@@ -153,7 +155,9 @@ const AuthBrand = () => (
       </ul>
     </div>
 
-    <p className="auth-brand-foot">© ۱۴۰۵ سلامت‌یار — مدیریت هوشمند سلامتی</p>
+    <div className="auth-brand-foot">
+      <span>© 2026 سلامت‌یار — دستیار هوشمند پرونده سلامت الکترونیک</span>
+    </div>
   </aside>
 );
 

@@ -35,9 +35,15 @@ from .ai_service import generate_ai_reply
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.utils import timezone
 from .serializers import TestResultReadSerializer
-from .ai_service import extract_lab_data_from_image
-from .models import Prescription
-from .serializers import PrescriptionSerializer
+from .ai_service import extract_lab_data_from_image, extract_prescription_from_image
+import mimetypes
+from django.http import FileResponse
+from django.db.models import Prefetch
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.throttling import UserRateThrottle
+from .models import Prescription, PrescriptionItem
+from .serializers import PrescriptionSerializer, PrescriptionDraftSchemaSerializer
+
 
 class TestTypeViewSet(viewsets.ReadOnlyModelViewSet):
     """Read-only catalog of lab test types with their categories pre-fetched.
@@ -557,6 +563,7 @@ class GrantedAccessesView(APIView):
         data = [
             {
                 "id": access.id,
+                "user_id": access.user.id,
                 "grantee_name": access.user.get_full_name() or access.user.username,
                 "granted_at": access.granted_at,
             }
@@ -898,33 +905,203 @@ class AutoExtractTestFromImageView(APIView):
             "extracted_raw": extracted
         }, status=status.HTTP_201_CREATED)
 
+
+class TestDraftExtractView(APIView):
+    """
+    دریافت تصویر برگه آزمایش، اعتبارسنجی حجم و محتوای بایت‌ها (Magic Bytes)
+    و بازگرداندن پیش‌نویس استخراج‌شده بدون ذخیره‌سازی خودکار در دیتابیس،
+    جهت بازبینی و ویرایش توسط کاربر پیش از ثبت نهایی.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+    def post(self, request):
+        file_obj = request.FILES.get('file') or request.FILES.get('image')
+        if not file_obj:
+            return Response(
+                {"error": "لطفاً فایل برگه آزمایش را ارسال کنید."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if file_obj.size > self.MAX_FILE_SIZE:
+            return Response(
+                {"error": "حجم فایل ارسالی بیش از ۵ مگابایت است."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        header_bytes = file_obj.read(2048)
+        file_obj.seek(0)
+
+        is_jpeg = header_bytes.startswith(b'\xff\xd8\xff')
+        is_png = header_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+        is_webp = header_bytes.startswith(b'RIFF') and len(header_bytes) >= 12 and header_bytes[8:12] == b'WEBP'
+
+        if not (is_jpeg or is_png or is_webp):
+            return Response(
+                {"error": "فرمت تصویر معتبر نیست. لطفاً یک تصویر JPEG، PNG یا WebP ارسال کنید."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        raw_extracted = extract_lab_data_from_image(file_obj)
+
+        if not isinstance(raw_extracted, dict) or "error" in raw_extracted:
+            return Response(
+                {"error": "امکان استخراج هوشمند اطلاعات از این تصویر فراهم نشد. لطفاً فیلدها را به صورت دستی تکمیل کنید."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+
+        return Response(
+            {"draft": raw_extracted},
+            status=status.HTTP_200_OK
+        )
+
+
+class PrescriptionPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+
 class PrescriptionViewSet(viewsets.ModelViewSet):
     serializer_class = PrescriptionSerializer
-    permission_classes = [IsAuthenticated]
+    lookup_field = 'uuid'
+    pagination_class = PrescriptionPagination
+    permission_classes = [IsAuthenticated, IsPatientOwnerOrStaff]
 
     def get_queryset(self):
         user = self.request.user
-        
-        # اگر کاربر یک پزشک است، فقط نسخه‌هایی که خودش صادر کرده را ببیند
-        if hasattr(user, 'user_role') and user.user_role.role == 'doctor':
-            return Prescription.objects.filter(registered_doctor=user)
-            
-        # اگر کاربر بیمار است، فقط نسخه‌های مربوط به پرونده خودش را ببیند
-        elif hasattr(user, 'patient_profile'):
-            return Prescription.objects.filter(patient=user.patient_profile)
-            
-        # در غیر این صورت هیچ‌چیزی برنگردان
-        return Prescription.objects.none()
+        if not user.is_authenticated:
+            return Prescription.objects.none()
+
+        # دسترسی پزشک یا سایر کاربران منحصراً از طریق رکورد تاییدشده UserPatientAccess تعیین می‌شود.
+        # انتساب صرفاً به عنوان registered_doctor بدون دسترسی تاییدشده مجاز نیست زیرا ممکن است بیمار دسترسی را لغو کرده باشد.
+        accessible_patient_ids = UserPatientAccess.objects.filter(
+            user=user,
+            status='approved'
+        ).values_list('patient_id', flat=True)
+
+        own_patient = getattr(user, 'patient_profile', None)
+
+        access_filter = Q(patient__id__in=accessible_patient_ids)
+        if own_patient:
+            access_filter |= Q(patient=own_patient)
+
+        return Prescription.objects.filter(
+            access_filter,
+            is_deleted=False
+        ).select_related(
+            'patient',
+            'patient__user',
+            'registered_doctor',
+            'created_by'
+        ).prefetch_related(
+            Prefetch(
+                'items',
+                queryset=PrescriptionItem.objects.filter(is_deleted=False).order_by('order', 'id')
+            )
+        ).distinct()
 
     def perform_create(self, serializer):
         user = self.request.user
-        
-        # سناریو ۱: پزشک در حال ثبت نسخه در سیستم است
-        if hasattr(user, 'user_role') and user.user_role.role == 'doctor':
-            # نکته: پزشک باید آیدی بیمار (patient) را در ریکوئست فرستاده باشد
-            serializer.save(registered_doctor=user)
-            
-        # سناریو ۲: بیمار در حال اسکن و آپلود نسخه یک پزشک خارجی است
-        elif hasattr(user, 'patient_profile'):
-            # نیازی نیست بیمار آیدی خودش را بفرستد، سیستم خودش تنظیم می‌کند
-            serializer.save(patient=user.patient_profile)
+        patient = getattr(user, 'patient_profile', None)
+
+        if 'patient' not in serializer.validated_data and patient:
+            serializer.save(patient=patient, created_by=user)
+        else:
+            serializer.save(created_by=user)
+
+    def perform_destroy(self, instance):
+        instance.soft_delete(user=self.request.user)
+
+    @action(detail=True, methods=['get'], url_path='scan')
+    def download_scan(self, request, uuid=None):
+        prescription = self.get_object()
+        if not prescription.scan_file:
+            return Response({"detail": "فایل اسکن برای این نسخه یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            file_handle = prescription.scan_file.open('rb')
+            content_type, _ = mimetypes.guess_type(prescription.scan_file.name)
+            response = FileResponse(file_handle, content_type=content_type or 'application/octet-stream')
+            response['X-Content-Type-Options'] = 'nosniff'
+            return response
+        except Exception:
+            return Response({"detail": "خطا در خواندن فایل اسکن."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PrescriptionDraftExtractThrottle(UserRateThrottle):
+    rate = '15/minute'
+
+
+class PrescriptionDraftExtractView(APIView):
+    """
+    دریافت فایل تصویر یا PDF نسخه، اعتبارسنجی محتوای واقعی بایت‌ها، استخراج با مدل هوش مصنوعی
+    و بازگرداندن پیش‌نویس اعتبارسنجی‌شده بدون هرگونه ذخیره‌سازی خودکار یا لاگ‌گیری از داده‌ها.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = [PrescriptionDraftExtractThrottle]
+
+    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response(
+                {"error": "لطفاً فایل نسخه را ارسال کنید."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if file_obj.size > self.MAX_FILE_SIZE:
+            return Response(
+                {"error": "حجم فایل ارسالی بیش از ۵ مگابایت است."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # اعتبارسنجی محتوای واقعی بایت‌های فایل (Magic Bytes)
+        header_bytes = file_obj.read(2048)
+        file_obj.seek(0)
+
+        is_jpeg = header_bytes.startswith(b'\xff\xd8\xff')
+        is_png = header_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+        is_pdf = header_bytes.startswith(b'%PDF-')
+        is_webp = header_bytes.startswith(b'RIFF') and len(header_bytes) >= 12 and header_bytes[8:12] == b'WEBP'
+
+        if not (is_jpeg or is_png or is_pdf or is_webp):
+            return Response(
+                {"error": "فرمت فایل مجاز نیست. لطفاً یک تصویر معتبر (JPEG, PNG, WebP) یا فایل PDF ارسال کنید."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # استخراج توسط هوش مصنوعی
+        raw_extracted = extract_prescription_from_image(file_obj)
+
+        if not isinstance(raw_extracted, dict) or "error" in raw_extracted:
+            return Response(
+                {"error": "امکان استخراج اطلاعات از این تصویر فراهم نشد. لطفاً فیلدها را به صورت دستی تکمیل کنید."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY
+            )
+
+        # اعتبارسنجی خروجی مدل در برابر طرح‌واره دقیق (Strict Schema)
+        schema_serializer = PrescriptionDraftSchemaSerializer(data=raw_extracted)
+        if schema_serializer.is_valid():
+            return Response(
+                {"draft": schema_serializer.validated_data},
+                status=status.HTTP_200_OK
+            )
+        else:
+            # پاک‌سازی و فیلتر فیلدهای معتبر در صورت نقص جزئی
+            clean_draft = {
+                k: v for k, v in raw_extracted.items()
+                if k in ['external_doctor_name', 'external_doctor_specialty', 'external_doctor_clinic', 'external_doctor_license_number', 'prescribed_date', 'diagnosis', 'notes']
+            }
+            clean_draft['items'] = [
+                item for item in raw_extracted.get('items', [])
+                if isinstance(item, dict) and 'drug_name' in item
+            ]
+            return Response(
+                {"draft": clean_draft},
+                status=status.HTTP_200_OK
+            )

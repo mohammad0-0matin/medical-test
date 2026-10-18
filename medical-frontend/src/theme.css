@@ -9,7 +9,12 @@
   --text-body: #4b5563;
   --text-muted: #6b7280;
   --text-faint: #9ca3af;
-  --link-color: #2563eb;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --primary-hover: #115e59;
+  --primary-subtle: #e6f4f1;
+  --ring: #0f766e;
+  --link-color: #0f766e;
   --overlay-bg: rgba(11, 18, 32, 0.55);
   --error-bg: #fee2e2;
   --error-text: #dc2626;
@@ -27,16 +32,18 @@
   --banner-title: #854d0e;
   --banner-card-bg: #ffffff;
   --banner-card-border: #fef08a;
-  --info-bg: #e0f2fe;
-  --info-text: #0369a1;
-  --info-border: #bae6fd;
+  --info-bg: #e6f4f1;
+  --info-text: #0f766e;
+  --info-border: #99f6e4;
   --msg-success-bg: #dcfce7;
   --msg-success-text: #15803d;
   --msg-success-border: #bbf7d0;
   --tt-track: #e9edf3;
   --tt-border: #d8dee8;
-  --tt-halo: rgba(37, 99, 235, 0.12);
+  --tt-halo: rgba(15, 118, 110, 0.14);
   --tt-icon-inactive: #94a3b8;
+  --font-sans: 'Yekan Bakh', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 html[data-theme='light'] {
@@ -56,7 +63,12 @@ html[data-theme='dark'] {
   --text-body: #b9c5d6;
   --text-muted: #8fa0b5;
   --text-faint: #66788f;
-  --link-color: #60a5fa;
+  --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
+  --primary-hover: #14b8a6;
+  --primary-subtle: #12302f;
+  --ring: #2dd4bf;
+  --link-color: #2dd4bf;
   --overlay-bg: rgba(2, 6, 16, 0.72);
   --error-bg: rgba(239, 68, 68, 0.14);
   --error-text: #f87171;
@@ -74,15 +86,15 @@ html[data-theme='dark'] {
   --banner-title: #fbbf24;
   --banner-card-bg: #101a2e;
   --banner-card-border: rgba(251, 191, 36, 0.22);
-  --info-bg: rgba(3, 105, 161, 0.2);
-  --info-text: #7dd3fc;
-  --info-border: rgba(125, 211, 252, 0.3);
+  --info-bg: rgba(45, 212, 191, 0.14);
+  --info-text: #2dd4bf;
+  --info-border: rgba(45, 212, 191, 0.32);
   --msg-success-bg: rgba(16, 185, 129, 0.12);
   --msg-success-text: #34d399;
   --msg-success-border: rgba(52, 211, 153, 0.3);
   --tt-track: #17233c;
   --tt-border: #2e3d5c;
-  --tt-halo: rgba(96, 165, 250, 0.18);
+  --tt-halo: rgba(45, 212, 191, 0.18);
   --tt-icon-inactive: #55677f;
 }
 

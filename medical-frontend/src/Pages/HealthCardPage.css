@@ -1,0 +1,367 @@
+/* ==========================================================================
+   HealthCardPage.css — Dedicated Smart Health Card Workspace
+   Follows DESIGN.md patient surface guidelines:
+   - Calm, trustworthy palette with single primary teal accent.
+   - 44px control heights (h-11) for all interactive buttons.
+   - Rounded-xl for cards, rounded-md for buttons/chips.
+   ========================================================================== */
+
+.hcp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding: 8px 4px;
+  font-family: var(--font-sans, 'Yekan Bakh', sans-serif);
+  color: var(--text-body);
+}
+
+/* --------------------------------------------------------------------------
+   1. Header
+   -------------------------------------------------------------------------- */
+.hcp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.hcp-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hcp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hcp-badge-icon {
+  font-size: 1.6rem;
+}
+
+.hcp-title-row h1 {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.hcp-header-sub {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.hcp-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Buttons */
+.hcp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.15s ease-in-out;
+}
+
+.hcp-btn:active {
+  transform: scale(0.98);
+}
+
+.hcp-btn-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border: 1px solid var(--primary);
+  font-weight: 700;
+}
+
+.hcp-btn-primary:hover {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.hcp-btn-emergency {
+  background-color: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px solid var(--warn-text);
+  font-weight: 700;
+}
+
+.hcp-btn-emergency:hover {
+  background-color: var(--warn-text);
+  color: #ffffff;
+}
+
+.hcp-btn-outline {
+  background-color: var(--bg-surface);
+  color: var(--text-strong);
+  border: 1px solid var(--border);
+}
+
+.hcp-btn-outline:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   2. Family Switcher Bar
+   -------------------------------------------------------------------------- */
+.hcp-family-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 20px;
+}
+
+.hcp-family-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hcp-family-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-page);
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.hcp-family-chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.hcp-family-chip.active {
+  background-color: var(--primary-subtle);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* --------------------------------------------------------------------------
+   3. Workspace & Grid
+   -------------------------------------------------------------------------- */
+.hcp-workspace {
+  width: 100%;
+}
+
+.hcp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  align-items: start;
+  gap: 28px;
+}
+
+.hcp-card-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.hcp-card-frame {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.hcp-card-hints {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 18px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.hcp-hint-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.hcp-details-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hcp-info-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.hcp-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+
+.hcp-card-head h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.hcp-icon {
+  font-size: 1.2rem;
+}
+
+.hcp-data-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 20px;
+}
+
+.hcp-data-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hcp-data-label {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.hcp-data-value {
+  font-size: 0.96rem;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Emergency card */
+.hcp-emergency-card {
+  border-color: rgba(234, 179, 8, 0.4);
+}
+
+.hcp-emergency-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.hcp-emergency-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hcp-emergency-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.hcp-emergency-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-body);
+  line-height: 1.6;
+}
+
+.hcp-emergency-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.hcp-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.hcp-link:hover {
+  text-decoration: underline;
+}
+
+.hcp-loading-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Layout
+   -------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .hcp-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hcp-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .hcp-header-actions {
+    width: 100%;
+  }
+
+  .hcp-header-actions .hcp-btn {
+    flex: 1;
+  }
+
+  .hcp-data-grid {
+    grid-template-columns: 1fr;
+  }
+}

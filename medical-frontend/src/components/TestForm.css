@@ -1,0 +1,485 @@
+/* ==========================================================================
+   TestForm — ثبت آزمایش جدید با هوش مصنوعی و پیش‌نمایش زنده
+   Adheres to Salamat-Yar DESIGN.md, RTL, and WCAG AA contrast rules
+   ========================================================================== */
+
+.tf-container {
+  direction: rtl;
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3.5rem;
+  box-sizing: border-box;
+  font-family: inherit;
+  color: var(--text-strong);
+}
+
+/* Header & Back Link */
+.tf-header {
+  margin-bottom: 1.75rem;
+}
+
+.tf-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  margin-bottom: 0.75rem;
+  transition: opacity 0.15s ease;
+}
+
+.tf-back-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.tf-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tf-subtitle {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* AI Smart Scan Box */
+.tf-ai-box {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.06), rgba(99, 102, 241, 0.06));
+  border: 2px dashed rgba(14, 165, 233, 0.4);
+  border-radius: 14px;
+  padding: 1.5rem 1.25rem;
+  margin-bottom: 1.75rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tf-ai-box:hover {
+  border-color: #0ea5e9;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.09), rgba(99, 102, 241, 0.09));
+}
+
+.tf-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0284c7;
+  margin-bottom: 0.35rem;
+}
+
+[data-theme='dark'] .tf-ai-header {
+  color: #38bdf8;
+}
+
+.tf-ai-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  max-width: 580px;
+  margin: 0 auto 1.25rem;
+  line-height: 1.6;
+}
+
+.tf-ai-btn {
+  height: 42px;
+  padding: 0 1.5rem;
+  border-radius: 9px;
+  border: none;
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tf-ai-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.45);
+}
+
+.tf-ai-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.tf-ai-success-banner {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background-color: var(--success-bg, #ecfdf5);
+  border: 1px solid var(--msg-success-border, #a7f3d0);
+  color: var(--success-text, #065f46);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Two-column Form Layout */
+.tf-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 992px) {
+  .tf-layout {
+    grid-template-columns: 1fr 370px;
+    align-items: start;
+  }
+}
+
+/* Main Form Card */
+.tf-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.tf-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 1.25rem 0 0.85rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tf-section-title:first-of-type {
+  margin-top: 0;
+}
+
+.tf-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 600px) {
+  .tf-row-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .tf-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.tf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tf-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.tf-label-req {
+  color: #dc2626;
+  margin-inline-start: 2px;
+}
+
+.tf-input,
+.tf-select,
+.tf-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-input);
+  background-color: var(--bg-input, var(--bg-surface));
+  color: var(--text-strong);
+  font-family: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.tf-input:focus,
+.tf-select:focus,
+.tf-textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-subtle);
+}
+
+.tf-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.tf-file-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.tf-file-btn {
+  height: 38px;
+  padding: 0 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-subtle);
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.tf-file-btn:hover {
+  background-color: var(--bg-surface);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tf-file-name {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Form Action Buttons */
+.tf-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.tf-btn-submit {
+  height: 44px;
+  padding: 0 1.75rem;
+  border-radius: 9px;
+  border: none;
+  background-color: var(--primary, #0f766e);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 10px rgba(15, 118, 110, 0.25);
+  transition: all 0.2s ease;
+}
+
+.tf-btn-submit:hover:not(:disabled) {
+  background-color: var(--primary-hover, #115e59);
+  transform: translateY(-1px);
+}
+
+.tf-btn-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.tf-btn-cancel {
+  height: 44px;
+  padding: 0 1.25rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-body);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.tf-btn-cancel:hover {
+  background-color: var(--bg-subtle);
+}
+
+/* ==========================================================================
+   Live Clinical Test Slip Preview Card
+   ========================================================================== */
+
+.tf-preview-card {
+  background: var(--bg-surface);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  position: sticky;
+  top: 1rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.tf-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--primary-subtle);
+  margin-bottom: 1rem;
+}
+
+.tf-preview-brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.tf-preview-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.tf-preview-patient-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  background-color: var(--bg-subtle);
+}
+
+.tf-preview-result-hero {
+  text-align: center;
+  padding: 1.25rem 0.5rem;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  margin-bottom: 1rem;
+}
+
+.tf-preview-test-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  margin-bottom: 0.4rem;
+}
+
+.tf-preview-val-large {
+  font-size: 2.25rem;
+  font-weight: 900;
+  color: var(--text-strong);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 0.25rem;
+}
+
+.tf-preview-unit {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-inline-start: 4px;
+}
+
+.tf-preview-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.tf-status-normal {
+  background-color: var(--success-bg, #ecfdf5);
+  color: var(--success-text, #065f46);
+  border: 1px solid var(--msg-success-border, #a7f3d0);
+}
+
+.tf-status-abnormal {
+  background-color: var(--error-bg, #fee2e2);
+  color: var(--error-text, #dc2626);
+  border: 1px solid var(--error-border, #fecaca);
+}
+
+.tf-status-neutral {
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.tf-preview-range-box {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-body);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.tf-preview-range-val {
+  font-weight: 700;
+  direction: ltr;
+  font-variant-numeric: tabular-nums;
+}
+
+.tf-preview-thumb-box {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tf-preview-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}

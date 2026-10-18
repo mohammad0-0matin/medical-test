@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import './AddTestModal.css';
 import './TestComparisonModal.css';
 
@@ -211,24 +211,30 @@ const RangeBar = ({ value, range }) => {
  * @returns {JSX.Element|null} Comparison modal, or null when closed.
  */
 const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
-  if (!isOpen) return null;
   const [selectedType, setSelectedType] = useState('');
   const [baseId, setBaseId] = useState(null);
   const [targetId, setTargetId] = useState(null);
   const rootRef = useRef(null);
+
+  const handleModalClose = useCallback(() => {
+    setSelectedType('');
+    setBaseId(null);
+    setTargetId(null);
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event) => {
       if (rootRef.current && !rootRef.current.contains(event.target)) {
-        onClose();
+        handleModalClose();
       }
     };
 
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
-        onClose();
+        handleModalClose();
       }
     };
 
@@ -239,7 +245,7 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, handleModalClose]);
 
   // Test types with at least two recorded results.
   const typeGroups = useMemo(() => {
@@ -261,17 +267,6 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'fa'));
   }, [tests]);
-
-  // Reset selections every time the modal opens.
-  const [syncedOpen, setSyncedOpen] = useState(false);
-  if (isOpen !== syncedOpen) {
-    setSyncedOpen(isOpen);
-    if (isOpen) {
-      setSelectedType('');
-      setBaseId(null);
-      setTargetId(null);
-    }
-  }
 
   const activeGroup = typeGroups.find((g) => String(g.id) === String(selectedType)) || null;
 
@@ -306,12 +301,14 @@ const TestComparisonModal = ({ isOpen, onClose, tests = [] }) => {
       ? buildClinicalSummary(activeGroup?.name || baseTest.test_type_name || 'این آزمایش', comparison)
       : '';
 
+  if (!isOpen) return null;
+
   return (
     <div className="modal-overlay" dir="rtl">
       <div className="modal-container tc-modal" ref={rootRef}>
         <div className="modal-header">
           <h2>⚖️ مقایسه آزمایش‌ها</h2>
-          <button onClick={onClose} className="close-btn" aria-label="بستن پنجره" title="بستن">
+          <button onClick={handleModalClose} className="close-btn" aria-label="بستن پنجره" title="بستن">
             <CloseGlyph />
           </button>
         </div>

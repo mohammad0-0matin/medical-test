@@ -8,7 +8,9 @@ from .models import (
     Attachment,
     AuditLog,
     ChatSession,
-    ChatMessage
+    ChatMessage,
+    Prescription,
+    PrescriptionItem
 )
 
 
@@ -90,3 +92,71 @@ class ChatMessageAdmin(admin.ModelAdmin):
     def short_content(self, obj):
         return obj.content[:50]
     short_content.short_description = "خلاصه پیام"
+
+
+class PrescriptionItemInline(admin.TabularInline):
+    model = PrescriptionItem
+    extra = 1
+    fields = ('drug_name', 'strength_dose', 'form', 'frequency', 'duration', 'quantity', 'order', 'is_deleted')
+    readonly_fields = ('is_deleted',)
+
+
+@admin.register(Prescription)
+class PrescriptionAdmin(admin.ModelAdmin):
+    list_display = ('uuid', 'patient', 'get_doctor_display', 'prescribed_date', 'source', 'is_deleted', 'created_at')
+    list_filter = ('is_deleted', 'source', 'prescribed_date')
+    search_fields = ('uuid', 'patient__first_name', 'patient__last_name', 'external_doctor_name', 'registered_doctor__username')
+    readonly_fields = ('uuid', 'created_at', 'updated_at', 'deleted_at', 'deleted_by')
+    inlines = [PrescriptionItemInline]
+    actions = ['soft_delete_selected']
+
+    def get_queryset(self, request):
+        # ادمین تمام نسخه‌ها از جمله رکوردهای حذف نرم‌شده را مشاهده کند
+        return Prescription.all_objects.all().select_related('patient', 'registered_doctor')
+
+    def get_doctor_display(self, obj):
+        if obj.registered_doctor:
+            name = f"{obj.registered_doctor.first_name} {obj.registered_doctor.last_name}".strip()
+            return f"عضو سامانه: {name or obj.registered_doctor.username}"
+        return f"خارج از سامانه: {obj.external_doctor_name or '-'}"
+    get_doctor_display.short_description = "پزشک صادرکننده"
+
+    def delete_model(self, request, obj):
+        # اجرای حذف نرم به جای حذف سخت
+        obj.soft_delete(user=request.user)
+
+    def delete_queryset(self, request, queryset):
+        # اجرای حذف نرم گروهی
+        for obj in queryset:
+            obj.soft_delete(user=request.user)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        # غیرفعال کردن حذف سخت پیش‌فرض جنگو
+        if 'delete_selected' in actions:
+            del actions['delete_selected']
+        return actions
+
+    @admin.action(description="حذف نرم رکوردهای انتخاب‌شده (انتقال به سطل بازیافت)")
+    def soft_delete_selected(self, request, queryset):
+        for obj in queryset:
+            obj.soft_delete(user=request.user)
+        self.message_user(request, f"{queryset.count()} نسخه با موفقیت حذف نرم شدند.")
+
+
+@admin.register(PrescriptionItem)
+class PrescriptionItemAdmin(admin.ModelAdmin):
+    list_display = ('drug_name', 'prescription', 'strength_dose', 'form', 'frequency', 'order', 'is_deleted')
+    list_filter = ('is_deleted', 'form')
+    search_fields = ('drug_name', 'prescription__uuid')
+    readonly_fields = ('created_at', 'updated_at', 'deleted_at', 'deleted_by')
+
+    def get_queryset(self, request):
+        return PrescriptionItem.all_objects.all().select_related('prescription')
+
+    def delete_model(self, request, obj):
+        obj.soft_delete(user=request.user)
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            obj.soft_delete(user=request.user)

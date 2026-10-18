@@ -1,0 +1,514 @@
+/* ==========================================================================
+   RemindersPage — تقویم و یادآورهای دوره‌ای سلامت
+   Adheres to DESIGN.md tokens, RTL, and WCAG AA contrast rules.
+   ========================================================================== */
+
+.rem-page-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3.5rem;
+  direction: rtl;
+}
+
+/* Page Header */
+.rem-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rem-header-text {
+  flex: 1;
+  min-width: 240px;
+}
+
+.rem-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rem-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.rem-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.rem-btn-add {
+  height: 40px;
+  padding: 0 1.2rem;
+  border-radius: 9px;
+  border: none;
+  background-color: var(--primary, #0f766e);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.25);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.rem-btn-add:hover {
+  background-color: var(--primary-hover, #115e59);
+  transform: translateY(-1px);
+}
+
+.rem-btn-export-all {
+  height: 40px;
+  padding: 0 1rem;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-strong);
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.rem-btn-export-all:hover {
+  background-color: var(--bg-subtle);
+  border-color: var(--ring, #0f766e);
+  color: var(--primary);
+}
+
+/* Status Filter Tabs / Pills */
+.rem-filters-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.rem-filter-pill {
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.18s ease;
+}
+
+.rem-filter-pill:hover {
+  border-color: var(--primary);
+  color: var(--text-strong);
+}
+
+.rem-filter-pill.active {
+  background-color: var(--primary-subtle, #e6f4f1);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.rem-filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+.rem-filter-pill.active .rem-filter-count {
+  background-color: rgba(15, 118, 110, 0.18);
+  color: var(--primary);
+}
+
+/* Reminders Cards Grid */
+.rem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+/* Individual Reminder Card */
+.rem-card {
+  position: relative;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.rem-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  border-color: var(--ring, #0f766e);
+}
+
+.rem-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.rem-card-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.rem-card-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.rem-card-notes {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Status Chips */
+.rem-status-badge {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rem-status-overdue {
+  background-color: var(--error-bg, #fee2e2);
+  color: var(--error-text, #dc2626);
+  border: 1px solid var(--error-border, #fecaca);
+}
+
+.rem-status-soon {
+  background-color: var(--warn-bg, #fef08a);
+  color: var(--warn-text, #854d0e);
+  border: 1px solid var(--banner-border, #fde047);
+}
+
+.rem-status-scheduled {
+  background-color: var(--success-bg, #d1fae5);
+  color: var(--success-text, #065f46);
+  border: 1px solid var(--msg-success-border, #bbf7d0);
+}
+
+.rem-status-completed {
+  background-color: var(--neutral-bg, #f3f4f6);
+  color: var(--neutral-text, #4b5563);
+  border: 1px solid var(--border);
+}
+
+/* Card Metadata */
+.rem-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background-color: var(--bg-subtle);
+  font-size: 0.8rem;
+  color: var(--text-body);
+}
+
+.rem-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Card Actions Bar */
+.rem-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.rem-action-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.rem-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.rem-icon-btn:hover {
+  background-color: var(--bg-subtle);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.rem-icon-btn.rem-btn-danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.rem-icon-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rem-btn-complete {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(21, 128, 61, 0.3);
+  background-color: rgba(21, 128, 61, 0.08);
+  color: #15803d;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.rem-btn-complete:hover {
+  background-color: #15803d;
+  color: #ffffff;
+}
+
+.rem-btn-complete svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Empty State */
+.rem-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  margin-top: 1rem;
+}
+
+.rem-empty-icon {
+  font-size: 3rem;
+  margin-bottom: 0.75rem;
+}
+
+.rem-empty-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.rem-empty-desc {
+  margin: 0 0 1.5rem;
+  font-size: 0.88rem;
+  max-width: 440px;
+  line-height: 1.6;
+}
+
+/* Skeletons */
+.rem-skeleton-card {
+  height: 180px;
+  border-radius: 14px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  animation: rem-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes rem-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+/* Delete Confirm Modal */
+.rem-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(11, 18, 32, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.rem-modal-box {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.75rem;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.rem-modal-icon-wrap {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.rem-modal-icon-wrap svg {
+  width: 24px;
+  height: 24px;
+}
+
+.rem-modal-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-strong);
+}
+
+.rem-modal-desc {
+  margin: 0 0 1.5rem;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.rem-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.rem-modal-btn-confirm {
+  height: 38px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: none;
+  background-color: #dc2626;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.rem-modal-btn-confirm:hover {
+  background-color: #b91c1c;
+}
+
+.rem-modal-btn-cancel {
+  height: 38px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--bg-surface);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rem-modal-btn-cancel:hover {
+  background-color: var(--bg-subtle);
+}
+
+@media (max-width: 640px) {
+  .rem-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rem-header-actions {
+    flex-direction: column;
+  }
+
+  .rem-btn-add,
+  .rem-btn-export-all {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .rem-grid {
+    grid-template-columns: 1fr;
+  }
+}

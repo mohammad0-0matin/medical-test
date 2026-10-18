@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   direction: rtl;
-  font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-family: var(--font-sans, 'Yekan Bakh', sans-serif);
   background:
     radial-gradient(700px 320px at 85% -5%, rgba(37, 99, 235, 0.16), transparent 70%),
     var(--bg-page);

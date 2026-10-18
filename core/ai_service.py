@@ -255,7 +255,97 @@ def extract_lab_data_from_image(image_file) -> dict:
         return json.loads(content)
 
     except Exception as exc:
-        print(f"❌ خطای کامل استخراج تصویر: {repr(exc)}")
-        if 'content' in locals():
-            print(f"📄 خروجی خام مدل: {content}")
-        return {"error": str(exc)}
+        return {"error": "خطا در پردازش تصویر آزمایش"}
+
+
+def extract_prescription_from_image(image_file) -> dict:
+    """
+    تصویر نسخه پزشکی را خوانده و با مدل هوشمند اقلام دارویی و مشخصات پزشک را استخراج می‌کند.
+    هیچ داده‌ای در لاگ یا دیتابیس ثبت نمی‌شود و صرفاً ساختار دیکشنری جهت پیش‌نویس بازگردانده می‌شود.
+    """
+    image_bytes = image_file.read()
+    image_file.seek(0)
+    base64_encoded = base64.b64encode(image_bytes).decode('utf-8')
+    mime_type = getattr(image_file, 'content_type', 'image/jpeg') or 'image/jpeg'
+
+    client = OpenAI(
+        api_key=settings.AI_API_KEY,
+        base_url=settings.AI_BASE_URL,
+    )
+
+    system_prompt = (
+        "You are an expert medical OCR engine. Read the doctor's prescription image and extract data into valid JSON.\n"
+        "Rules:\n"
+        "1. Output ONLY valid parseable JSON. Do not include markdown or explanations.\n"
+        "2. Never use Python None, NaN, or comments. Use strictly null for absent values.\n"
+        "3. Standardize dates to YYYY-MM-DD if recognizable; otherwise null.\n"
+        "4. Extract medications into the items list.\n"
+        "JSON structure:\n"
+        "{\n"
+        '  "external_doctor_name": "نام پزشک",\n'
+        '  "external_doctor_specialty": "تخصص",\n'
+        '  "external_doctor_clinic": "مطب یا کلینیک",\n'
+        '  "external_doctor_license_number": "شماره نظام پزشکی",\n'
+        '  "prescribed_date": "2026-09-24",\n'
+        '  "diagnosis": "تشخیص بیماری در صورت درج",\n'
+        '  "notes": "نکات یا توضیحات کلی نسخه",\n'
+        '  "items": [\n'
+        "    {\n"
+        '      "drug_name": "Amoxicillin",\n'
+        '      "strength_dose": "500mg",\n'
+        '      "form": "کپسول",\n'
+        '      "frequency": "هر 8 ساعت یک عدد",\n'
+        '      "duration": "7 روز",\n'
+        '      "quantity": "20 عدد",\n'
+        '      "instructions": "بعد از غذا با آب فراوان"\n'
+        "    }\n"
+        "  ]\n"
+        "}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Extract all prescription and medication details from this image according to the specified JSON schema."
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:{mime_type};base64,{base64_encoded}"
+                    }
+                }
+            ]
+        }
+    ]
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.AI_MODEL_NAME,
+            messages=messages,
+            temperature=0.1,
+            max_tokens=1500,
+        )
+        content = response.choices[0].message.content.strip()
+
+        # حذف تگ‌های کد Markdown در صورت وجود
+        content = re.sub(r'^```(?:json)?\s*', '', content, flags=re.IGNORECASE)
+        content = re.sub(r'\s*```$', '', content)
+
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(0)
+
+        content = re.sub(r':\s*None\b', ': null', content)
+        content = re.sub(r':\s*,', ': null,', content)
+        content = re.sub(r',\s*\}', '}', content)
+
+        data = json.loads(content)
+        return data
+
+    except Exception:
+        # هیچ لاگی از متن ورودی، تصویر، یا خطا نباید چاپ شود
+        return {"error": "خطا در پردازش هوشمند تصویر نسخه"}

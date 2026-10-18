@@ -109,8 +109,10 @@ const SCREENING_SUGGESTIONS = [
  * @param {Function} props.onChange - Receives the refreshed summary after edits.
  * @returns {JSX.Element} Grid of section cards with editors and print support.
  */
-const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
+const HealthSummaryView = ({ profile, reminders = [], summary = {}, onChange, onRefresh }) => {
   const [editor, setEditor] = useState({ open: false, section: null, item: null });
+
+  const currentSummary = summary || {};
 
   const dossierRef = useRef(null);
   const handlePrint = useReactToPrint({
@@ -120,12 +122,22 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
 
   const upcomingReminders = useMemo(
     () =>
-      reminders
+      (reminders || [])
         .filter((r) => !r.isCompleted)
         .sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate))
         .slice(0, 4),
     [reminders]
   );
+
+  const notifyChange = () => {
+    const fresh = getHealthSummary();
+    if (typeof onChange === 'function') {
+      onChange(fresh);
+    }
+    if (typeof onRefresh === 'function') {
+      onRefresh();
+    }
+  };
 
   const handleSubmit = (data) => {
     const { section, item } = editor;
@@ -136,20 +148,20 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
       addItem(section, data);
       toast.success('✅ مورد جدید افزوده شد.');
     }
-    onChange(getHealthSummary());
+    notifyChange();
     setEditor((prev) => ({ ...prev, open: false }));
   };
 
   const handleDelete = (section, item) => {
     if (!window.confirm(`حذف «${SECTION_DEFS[section].itemTitle(item)}»؟`)) return;
     deleteItem(section, item.id);
-    onChange(getHealthSummary());
+    notifyChange();
     toast.success('مورد حذف شد.');
   };
 
   const toggleMedicationActive = (med) => {
     updateItem('medications', med.id, { isActive: !med.isActive });
-    onChange(getHealthSummary());
+    notifyChange();
   };
 
   /* ---------- Per-section item rendering ---------- */
@@ -245,7 +257,7 @@ const HealthSummaryView = ({ profile, reminders = [], summary, onChange }) => {
 
   const renderSectionCard = (sectionKey) => {
     const def = SECTION_DEFS[sectionKey];
-    const items = summary[sectionKey] || [];
+    const items = (currentSummary && currentSummary[sectionKey]) || [];
     return (
       <section className="hs-card" key={sectionKey}>
         <header className="hs-card-head">

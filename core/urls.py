@@ -39,4 +39,6 @@ urlpatterns = [
     path('ai/sessions/<int:session_id>/messages/', views.ChatMessageListView.as_view(), name='ai-session-messages'),
     path('ai/sessions/<int:session_id>/send/', views.SendMessageView.as_view(), name='ai-send-message'),
     path('test-results/auto-extract/', views.AutoExtractTestFromImageView.as_view(), name='auto-extract-test'),
-] + router.urls
+    path('test-results/extract-draft/', views.TestDraftExtractView.as_view(), name='test-extract-draft'),
+    path('prescriptions/extract-draft/', views.PrescriptionDraftExtractView.as_view(), name='prescription-extract-draft'),
+] + router.urls

@@ -3,19 +3,20 @@ import { useNavigate, Link } from 'react-router-dom';
 import API from '../api';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../context/AuthContext';
-import AuthBrand, { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon } from '../components/AuthBrand';
+import ThemeToggle from '../components/ThemeToggle';
+import { UserIcon, LockIcon, EyeIcon, EyeOffIcon, ChevronRightIcon, PulseIcon } from '../components/AuthBrand';
 import './Auth.css';
 
 /**
- * Registration page — mirrors the login layout and creates an account
- * through POST `/register/`.
+ * Centered, friendly, and accessible registration screen for Salamat Yar.
  *
- * Server-side DRF validation errors are mapped field-by-field (username /
- * password / generic detail) onto an error toast. Success shows a welcome
- * toast and defers navigation to `/login` by 2 seconds so the confirmation
- * stays visible.
+ * Implements DESIGN.md Patient Surface guidelines:
+ * - Serene, distraction-free single centered card layout.
+ * - 44px (h-11) touch targets for inputs and buttons.
+ * - Single primary teal accent token and WCAG AA contrast.
+ * - Accessible form labels, aria-describedby for errors, and clear password toggle.
  *
- * @returns {JSX.Element} Full-page registration layout.
+ * @returns {JSX.Element} Register page shell.
  */
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -32,116 +33,153 @@ const Register = () => {
   };
 
   /**
-   * Creates the account, maps DRF field errors onto the toast (username /
-   * password / detail precedence) and schedules the login redirect.
+   * Creates the account, automatically logs the user in on success,
+   * or redirects to login with informative feedback.
    */
   const handleSubmit = async (e) => {
-      e.preventDefault();
-      setLoading(true);
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await API.post('register/', formData);
 
       try {
-        await API.post('register/', formData);
-
-        try {
-          // بلافاصله با همان اطلاعات ثبت‌نامی توکن می‌گیریم تا کاربر مجبور به
-          // وارد کردن دوباره‌ی اطلاعات نشود.
-          const tokenRes = await API.post('token/', formData);
-          login(tokenRes.data.access, tokenRes.data.refresh);
-
-          toast.success('🎉 ثبت‌نام با موفقیت انجام شد! خوش آمدید.');
-          navigate('/dashboard');
-        } catch (loginErr) {
-          // اکانت ساخته شد ولی لاگین خودکار ناموفق بود؛ کاربر را به صفحه ورود
-          // می‌فرستیم تا دستی وارد شود، به‌جای این‌که با خطا روی همین صفحه بماند.
-          console.error('Auto-login after registration failed:', loginErr);
-          toast.success('🎉 ثبت‌نام با موفقیت انجام شد! لطفاً وارد شوید.');
-          navigate('/login');
-        } finally {
-          setLoading(false);
-        }
-
-      } catch (err) {
+        const tokenRes = await API.post('token/', formData);
+        login(tokenRes.data.access, tokenRes.data.refresh);
+        toast.success('ثبت‌نام با موفقیت انجام شد! به سلامت‌یار خوش آمدید.');
+        navigate('/dashboard');
+      } catch (loginErr) {
+        console.error('Auto-login after registration failed:', loginErr);
+        toast.success('حساب کاربری با موفقیت ساخته شد. لطفاً وارد شوید.');
+        navigate('/login');
+      } finally {
         setLoading(false);
-
-        const errData = err.response?.data;
-        let errorMessage = '❌ خطا در ارتباط با سرور.';
-
-        if (errData) {
-            if (errData.username) errorMessage = `❌ نام کاربری: ${errData.username[0]}`;
-            else if (errData.password) errorMessage = `❌ رمز عبور: ${errData.password[0]}`;
-            else if (errData.detail) errorMessage = `❌ ${errData.detail}`;
-        }
-
-        toast.error(errorMessage);
       }
-    };
+    } catch (err) {
+      setLoading(false);
+
+      const errData = err.response?.data;
+      let errorMessage = 'خطا در برقراری ارتباط با سرور. لطفاً دوباره تلاش کنید.';
+
+      if (errData) {
+        if (errData.username) errorMessage = `نام کاربری: ${errData.username[0]}`;
+        else if (errData.password) errorMessage = `رمز عبور: ${errData.password[0]}`;
+        else if (errData.detail) errorMessage = `${errData.detail}`;
+      }
+
+      toast.error(errorMessage);
+    }
+  };
 
   return (
     <div className="auth-page">
-      <AuthBrand />
-
-      <main className="auth-form-side">
-        <div className="auth-card">
-          <Link to="/" className="auth-back">
-            <ChevronRightIcon />
-            بازگشت به خانه
+      <div className="auth-container">
+        {/* Top utility row: Return to home + Theme switch */}
+        <div className="auth-topbar">
+          <Link to="/" className="auth-back" aria-label="بازگشت به صفحه اصلی">
+            <span className="auth-back-icon">
+              <ChevronRightIcon />
+            </span>
+            <span>بازگشت به صفحه اصلی</span>
           </Link>
+          <ThemeToggle />
+        </div>
+
+        {/* Centered Medical Card */}
+        <main className="auth-card">
+          <div className="auth-brand-badge">
+            <Link to="/" className="auth-brand-logo-link" aria-label="سلامت‌یار — صفحه اصلی">
+              <span className="auth-logo">
+                <PulseIcon />
+              </span>
+              <span className="auth-brand-text">سلامت‌یار</span>
+            </Link>
+          </div>
 
           <header className="auth-head">
-            <h2>ثبت‌نام سریع</h2>
-            <p className="auth-sub">در چند ثانیه حساب بسازید و مدیریت پرونده سلامت را شروع کنید.</p>
+            <h2>ایجاد پرونده سلامت</h2>
+            <p className="auth-sub">
+              در کمتر از 1 دقیقه حساب رایگان خود را بسازید و تمام آزمایش‌ها را یکجا داشته باشید.
+            </p>
           </header>
 
           <form onSubmit={handleSubmit} className="auth-form">
-            <label className="auth-label" htmlFor="register-username">نام کاربری</label>
-            <div className="auth-field">
-              <span className="auth-field-icon"><UserIcon /></span>
-              <input
-                id="register-username"
-                type="text"
-                name="username"
-                placeholder="نام کاربری"
-                value={formData.username}
-                onChange={handleChange}
-                autoComplete="username"
-                required
-              />
+            <div className="auth-field-group">
+              <label className="auth-label" htmlFor="register-username">
+                نام کاربری انتخابی <span className="auth-required" aria-hidden="true">*</span>
+              </label>
+              <div className="auth-field">
+                <span className="auth-field-icon"><UserIcon /></span>
+                <input
+                  id="register-username"
+                  type="text"
+                  name="username"
+                  placeholder="حداقل 4 کاراکتر (مثال: matin)"
+                  value={formData.username}
+                  onChange={handleChange}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck="false"
+                  required
+                />
+              </div>
             </div>
 
-            <label className="auth-label" htmlFor="register-password">رمز عبور</label>
-            <div className="auth-field">
-              <span className="auth-field-icon"><LockIcon /></span>
-              <input
-                id="register-password"
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                placeholder="رمز عبور"
-                value={formData.password}
-                onChange={handleChange}
-                autoComplete="new-password"
-                required
-              />
-              <button
-                type="button"
-                className="auth-toggle"
-                onClick={() => setShowPassword((s) => !s)}
-                aria-label={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
-                title={showPassword ? 'پنهان کردن رمز' : 'نمایش رمز'}
-              >
-                {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
+            <div className="auth-field-group">
+              <label className="auth-label" htmlFor="register-password">
+                رمز عبور <span className="auth-required" aria-hidden="true">*</span>
+              </label>
+              <div className="auth-field">
+                <span className="auth-field-icon"><LockIcon /></span>
+                <input
+                  id="register-password"
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  placeholder="حداقل 6 کاراکتر"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-toggle"
+                  onClick={() => setShowPassword((s) => !s)}
+                  aria-label={showPassword ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور'}
+                  title={showPassword ? 'پنهان کردن رمز' : 'نمایش رمز'}
+                >
+                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                </button>
+              </div>
             </div>
 
             <button type="submit" className="auth-submit" disabled={loading}>
-              {loading ? (<><span className="auth-spinner" />در حال ثبت‌نام...</>) : 'ایجاد حساب کاربری'}
+              {loading ? (
+                <>
+                  <span className="auth-spinner" aria-hidden="true" />
+                  <span>در حال ایجاد حساب...</span>
+                </>
+              ) : (
+                'ساخت حساب کاربری (رایگان)'
+              )}
             </button>
           </form>
 
-          <p className="auth-switch">
-            از قبل حساب دارید؟ <Link to="/login">وارد شوید</Link>
-          </p>
-        </div>
-      </main>
+          <footer className="auth-card-footer">
+            <p className="auth-switch">
+              قبلاً حساب کاربری ساخته‌اید؟{' '}
+              <Link to="/login" className="auth-switch-link">
+                ورود به حساب
+              </Link>
+            </p>
+
+            <div className="auth-trust-note">
+              <span className="auth-trust-icon" aria-hidden="true">🔒</span>
+              <span>اطلاعات پرونده سلامت شما کاملاً محرمانه و محافظت‌شده خواهد ماند</span>
+            </div>
+          </footer>
+        </main>
+      </div>
     </div>
   );
 };

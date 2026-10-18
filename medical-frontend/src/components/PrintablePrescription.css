@@ -1,0 +1,122 @@
+/* ==========================================================================
+   Printable Prescription Styles (Report/Print Surface per DESIGN.md)
+   A4, margins 15-20mm, Grayscale legible, no decorative shadows
+   ========================================================================== */
+
+.print-prescription-container {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-prescription-container,
+  .print-prescription-container * {
+    visibility: visible;
+  }
+
+  .print-prescription-container {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-family: 'Yekan Bakh', Tahoma, Arial, sans-serif !important;
+    direction: rtl;
+    padding: 0;
+    margin: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-rx-slip {
+    border: 1.5px solid #111827;
+    padding: 24px;
+    background: #ffffff;
+    page-break-after: avoid;
+  }
+
+  .print-rx-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid #111827;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+  }
+
+  .print-rx-title {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0 0 6px;
+  }
+
+  .print-rx-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    font-size: 10.5pt;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+
+  .print-rx-meta-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .print-rx-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 10pt;
+  }
+
+  .print-rx-table th,
+  .print-rx-table td {
+    border: 1px solid #374151;
+    padding: 8px 10px;
+    text-align: right;
+  }
+
+  .print-rx-table th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold;
+    color: #111827;
+  }
+
+  .print-rx-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-rx-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px dashed #6b7280;
+  }
+
+  .print-rx-stamp-box {
+    border: 1px solid #4b5563;
+    width: 140px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9pt;
+    color: #4b5563;
+  }
+}

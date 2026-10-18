@@ -6,9 +6,11 @@ returns the fully denormalized dashboard shape, while
 literals (the "نامشخص"/"سیستم" fallbacks and validation messages) are runtime
 values consumed by the UI and are intentionally preserved.
 """
+import json
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import serializers
-from .models import Patient, TestResult, TestType, Attachment, HealthSummary, TestReminder, ChatSession, ChatMessage, Prescription, PrescriptionItem
+from .models import Patient, UserPatientAccess, TestResult, TestType, TestCategory, Attachment, HealthSummary, TestReminder, ChatSession, ChatMessage, Prescription, PrescriptionItem
 from django.contrib.auth.models import User
 
 class TestTypeSerializer(serializers.ModelSerializer):
@@ -186,6 +188,16 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
     fields are filled in server-side by the viewset.
     """
 
+    test_type = serializers.PrimaryKeyRelatedField(
+        queryset=TestType.objects.all(),
+        required=False,
+        allow_null=True
+    )
+    custom_test_name = serializers.CharField(required=False, write_only=True, allow_blank=True)
+    custom_unit = serializers.CharField(required=False, write_only=True, allow_blank=True)
+    custom_min_normal = serializers.FloatField(required=False, write_only=True, allow_null=True)
+    custom_max_normal = serializers.FloatField(required=False, write_only=True, allow_null=True)
+
     class Meta:
         """Editable submission columns only (identity fields stay server-side)."""
 
@@ -194,6 +206,10 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
             'id',
             'patient',
             'test_type',
+            'custom_test_name',
+            'custom_unit',
+            'custom_min_normal',
+            'custom_max_normal',
             'result_value',
             'result_text',
             'test_date',
@@ -220,12 +236,12 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
         A submission carrying neither a numeric ``result_value`` nor a
         qualitative ``result_text`` would be unreadable downstream, so it is
         rejected before any database write occurs.
-
-        :param dict attrs: Cross-field payload being assembled.
-        :raises serializers.ValidationError: When both result carriers are
-            missing.
-        :returns: The attributes unchanged when validation passes.
         """
+        if not attrs.get('test_type') and not attrs.get('custom_test_name'):
+            raise serializers.ValidationError(
+                {"test_type": "نوع آزمایش را انتخاب یا وارد کنید."}
+            )
+
         result_value = attrs.get('result_value')
         result_text = attrs.get('result_text')
 
@@ -235,6 +251,30 @@ class TestResultWriteSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+    def create(self, validated_data):
+        custom_name = validated_data.pop('custom_test_name', None)
+        custom_unit = validated_data.pop('custom_unit', None)
+        custom_min = validated_data.pop('custom_min_normal', None)
+        custom_max = validated_data.pop('custom_max_normal', None)
+
+        if not validated_data.get('test_type') and custom_name:
+            default_cat, _ = TestCategory.objects.get_or_create(
+                name="سایر آزمایش‌ها",
+                defaults={"description": "دسته‌بندی آزمایش‌های ثبت‌شده توسط کاربر"}
+            )
+            test_type, _ = TestType.objects.get_or_create(
+                name=custom_name.strip(),
+                defaults={
+                    'category': default_cat,
+                    'unit': custom_unit or '',
+                    'min_normal': custom_min,
+                    'max_normal': custom_max,
+                }
+            )
+            validated_data['test_type'] = test_type
+
+        return super().create(validated_data)
 class HealthSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = HealthSummary
@@ -280,39 +320,266 @@ class ChatSessionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 class PrescriptionItemSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = PrescriptionItem
-        # آیدی را هم برمی‌گردانیم اما برای کلاینت فقط خواندنی است
-        fields = ['id', 'medicine_name', 'dosage', 'frequency', 'duration']
-        read_only_fields = ['id']
+        fields = [
+            'id', 'drug_name', 'strength_dose', 'form',
+            'frequency', 'duration', 'quantity', 'instructions', 'order'
+        ]
+
 
 class PrescriptionSerializer(serializers.ModelSerializer):
-    # قابلیت نوشتن و خواندن اقلام دارویی به صورت تودرتو
-    items = PrescriptionItemSerializer(many=True)
+    items = PrescriptionItemSerializer(many=True, required=False)
+    registered_doctor_name = serializers.SerializerMethodField(read_only=True)
+    patient_name = serializers.SerializerMethodField(read_only=True)
+    scan_file_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Prescription
         fields = [
-            'id', 'patient', 'registered_doctor', 
+            'uuid', 'patient', 'patient_name', 'registered_doctor', 'registered_doctor_name',
             'external_doctor_name', 'external_doctor_specialty',
-            'visit_date', 'diagnosis', 'notes', 'created_at', 'items'
+            'external_doctor_clinic', 'external_doctor_license_number',
+            'prescribed_date', 'diagnosis', 'notes', 'source',
+            'scan_file', 'scan_file_url', 'created_at', 'updated_at',
+            'is_deleted', 'items'
         ]
-        # پزشک صادرکننده را فقط خواندنی می‌کنیم تا در ویو به صورت خودکار مقداردهی شود
-        read_only_fields = ['id', 'registered_doctor', 'created_at']
+        read_only_fields = [
+            'uuid', 'created_at', 'updated_at', 'is_deleted', 'scan_file_url', 'patient_name'
+        ]
         extra_kwargs = {
-            # اگر بیمار خودش نسخه را آپلود کند، نیازی نیست آیدی خودش را بفرستد
-            'patient': {'required': False} 
+            'patient': {'required': False},
+            'scan_file': {'write_only': True, 'required': False},
         }
 
+    def get_registered_doctor_name(self, obj):
+        if obj.registered_doctor:
+            name = f"{obj.registered_doctor.first_name} {obj.registered_doctor.last_name}".strip()
+            return name if name else obj.registered_doctor.username
+        return None
+
+    def get_patient_name(self, obj):
+        if obj.patient:
+            name = f"{obj.patient.first_name} {obj.patient.last_name}".strip()
+            return name if name else obj.patient.national_code
+        return None
+
+    def get_scan_file_url(self, obj):
+        if obj.scan_file:
+            return f"/api/prescriptions/{obj.uuid}/scan/"
+        return None
+
+    def to_internal_value(self, data):
+        # Support multipart/form-data where items is passed as a JSON string or serialized list
+        if hasattr(data, 'dict'):
+            d = data.dict()
+            if 'scan_file' in data:
+                d['scan_file'] = data['scan_file']
+            data = d
+        elif hasattr(data, 'copy'):
+            data = data.copy()
+
+        if 'items' in data and isinstance(data['items'], str):
+            try:
+                data['items'] = json.loads(data['items'])
+            except (ValueError, TypeError):
+                try:
+                    import ast
+                    val = ast.literal_eval(data['items'])
+                    if isinstance(val, list):
+                        data['items'] = val
+                except (ValueError, SyntaxError):
+                    pass
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        user = request.user if (request and request.user.is_authenticated) else None
+
+        # ۱. مدیریت پرونده بیمار (در ویرایش کاملاً فقط‌خواندنی است)
+        if self.instance is not None:
+            if 'patient' in attrs and attrs['patient'] != self.instance.patient:
+                raise serializers.ValidationError({
+                    "patient": "امکان تغییر بیمار برای نسخه ثبت‌شده وجود ندارد."
+                })
+            attrs.pop('patient', None)
+        else:
+            # در ایجاد: اعتبارسنجی مالکیت یا دسترسی با سطح نوشتن
+            patient = attrs.get('patient')
+            if not patient:
+                own_profile = getattr(user, 'patient_profile', None) if user else None
+                if not own_profile:
+                    raise serializers.ValidationError({
+                        "patient": "پرونده بیماری برای حساب کاربری شما یافت نشد. لطفاً پرونده بیمار مجاز را مشخص کنید."
+                    })
+                attrs['patient'] = own_profile
+            else:
+                own_profile = getattr(user, 'patient_profile', None) if user else None
+                is_own = bool(own_profile and own_profile.id == patient.id)
+                has_write_access = bool(
+                    user and UserPatientAccess.objects.filter(
+                        user=user,
+                        patient=patient,
+                        status='approved',
+                        access_level__in=['owner', 'read_write']
+                    ).exists()
+                )
+                is_staff = bool(user and user.is_staff)
+                if not (is_own or has_write_access or is_staff):
+                    raise serializers.ValidationError({
+                        "patient": "شما مجوز ثبت نسخه برای این پرونده بیمار را ندارید."
+                    })
+
+        # ۲. بررسی انحصاری بودن اطلاعات پزشک صادرکننده
+        registered_doctor = attrs.get('registered_doctor', getattr(self.instance, 'registered_doctor', None))
+        external_name = attrs.get('external_doctor_name', getattr(self.instance, 'external_doctor_name', None))
+
+        has_registered = bool(registered_doctor)
+        has_external = bool(external_name and external_name.strip())
+
+        if has_registered and has_external:
+            raise serializers.ValidationError({
+                "doctor": "لطفاً فقط یکی از دو گزینه (پزشک عضو سامانه یا نام پزشک خارج از سامانه) را انتخاب کنید."
+            })
+        if not has_registered and not has_external:
+            raise serializers.ValidationError({
+                "doctor": "مشخص کردن اطلاعات پزشک صادرکننده (عضو سامانه یا خارج از سامانه) الزامی است."
+            })
+
+        # ۳. اعتبارسنجی اقلام نسخه
+        items = attrs.get('items', None)
+        if self.instance is None and (items is None or len(items) == 0):
+            raise serializers.ValidationError({
+                "items": "ثبت حداقل یک قلم دارویی برای نسخه الزامی است."
+            })
+        if items is not None and len(items) == 0:
+            raise serializers.ValidationError({
+                "items": "ثبت حداقل یک قلم دارویی برای نسخه الزامی است."
+            })
+
+        # ۴. اعتبارسنجی فایل اسکن بر اساس محتوا (Magic Bytes) و حجم فایل
+        scan_file = attrs.get('scan_file')
+        if scan_file:
+            if scan_file.size > 5 * 1024 * 1024:
+                raise serializers.ValidationError({
+                    "scan_file": "حجم فایل اسکن نباید بیش از ۵ مگابایت باشد."
+                })
+            header_bytes = scan_file.read(2048)
+            scan_file.seek(0)
+            is_jpeg = header_bytes.startswith(b'\xff\xd8\xff')
+            is_png = header_bytes.startswith(b'\x89PNG\r\n\x1a\n')
+            is_pdf = header_bytes.startswith(b'%PDF-')
+            is_webp = header_bytes.startswith(b'RIFF') and len(header_bytes) >= 12 and header_bytes[8:12] == b'WEBP'
+            if not (is_jpeg or is_png or is_pdf or is_webp):
+                raise serializers.ValidationError({
+                    "scan_file": "فرمت فایل اسکن مجاز نیست. لطفاً یک تصویر معتبر (JPEG, PNG, WebP) یا فایل PDF ارسال کنید."
+                })
+
+        return attrs
+
+
     def create(self, validated_data):
-        # ۱. استخراج دیتای اقلام دارویی از بدنه درخواست
         items_data = validated_data.pop('items', [])
-        
-        # ۲. ایجاد خود شیء نسخه (بدون اقلام)
-        prescription = Prescription.objects.create(**validated_data)
-        
-        # ۳. حلقه روی اقلام دارویی و ایجاد آن‌ها با اتصال به نسخه ساخته‌شده
-        for item_data in items_data:
-            PrescriptionItem.objects.create(prescription=prescription, **item_data)
-            
+        if not items_data:
+            raise serializers.ValidationError({"items": "ثبت حداقل یک قلم دارویی برای نسخه الزامی است."})
+
+        request = self.context.get('request')
+        user = request.user if (request and request.user.is_authenticated) else None
+        if user and 'created_by' not in validated_data:
+            validated_data['created_by'] = user
+
+        with transaction.atomic():
+            prescription = Prescription.objects.create(**validated_data)
+            for idx, item_data in enumerate(items_data):
+                item_data.pop('id', None)
+                item_data['order'] = idx
+                PrescriptionItem.objects.create(
+                    prescription=prescription,
+                    **item_data
+                )
         return prescription
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', None)
+        request = self.context.get('request')
+        user = request.user if (request and request.user.is_authenticated) else None
+
+        with transaction.atomic():
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            if user:
+                instance.updated_by = user
+            instance.save()
+
+            if items_data is not None:
+                if len(items_data) == 0:
+                    raise serializers.ValidationError({"items": "نسخه باید حداقل شامل یک قلم دارویی فعال باشد."})
+
+                existing_items_dict = {
+                    item.id: item for item in instance.items.filter(is_deleted=False)
+                }
+
+                # اعتبارسنجی اینکه همه شناسه‌های ارسالی متعلق به همین نسخه باشند
+                submitted_ids = set()
+                for item_data in items_data:
+                    item_id = item_data.get('id')
+                    if item_id:
+                        if item_id not in existing_items_dict:
+                            raise serializers.ValidationError({
+                                "items": f"شناسه قلم دارویی {item_id} نامعتبر است یا به این نسخه تعلق ندارد."
+                            })
+                        submitted_ids.add(item_id)
+
+                now = timezone.now()
+                # حذف نرم اقلامی که در آرایه جدید حذف شده‌اند
+                for item_id, existing_item in existing_items_dict.items():
+                    if item_id not in submitted_ids:
+                        existing_item.is_deleted = True
+                        existing_item.deleted_at = now
+                        existing_item.deleted_by = user
+                        existing_item.save(update_fields=['is_deleted', 'deleted_at', 'deleted_by'])
+
+                # ویرایش یا ایجاد اقلام ارسالی با حفظ ترتیب
+                for idx, item_data in enumerate(items_data):
+                    item_id = item_data.get('id')
+                    item_data['order'] = idx
+                    if item_id:
+                        target_item = existing_items_dict[item_id]
+                        for field, val in item_data.items():
+                            if field != 'id':
+                                setattr(target_item, field, val)
+                        target_item.save()
+                    else:
+                        item_data.pop('id', None)
+                        PrescriptionItem.objects.create(
+                            prescription=instance,
+                            **item_data
+                        )
+
+        return instance
+
+
+class PrescriptionDraftItemSchemaSerializer(serializers.Serializer):
+    """طرح‌واره اعتبارسنجی اقلام استخراج‌شده توسط هوش مصنوعی."""
+    drug_name = serializers.CharField(max_length=200, required=True)
+    strength_dose = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    form = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    frequency = serializers.CharField(max_length=150, required=False, allow_blank=True, default='')
+    duration = serializers.CharField(max_length=100, required=False, allow_blank=True, allow_null=True)
+    quantity = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    instructions = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class PrescriptionDraftSchemaSerializer(serializers.Serializer):
+    """طرح‌واره اعتبارسنجی ساختار کلی پیش‌نویس استخراج‌شده از نسخه."""
+    external_doctor_name = serializers.CharField(max_length=150, required=False, allow_blank=True, allow_null=True)
+    external_doctor_specialty = serializers.CharField(max_length=150, required=False, allow_blank=True, allow_null=True)
+    external_doctor_clinic = serializers.CharField(max_length=150, required=False, allow_blank=True, allow_null=True)
+    external_doctor_license_number = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    prescribed_date = serializers.DateField(required=False, allow_null=True)
+    diagnosis = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    items = PrescriptionDraftItemSchemaSerializer(many=True, required=False, default=list)
+

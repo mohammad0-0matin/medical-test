@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import API from '../api';
 import { toast } from 'react-toastify';
@@ -27,54 +27,76 @@ const AiHealthAdvisor = () => {
   };
 
   useEffect(() => {
-    fetchSessions();
+    let ignore = false;
+
+    const loadSessions = async () => {
+      try {
+        const res = await API.get('ai/sessions/');
+        if (!ignore) {
+          setSessions(res.data);
+          if (res.data.length > 0) {
+            setActiveSessionId((prev) => prev || res.data[0].id);
+          }
+        }
+      } catch {
+        if (!ignore) {
+          toast.error('خطا در دریافت لیست گفتگوها');
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingSessions(false);
+        }
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (activeSessionId) {
-      fetchMessages(activeSessionId);
-    } else {
-      setMessages([]);
-    }
+    if (!activeSessionId) return;
+    let ignore = false;
+
+    const loadMessages = async () => {
+      await Promise.resolve();
+      if (ignore) return;
+      setIsLoadingMessages(true);
+      try {
+        const res = await API.get(`ai/sessions/${activeSessionId}/messages/`);
+        if (!ignore) {
+          setMessages(res.data);
+        }
+      } catch {
+        if (!ignore) {
+          toast.error('خطا در بارگذاری پیام‌ها');
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingMessages(false);
+        }
+      }
+    };
+
+    loadMessages();
+
+    return () => {
+      ignore = true;
+    };
   }, [activeSessionId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages, isSending]);
 
-  const fetchSessions = async () => {
-    try {
-      setIsLoadingSessions(true);
-      const res = await API.get('ai/sessions/');
-      setSessions(res.data);
-      if (res.data.length > 0 && !activeSessionId) {
-        setActiveSessionId(res.data[0].id);
-      }
-    } catch (err) {
-      toast.error('خطا در دریافت لیست گفتگوها');
-    } finally {
-      setIsLoadingSessions(false);
-    }
-  };
-
-  const fetchMessages = async (sessionId) => {
-    try {
-      setIsLoadingMessages(true);
-      const res = await API.get(`ai/sessions/${sessionId}/messages/`);
-      setMessages(res.data);
-    } catch (err) {
-      toast.error('خطا در بارگذاری پیام‌ها');
-    } finally {
-      setIsLoadingMessages(false);
-    }
-  };
-
   const handleCreateSession = async () => {
     try {
       const res = await API.post('ai/sessions/', { title: 'گفتگوی جدید' });
       setSessions((prev) => [res.data, ...prev]);
       setActiveSessionId(res.data.id);
-    } catch (err) {
+    } catch {
       toast.error('خطا در ایجاد گفتگوی تازه');
     }
   };
@@ -88,15 +110,19 @@ const AiHealthAdvisor = () => {
       const updated = sessions.filter((s) => s.id !== sessionId);
       setSessions(updated);
       if (activeSessionId === sessionId) {
-        setActiveSessionId(updated.length > 0 ? updated[0].id : null);
+        const nextId = updated.length > 0 ? updated[0].id : null;
+        setActiveSessionId(nextId);
+        if (!nextId) {
+          setMessages([]);
+        }
       }
       toast.info('گفتگو حذف شد');
-    } catch (err) {
+    } catch {
       toast.error('خطا در حذف گفتگو');
     }
   };
 
-  const handleSendMessage = async (textToSend) => {
+  const handleSendMessage = useCallback(async (textToSend) => {
     const text = (textToSend || inputText).trim();
     if (!text || isSending) return;
 
@@ -108,18 +134,20 @@ const AiHealthAdvisor = () => {
         setSessions((prev) => [res.data, ...prev]);
         targetSessionId = res.data.id;
         setActiveSessionId(targetSessionId);
-      } catch (err) {
+      } catch {
         toast.error('ایجاد نشست گفتگو ناموفق بود');
         return;
       }
     }
 
     // اضافه کردن موقت پیام کاربر در UI
+    const tempId = Date.now();
+    const tempIso = new Date().toISOString();
     const tempUserMsg = {
-      id: Date.now(),
+      id: tempId,
       role: 'user',
       content: text,
-      created_at: new Date().toISOString(),
+      created_at: tempIso,
     };
     setMessages((prev) => [...prev, tempUserMsg]);
     setInputText('');
@@ -145,12 +173,12 @@ const AiHealthAdvisor = () => {
             : s
         )
       );
-    } catch (err) {
+    } catch {
       toast.error('ارسال پیام با خطا مواجه شد');
     } finally {
       setIsSending(false);
     }
-  };
+  }, [activeSessionId, inputText, isSending]);
 
   return (
     <div className="ai-layout" dir="rtl">

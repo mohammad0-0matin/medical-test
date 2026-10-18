@@ -1,111 +1,200 @@
+/* ========================================================
+   HealthCard — کارت سلامت دیجیتال هوشمند (Salamat Yar)
+   Physical smart-card realism, glassmorphism, dynamic
+   holographic seal, EMV chip, and role-based theming.
+   ======================================================== */
+
 .hc-scene {
   perspective: 1200px;
   margin-bottom: 28px;
 }
 
+/* Card Container Base */
 .hc-card {
-  --hc-glass: rgba(255, 255, 255, 0.62);
-  --hc-border: rgba(255, 255, 255, 0.85);
+  --hc-glass: rgba(255, 255, 255, 0.85);
+  --hc-card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.8));
+  --hc-border: rgba(226, 232, 240, 0.85);
   --hc-text: #0f172a;
   --hc-sub: #475569;
-  --hc-shadow: rgba(2, 32, 71, 0.3);
+  --hc-shadow: rgba(15, 23, 42, 0.12);
+  --hc-specular: rgba(255, 255, 255, 0.45);
+  --hc-accent: #0f766e;
+  --hc-accent-subtle: rgba(15, 118, 110, 0.1);
+  --hc-border-highlight: rgba(15, 118, 110, 0.45);
 
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 20px;
-  min-height: 196px;
+  gap: 16px;
+  min-height: 220px;
   padding: 22px 26px;
   border-radius: 20px;
   border: 1px solid var(--hc-border);
-  background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(16, 185, 129, 0.12)),
-    var(--hc-glass);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: var(--hc-card-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 24px 44px -20px var(--hc-shadow);
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 20px 44px -18px var(--hc-shadow);
   color: var(--hc-text);
   transform-style: preserve-3d;
-  transition: transform 0.14s ease-out, box-shadow 0.3s ease;
+  transition: transform 0.16s ease-out, box-shadow 0.25s ease;
   will-change: transform;
 }
 
 .hc-card:hover {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 34px 60px -24px var(--hc-shadow);
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 28px 56px -20px var(--hc-shadow);
 }
 
-[data-theme='dark'] .hc-card {
-  --hc-glass: rgba(13, 22, 40, 0.72);
-  --hc-border: rgba(96, 165, 250, 0.28);
-  --hc-text: #e6edf3;
-  --hc-sub: #93a5bd;
+/* --------------------------------------------------------
+   Role-Based Themes: Standard (Patient), Doctor, Staff
+   -------------------------------------------------------- */
+
+/* 1. Patient / Standard Role (Teal / Emerald) */
+.hc-card.hc-theme-standard {
+  --hc-accent: #0f766e;
+  --hc-accent-subtle: rgba(15, 118, 110, 0.1);
+  --hc-border-highlight: rgba(15, 118, 110, 0.45);
+}
+
+/* 2. Doctor Role (Royal Medical Sapphire / Platinum) */
+.hc-card.hc-theme-doctor {
+  --hc-accent: #2563eb;
+  --hc-accent-subtle: rgba(37, 99, 235, 0.1);
+  --hc-border-highlight: rgba(59, 130, 246, 0.55);
+}
+
+/* 3. Clinical Staff Role (Deep Mint / Emerald) */
+.hc-card.hc-theme-staff {
+  --hc-accent: #059669;
+  --hc-accent-subtle: rgba(5, 150, 105, 0.1);
+  --hc-border-highlight: rgba(16, 185, 129, 0.5);
+}
+
+/* --------------------------------------------------------
+   Dark Theme Adjustments
+   -------------------------------------------------------- */
+[data-theme='dark'] .hc-card,
+html[data-theme='dark'] .hc-card,
+.dark .hc-card {
+  --hc-glass: rgba(16, 26, 46, 0.84);
+  --hc-card-bg: linear-gradient(135deg, rgba(16, 26, 46, 0.88), rgba(11, 20, 36, 0.94));
+  --hc-border: rgba(255, 255, 255, 0.12);
+  --hc-text: #e2e8f0;
+  --hc-sub: #94a3b8;
   --hc-shadow: rgba(0, 0, 0, 0.55);
+  --hc-specular: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 24px 48px -18px var(--hc-shadow);
 }
 
-.hc-holo {
-  content: '';
+[data-theme='dark'] .hc-card.hc-theme-standard,
+html[data-theme='dark'] .hc-card.hc-theme-standard {
+  --hc-accent: #2dd4bf;
+  --hc-accent-subtle: rgba(45, 212, 191, 0.12);
+  --hc-border-highlight: rgba(45, 212, 191, 0.45);
+}
+
+[data-theme='dark'] .hc-card.hc-theme-doctor,
+html[data-theme='dark'] .hc-card.hc-theme-doctor {
+  --hc-accent: #60a5fa;
+  --hc-accent-subtle: rgba(96, 165, 250, 0.14);
+  --hc-border-highlight: rgba(96, 165, 250, 0.5);
+}
+
+[data-theme='dark'] .hc-card.hc-theme-staff,
+html[data-theme='dark'] .hc-card.hc-theme-staff {
+  --hc-accent: #34d399;
+  --hc-accent-subtle: rgba(52, 211, 153, 0.12);
+  --hc-border-highlight: rgba(52, 211, 153, 0.45);
+}
+
+/* --------------------------------------------------------
+   Dynamic Lighting Overlays & Border Glow
+   -------------------------------------------------------- */
+
+/* Role Top Accent Ribbon */
+.hc-role-ribbon {
   position: absolute;
-  inset: -45%;
-  background: conic-gradient(
-    from 180deg at 50% 50%,
-    transparent 0deg,
-    rgba(59, 130, 246, 0.16) 70deg,
-    rgba(16, 185, 129, 0.15) 150deg,
-    transparent 230deg,
-    rgba(139, 92, 246, 0.13) 310deg,
-    transparent 360deg
+  top: 0;
+  inset-inline: 0;
+  height: 3.5px;
+  background: linear-gradient(90deg, transparent, var(--hc-accent), transparent);
+  opacity: 0.85;
+  z-index: 3;
+}
+
+/* Specular Border Glow following cursor */
+.hc-border-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: radial-gradient(
+    380px circle at var(--shine-x, 50%) var(--shine-y, 50%),
+    var(--hc-border-highlight),
+    transparent 72%
   );
-  animation: hc-spin 16s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
   pointer-events: none;
+  opacity: 0.75;
+  transition: opacity 0.25s ease;
+  z-index: 2;
 }
 
-@keyframes hc-spin {
-  to {
-    transform: rotate(360deg);
-  }
+.hc-card:hover .hc-border-glow {
+  opacity: 1;
 }
 
+/* Surface Specular Reflection */
 .hc-shine {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background: radial-gradient(
     440px circle at var(--shine-x, 50%) var(--shine-y, 50%),
-    rgba(255, 255, 255, 0.35),
-    transparent 55%
+    var(--hc-specular),
+    transparent 58%
   );
   opacity: 0;
   transition: opacity 0.25s ease;
+  z-index: 2;
 }
 
 .hc-card:hover .hc-shine {
   opacity: 1;
 }
 
-[data-theme='dark'] .hc-shine {
-  background: radial-gradient(
-    440px circle at var(--shine-x, 50%) var(--shine-y, 50%),
-    rgba(147, 197, 253, 0.18),
-    transparent 55%
-  );
-}
-
-.hc-top,
-.hc-body,
-.hc-brand,
-.hc-details,
-.hc-meta {
-  position: relative;
+/* Subtle Guilloche Security Watermark */
+.hc-watermark {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.04;
+  color: var(--hc-text);
   z-index: 1;
 }
 
+[data-theme='dark'] .hc-watermark,
+html[data-theme='dark'] .hc-watermark {
+  opacity: 0.07;
+}
+
+/* --------------------------------------------------------
+   Header Section
+   -------------------------------------------------------- */
 .hc-top {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -116,21 +205,19 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.92rem;
-  font-weight: 800;
-  letter-spacing: 0.2px;
 }
 
 .hc-logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 10px;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb, #10b981);
-  box-shadow: 0 6px 14px -6px rgba(37, 99, 235, 0.6);
+  background: linear-gradient(135deg, var(--hc-accent), #0f172a);
+  box-shadow: 0 4px 12px -3px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
 }
 
 .hc-logo svg {
@@ -138,74 +225,367 @@
   height: 18px;
 }
 
+.hc-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.hc-app-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.2px;
+}
+
+.hc-app-sub {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--hc-sub);
+}
+
+.hc-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .hc-pass-type {
-  padding: 4px 12px;
+  padding: 3px 12px;
   border: 1px solid var(--hc-border);
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.25);
-  font-size: 0.75rem;
+  background: var(--hc-accent-subtle);
+  color: var(--hc-accent);
+  font-size: 0.74rem;
   font-weight: 700;
 }
 
-[data-theme='dark'] .hc-pass-type {
-  background: rgba(96, 165, 250, 0.1);
+/* --------------------------------------------------------
+   Physical Smart Card Tier: EMV Chip & Holographic Seal
+   -------------------------------------------------------- */
+.hc-hardware-tier {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 6px;
 }
 
+/* EMV Chip and Contactless Wave */
+.hc-chip-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hc-emv-chip {
+  width: 44px;
+  height: 33px;
+  border-radius: 6px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.14));
+  transition: transform 0.2s ease;
+}
+
+.hc-card:hover .hc-emv-chip {
+  transform: translateZ(10px);
+}
+
+.hc-nfc-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--hc-sub);
+  opacity: 0.75;
+}
+
+.hc-nfc-symbol svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Dynamic Holographic Security Seal */
+.hc-holo-seal {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow:
+    0 4px 12px -2px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.hc-card:hover .hc-holo-seal {
+  transform: translateZ(12px);
+}
+
+.hc-holo-disc {
+  position: absolute;
+  inset: -50%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from var(--holo-angle, 0deg) at 50% 50%,
+    #ff007f 0deg,
+    #ff8800 60deg,
+    #22c55e 120deg,
+    #06b6d4 180deg,
+    #6366f1 240deg,
+    #ec4899 300deg,
+    #ff007f 360deg
+  );
+  opacity: 0.78;
+  filter: blur(1.5px);
+  mix-blend-mode: hard-light;
+}
+
+.hc-holo-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at var(--shine-x, 50%) var(--shine-y, 50%),
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.25) 35%,
+    transparent 68%
+  );
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+
+.hc-holo-svg {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  color: #ffffff;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.5));
+}
+
+.hc-seal-text {
+  font-size: 3.1px;
+  font-weight: 700;
+  letter-spacing: 0.35px;
+}
+
+/* --------------------------------------------------------
+   Card Body & Identity Details
+   -------------------------------------------------------- */
 .hc-body {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
 }
 
-.hc-name {
-  margin: 0;
-  font-size: clamp(1.3rem, 2.6vw, 1.7rem);
-  font-weight: 900;
-  line-height: 1.4;
+.hc-details {
+  flex: 1;
+  min-width: 0;
 }
 
-.hc-role {
-  margin: 2px 0 14px;
-  color: var(--hc-sub);
-  font-size: 0.85rem;
-  font-weight: 600;
+.hc-name {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--hc-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hc-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+
+.hc-insurance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--hc-accent-subtle);
+  color: var(--hc-accent);
+  border: 1px solid var(--hc-border);
+}
+
+.hc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(21, 128, 61, 0.1);
+  color: #15803d;
+  border: 1px solid rgba(21, 128, 61, 0.25);
+}
+
+[data-theme='dark'] .hc-status-pill,
+html[data-theme='dark'] .hc-status-pill {
+  background: rgba(34, 197, 94, 0.14);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+/* Meta Data (National Code & Medical ID) */
+.hc-meta {
+  margin: 0;
+}
+
+.hc-meta-medical-id {
+  margin-bottom: 6px;
 }
 
 .hc-meta dt {
   color: var(--hc-sub);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
-.hc-meta dd {
-  margin: 4px 0 0;
+.hc-meta dd.hc-code-val {
+  margin: 2px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 1.15rem;
   font-weight: 800;
-  letter-spacing: 2px;
+  font-family: var(--font-mono, monospace);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 1.5px;
+  color: var(--hc-text);
 }
 
+.hc-national-digits {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Privacy Mask Toggle Button */
+.hc-mask-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid var(--hc-border);
+  background: rgba(255, 255, 255, 0.4);
+  color: var(--hc-sub);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme='dark'] .hc-mask-btn,
+html[data-theme='dark'] .hc-mask-btn {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.hc-mask-btn:hover {
+  color: var(--hc-accent);
+  border-color: var(--hc-accent);
+  background: var(--hc-accent-subtle);
+}
+
+.hc-mask-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--hc-accent);
+}
+
+.hc-mask-btn:active {
+  transform: scale(0.92);
+}
+
+.hc-mask-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* --------------------------------------------------------
+   Verified QR Code Container
+   -------------------------------------------------------- */
 .hc-qr {
   flex-shrink: 0;
-  width: 84px;
-  height: 84px;
-  padding: 9px;
-  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 7px;
+  border-radius: 12px;
   background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.08),
-    0 10px 20px -10px rgba(2, 32, 71, 0.45);
+    0 4px 14px -4px rgba(15, 23, 42, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transition: transform 0.2s ease;
+}
+
+.hc-card:hover .hc-qr {
+  transform: translateZ(8px);
 }
 
 .hc-qr svg {
   display: block;
-  width: 100%;
-  height: 100%;
+  border-radius: 4px;
 }
 
+.hc-qr-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.2px;
+}
+
+.hc-qr-clickable {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.hc-qr-clickable:hover {
+  transform: translateZ(14px) scale(1.05);
+  box-shadow:
+    0 8px 22px -4px rgba(124, 58, 237, 0.35),
+    0 0 0 2px #7c3aed;
+  border-color: #7c3aed;
+}
+
+.hc-qr-clickable:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px #7c3aed;
+}
+
+.hc-qr-clickable:active {
+  transform: translateZ(10px) scale(0.98);
+}
+
+.hc-qr-clickable .hc-qr-label {
+  color: #7c3aed;
+  font-weight: 800;
+}
+
+/* --------------------------------------------------------
+   Responsive & Accessibility
+   -------------------------------------------------------- */
 @media (max-width: 640px) {
+  .hc-card {
+    padding: 18px 20px;
+    min-height: auto;
+  }
+
   .hc-body {
     flex-direction: column;
     align-items: flex-start;
@@ -214,7 +594,37 @@
 
   .hc-qr {
     order: -1;
-    width: 68px;
-    height: 68px;
+    align-self: flex-end;
+  }
+}
+
+/* Reduced Motion Mode (Required by motion skill & DESIGN.md) */
+@media (prefers-reduced-motion: reduce) {
+  .hc-card {
+    transition: none !important;
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .hc-card:hover {
+    transform: none !important;
+  }
+
+  .hc-emv-chip,
+  .hc-holo-seal,
+  .hc-qr {
+    transform: none !important;
+    transition: none !important;
+  }
+
+  .hc-holo-disc {
+    background: conic-gradient(
+      from 45deg at 50% 50%,
+      #22c55e,
+      #06b6d4,
+      #6366f1,
+      #ec4899,
+      #22c55e
+    );
   }
 }
