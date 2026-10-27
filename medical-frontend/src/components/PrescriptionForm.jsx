@@ -580,7 +580,7 @@ const PrescriptionForm = ({ initialData = null, isEdit = false, onSuccess = null
           <div style={{ marginBottom: '1.75rem' }}>
             <div className="rx-items-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
                   اقلام دارویی نسخه ({fields.length} قلم)
                   <span className="required-star">*</span>
                 </h3>
@@ -615,7 +615,7 @@ const PrescriptionForm = ({ initialData = null, isEdit = false, onSuccess = null
                     <button
                       type="button"
                       className="rx-btn rx-btn-destructive"
-                      style={{ minHeight: '32px', padding: '0.25rem 0.6rem', fontSize: '0.8125rem' }}
+                      style={{ minHeight: '32px', padding: '0.25rem 0.65rem', fontSize: '0.84rem', fontWeight: 600 }}
                       onClick={() => remove(index)}
                       aria-label={`حذف داروی شماره ${index + 1}`}
                     >
@@ -776,7 +776,7 @@ const PrescriptionForm = ({ initialData = null, isEdit = false, onSuccess = null
         <aside className="rx-live-preview-card" aria-label="پیش‌نمایش زنده نسخه">
           <div className="rx-preview-header">
             <h3 className="rx-preview-title">℞ سربرگ نسخه دیجیتال</h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 500, color: 'var(--text-body)' }}>
               سامانه هوشمند سلامت‌یار
             </span>
             <div>
@@ -823,7 +823,7 @@ const PrescriptionForm = ({ initialData = null, isEdit = false, onSuccess = null
           )}
 
           <div style={{ borderTop: '1px solid var(--border)', marginTop: '0.75rem', paddingTop: '0.75rem' }}>
-            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-strong)', display: 'block', marginBottom: '0.4rem' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-strong)', display: 'block', marginBottom: '0.4rem' }}>
               اقلام تجویزشده ({watchedItems?.length || 0}):
             </span>
             {watchedItems && watchedItems.length > 0 ? (
@@ -836,13 +836,13 @@ const PrescriptionForm = ({ initialData = null, isEdit = false, onSuccess = null
                     <strong>{med.drug_name || `داروی ${idx + 1}`}</strong>
                     {med.strength_dose ? ` (${med.strength_dose})` : ''}
                   </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ color: 'var(--text-body)', fontSize: '0.84rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                     {med.frequency || med.quantity || '—'}
                   </span>
                 </div>
               ))
             ) : (
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.86rem', fontWeight: 500, color: 'var(--text-body)' }}>
                 هنوز دارویی ثبت نشده است.
               </span>
             )}

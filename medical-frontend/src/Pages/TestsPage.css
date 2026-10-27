@@ -447,6 +447,14 @@
   background-color: var(--primary-subtle);
 }
 
+.tests-icon-btn.has-attachment {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: var(--primary-subtle);
+  font-weight: 700;
+  gap: 3px;
+}
+
 .tests-media-group,
 .tests-actions-group {
   display: flex;
@@ -597,3 +605,186 @@
     justify-content: center;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Print Document Host
+   -------------------------------------------------------------------------- */
+.tests-print-host {
+  position: absolute;
+  left: -99999px;
+  top: -99999px;
+  width: 210mm;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media print {
+  .tests-print-host {
+    position: static;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    opacity: 1;
+    display: block !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Creator Subtext & Pending Status Pill
+   -------------------------------------------------------------------------- */
+.tests-creator-subtext {
+  font-size: 0.75rem;
+  color: var(--muted-foreground, #64748b);
+  margin-top: 4px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.tests-pill-pending {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: var(--warning, #b45309);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+[data-theme='dark'] .tests-pill-pending {
+  background-color: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   Incoming Pending Tests Review Banner
+   -------------------------------------------------------------------------- */
+.tests-inbox-banner {
+  background-color: var(--card, #ffffff);
+  border: 1px solid var(--primary, #0f766e);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px -4px rgba(15, 118, 110, 0.15);
+}
+
+.tests-inbox-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.tests-inbox-badge-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.tests-inbox-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tests-inbox-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--foreground, #0f172a);
+}
+
+.tests-inbox-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-foreground, #64748b);
+  line-height: 1.5;
+}
+
+.tests-inbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.tests-inbox-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: var(--muted, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px 16px;
+  gap: 12px;
+}
+
+[data-theme='dark'] .tests-inbox-card {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.tests-inbox-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.tests-inbox-card-title {
+  font-size: 0.95rem;
+  color: var(--foreground, #0f172a);
+}
+
+.tests-inbox-card-date {
+  font-size: 0.8rem;
+  color: var(--muted-foreground, #64748b);
+}
+
+.tests-inbox-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.825rem;
+  color: var(--muted-foreground, #475569);
+}
+
+.tests-inbox-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.tests-btn-approve {
+  flex: 1;
+  background-color: var(--primary, #0f766e);
+  color: var(--primary-foreground, #ffffff);
+  border: none;
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  font-family: inherit;
+}
+
+.tests-btn-approve:hover {
+  opacity: 0.9;
+}
+
+.tests-btn-reject {
+  background-color: transparent;
+  color: var(--destructive, #b91c1c);
+  border: 1px solid var(--destructive, #b91c1c);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.tests-btn-reject:hover {
+  background-color: rgba(185, 28, 28, 0.08);
+}
+

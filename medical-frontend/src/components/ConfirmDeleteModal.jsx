@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import './AddTestModal.css'; // استفاده از استایل‌های مشترک مودال
 
 /**
  * TrashIcon: آیکون هشدار سطل زباله
  */
 const TrashIcon = () => (
-    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#dc2626" strokeWidth="2"
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" strokeWidth="2"
         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
         <line x1="10" y1="11" x2="10" y2="17" />
@@ -40,14 +41,44 @@ const ConfirmDeleteModal = ({
     message = "آیا از حذف این نتیجه آزمایش اطمینان دارید؟ این عملیات غیرقابل بازگشت است.",
     loading = false
 }) => {
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && !loading) {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, loading, onClose]);
+
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay" dir="rtl">
+        <div 
+            className="modal-overlay" 
+            dir="rtl" 
+            style={{ zIndex: 1100 }}
+            onClick={(e) => {
+                if (e.target === e.currentTarget && !loading) {
+                    onClose();
+                }
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-delete-title"
+        >
             <div className="modal-container" style={{ maxWidth: '420px', textAlign: 'center' }}>
                 <div className="modal-header" style={{ justifyContent: 'space-between' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b' }}>{title}</h3>
-                    <button onClick={onClose} className="close-btn" aria-label="بستن پنجره">
+                    <h3 id="confirm-delete-title" style={{ margin: 0, fontSize: '1.1rem', color: 'var(--foreground, #0f172a)' }}>
+                        {title}
+                    </h3>
+                    <button 
+                        onClick={onClose} 
+                        disabled={loading}
+                        className="close-btn" 
+                        aria-label="بستن پنجره"
+                    >
                         <CloseGlyph />
                     </button>
                 </div>
@@ -60,7 +91,8 @@ const ConfirmDeleteModal = ({
                         marginBottom: '16px'
                     }}>
                         <div style={{
-                            backgroundColor: '#fee2e2',
+                            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                            color: 'var(--destructive, #dc2626)',
                             borderRadius: '50%',
                             padding: '14px',
                             display: 'flex'
@@ -71,7 +103,7 @@ const ConfirmDeleteModal = ({
 
                     <p style={{
                         fontSize: '0.95rem',
-                        color: '#475569',
+                        color: 'var(--muted-foreground, #475569)',
                         lineHeight: '1.6',
                         margin: 0
                     }}>
@@ -86,8 +118,8 @@ const ConfirmDeleteModal = ({
                         disabled={loading}
                         className="btn-submit"
                         style={{
-                            backgroundColor: '#dc2626',
-                            color: '#ffffff',
+                            backgroundColor: 'var(--destructive, #dc2626)',
+                            color: 'var(--destructive-foreground, #ffffff)',
                             border: 'none',
                             padding: '8px 20px',
                             borderRadius: '6px',

@@ -401,7 +401,11 @@ const TestForm = ({ onSuccess, onCancel, initialData = null }) => {
         });
       }
 
-      toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!');
+      if (createdTest?.status === 'pending') {
+        toast.info('🧪 نتیجه آزمایش ثبت شد و جهت بررسی و تأیید برای بیمار ارسال گردید.');
+      } else {
+        toast.success('🧪 نتیجه آزمایش با موفقیت ثبت شد!');
+      }
 
       if (onSuccess) {
         onSuccess(createdTest);

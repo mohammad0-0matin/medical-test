@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import API from '../api';
 import { toast } from 'react-toastify';
+import ConfirmDeleteModal from './ConfirmDeleteModal';
 import './AddTestModal.css';
 import './AttachmentModal.css';
 
@@ -60,7 +61,7 @@ const CloseGlyph = () => (
 const formatDate = (value) => {
   if (!value) return '—';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '—' : new Intl.DateTimeFormat('fa-IR').format(parsed);
+  return Number.isNaN(parsed.getTime()) ? '—' : new Intl.DateTimeFormat('fa-IR-u-nu-latn').format(parsed);
 };
 
 /** Renders a byte count as a human-readable kilobyte label (minimum 1 KB). */
@@ -70,48 +71,67 @@ const formatSize = (bytes) => `${Math.max(1, Math.round((bytes || 0) / 1024))} �
 const isAllowedFile = (file) =>
   !!file && (file.type.startsWith('image/') || (file.name || '').toLowerCase().endsWith('.pdf'));
 
+/** Resolves download/view URL ensuring absolute backend address when path is relative. */
+const resolveFileUrl = (filePath) => {
+  if (!filePath) return '#';
+  if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+    return filePath;
+  }
+  const backendOrigin = 'http://127.0.0.1:8000';
+  return `${backendOrigin}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+};
+
 /**
  * Attachment manager for a test result: drag-&-drop upload zone with live
  * progress bar, attachment cards (view/delete) and optimistic local list sync.
  *
- * Uses a render-phase sync-key pattern instead of effects to reset transient
- * state each time the modal opens for a given test id.
- *
- * @param {{isOpen: boolean, onClose: Function, testData: object|null,
+ * @param {{isOpen: boolean, onClose: Function, testData?: object|null,
+ *          test?: object|null, testId?: string|number,
  *          onUploadSuccess?: Function}} props - Modal props.
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Requests closing the modal.
- * @param {object|null} props.testData - Test record whose attachments are managed.
- * @param {Function} [props.onUploadSuccess] - Refreshes the dashboard table.
  * @returns {JSX.Element|null} Attachment manager modal, or null when closed.
  */
-const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
+const AttachmentModal = ({ isOpen, onClose, testData, test, testId, onUploadSuccess }) => {
+  const currentTest = testData || test || (testId ? { id: testId } : null);
+
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [deletingId, setDeletingId] = useState(null);
-  const [attachments, setAttachments] = useState([]);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [remoteAttachments, setRemoteAttachments] = useState(null);
   const inputRef = useRef(null);
 
-  // Re-sync the attachment list from testData whenever the modal opens for a test.
-  // (Render-phase state adjustment pattern instead of useEffect.)
-  const [syncedKey, setSyncedKey] = useState('idle');
-  const syncKey = isOpen && testData ? `att-${testData.id}` : 'idle';
+  const targetTestId = currentTest?.id || testId;
 
-  if (syncKey !== syncedKey) {
-    setSyncedKey(syncKey);
-    if (isOpen && testData) {
-      setAttachments(testData.attachments || []);
-      setSelectedFile(null);
-      setError(null);
-      setUploadProgress(0);
-      setDragActive(false);
-    }
-  }
+  // Fetch latest attachments from server on mount or when targetTestId changes
+  useEffect(() => {
+    if (!targetTestId) return;
 
-  if (!isOpen || !testData) return null;
+    let isCancelled = false;
+    API.get(`attachments/?test_result=${targetTestId}`)
+      .then((res) => {
+        if (isCancelled) return;
+        const list = Array.isArray(res.data) ? res.data : (res.data?.results || []);
+        setRemoteAttachments(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          console.warn('Could not fetch attachments from server:', err);
+          setRemoteAttachments([]);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [targetTestId]);
+
+  if (!isOpen || !currentTest) return null;
+
+  const loadingList = remoteAttachments === null;
+  const attachments = remoteAttachments !== null ? remoteAttachments : (currentTest.attachments || []);
 
   /** Validates then stages a picked/dropped file in the upload chip. */
   const acceptFile = (file) => {
@@ -163,12 +183,12 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
     setUploadProgress(0);
 
     const formData = new FormData();
-    formData.append('test_result', testData.id);
+    formData.append('test_result', targetTestId);
 
     // Field names match the Attachment model exactly.
     formData.append('file_path', selectedFile);           // The uploaded file itself
-    formData.append('file_name', selectedFile.name);      // Original display name
-    formData.append('mime_type', selectedFile.type);      // MIME type, e.g. image/png or application/pdf
+    formData.append('file_name', (selectedFile.name || 'attachment').slice(0, 190));
+    formData.append('mime_type', (selectedFile.type || 'application/octet-stream').slice(0, 50));
 
     try {
       const response = await API.post('attachments/', formData, {
@@ -180,39 +200,86 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
       });
 
       if (response?.data?.id) {
-        setAttachments((prev) => [...prev, response.data]);
+        setRemoteAttachments((prev) => {
+          const base = prev !== null ? prev : (currentTest.attachments || []);
+          const exists = base.some((a) => a.id === response.data.id);
+          return exists ? base : [response.data, ...base];
+        });
+        setLoading(false);
+        setSelectedFile(null); // Clear the selected-file chip after a successful upload
+        setUploadProgress(0);
+        toast.success('📎 فایل پیوست با موفقیت آپلود شد!');
+        onUploadSuccess?.(response.data); // Let the dashboard/tests page refresh its data table
       }
-
-      setLoading(false);
-      setSelectedFile(null); // Clear the selected-file chip after a successful upload
-      setUploadProgress(0);
-      toast.success('📎 فایل پیوست با موفقیت آپلود شد!');
-      onUploadSuccess(); // Let the dashboard refresh its data table
     } catch (err) {
       setLoading(false);
       console.error('Upload Error:', err.response?.data || err.message);
-      setError('خطا در آپلود فایل. لطفاً دوباره تلاش کنید.');
+      let errorMsg = 'خطا در آپلود فایل. لطفاً دوباره تلاش کنید.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMsg = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMsg = err.response.data.detail;
+        } else {
+          const firstVal = Object.values(err.response.data)[0];
+          if (Array.isArray(firstVal) && firstVal.length > 0) {
+            errorMsg = firstVal[0];
+          } else if (typeof firstVal === 'string') {
+            errorMsg = firstVal;
+          }
+        }
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      setError(errorMsg);
+      toast.error(errorMsg);
     }
   };
 
-  /** Confirm-guarded DELETE of one attachment with spinner-driven pending state. */
-  const handleDelete = async (attachment) => {
-    if (!window.confirm(`حذف پیوست «${attachment.file_name}»؟ این عملیات قابل بازگشت نیست.`)) return;
+  /** Opens custom confirmation modal for the given attachment. */
+  const handleDeleteClick = (attachment) => {
+    setDeleteTarget(attachment);
+  };
 
-    setDeletingId(attachment.id);
+  /** Confirm-guarded DELETE of one attachment with spinner-driven pending state. */
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    const attachmentToDelete = deleteTarget;
+    setDeletingId(attachmentToDelete.id);
     try {
-      await API.delete(`attachments/${attachment.id}/`);
-      setAttachments((prev) => prev.filter((item) => item.id !== attachment.id));
-      toast.success('🗑️ پیوست با موفقیت حذف شد.');
-    } catch {
-      toast.error('خطا در حذف پیوست. لطفاً دوباره تلاش کنید.');
+      await API.delete(`attachments/${attachmentToDelete.id}/`);
+      setRemoteAttachments((prev) => {
+        const base = prev !== null ? prev : (currentTest.attachments || []);
+        return base.filter((item) => item.id !== attachmentToDelete.id);
+      });
+      setDeleteTarget(null);
+      toast.success(`پیوست «${attachmentToDelete.file_name || 'فایل'}» با موفقیت حذف شد.`);
+      onUploadSuccess?.(null, attachmentToDelete.id);
+    } catch (err) {
+      console.error('Delete Attachment Error:', err);
+      let errorMsg = 'خطا در حذف پیوست. لطفاً دوباره تلاش کنید.';
+      if (err.response?.data?.detail) {
+        errorMsg = err.response.data.detail;
+      }
+      toast.error(errorMsg);
     } finally {
       setDeletingId(null);
     }
   };
 
+  const patientDisplayName =
+    currentTest.patient_name ||
+    (currentTest.patient && typeof currentTest.patient === 'object'
+      ? `${currentTest.patient.first_name || ''} ${currentTest.patient.last_name || ''}`.trim()
+      : (currentTest.patient ? `بیمار #${currentTest.patient}` : ''));
+
+  const testTypeDisplayName =
+    currentTest.test_type_name || currentTest.test_name || currentTest.name || '';
+
   return (
-    <div className="modal-overlay" dir="rtl">
+    <>
+      <div className="modal-overlay" dir="rtl">
       <div className="modal-container">
         <div className="modal-header">
           <h2>پیوست‌های آزمایش</h2>
@@ -223,12 +290,16 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
 
         <div className="modal-body">
           <p className="att-subtitle">
-            بیمار: <strong>{testData.patient?.first_name} {testData.patient?.last_name}</strong>
-            <span className="att-badge">{testData.test_type_name}</span>
+            {patientDisplayName && <>بیمار: <strong>{patientDisplayName}</strong> </>}
+            {testTypeDisplayName && <span className="att-badge">{testTypeDisplayName}</span>}
           </p>
 
           <h3 className="att-section-title">فایل‌های آپلود شده:</h3>
-          {attachments.length > 0 ? (
+          {loadingList && attachments.length === 0 ? (
+            <div className="att-empty">
+              <span className="btn-spinner" /> در حال دریافت پیوست‌ها...
+            </div>
+          ) : attachments.length > 0 ? (
             <ul className="att-list">
               {attachments.map((file, index) => (
                 <li key={file.id} className="att-card">
@@ -239,14 +310,14 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
                   </span>
                   <span className="att-actions">
                     {/* file_path holds the download URL */}
-                    <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="att-view">
+                    <a href={resolveFileUrl(file.file_path)} target="_blank" rel="noopener noreferrer" className="att-view">
                       <EyeGlyph />
                       مشاهده
                     </a>
                     <button
                       type="button"
                       className="att-delete"
-                      onClick={() => handleDelete(file)}
+                      onClick={() => handleDeleteClick(file)}
                       disabled={deletingId === file.id}
                       aria-label={`حذف ${file.file_name || 'پیوست'}`}
                       title={deletingId === file.id ? 'در حال حذف...' : 'حذف'}
@@ -326,7 +397,22 @@ const AttachmentModal = ({ isOpen, onClose, testData, onUploadSuccess }) => {
         </div>
       </div>
     </div>
-  );
+
+    {/* Custom Accessible Confirmation Modal for Deleting Attachment */}
+    <ConfirmDeleteModal
+      isOpen={Boolean(deleteTarget)}
+      onClose={() => !deletingId && setDeleteTarget(null)}
+      onConfirm={handleConfirmDelete}
+      title="حذف فایل پیوست"
+      message={
+        deleteTarget
+          ? `آیا از حذف پیوست «${deleteTarget.file_name || 'فایل انتخابی'}» اطمینان دارید؟ این عملیات غیرقابل بازگشت است.`
+          : ''
+      }
+      loading={Boolean(deletingId)}
+    />
+  </>
+);
 };
 
 export default AttachmentModal;

@@ -27,6 +27,8 @@ const HealthCardPage = () => {
 
   const [profile, setProfile] = useState(null);
   const [dependents, setDependents] = useState([]);
+  const [tests, setTests] = useState([]);
+  const [healthSummary, setHealthSummary] = useState(null);
   const [selectedPerson, setSelectedPerson] = useState('self');
   const [loading, setLoading] = useState(true);
 
@@ -47,13 +49,20 @@ const HealthCardPage = () => {
     let ignore = false;
     const fetchCardData = async () => {
       try {
-        const [profileRes, depsRes] = await Promise.all([
+        const [profileRes, depsRes, testsRes, summaryRes] = await Promise.all([
           API.get('patients/me/'),
           API.get('access/dependents/').catch(() => ({ data: [] })),
+          API.get('test-results/').catch(() => ({ data: [] })),
+          API.get('health-summary/').catch(() => ({ data: null })),
         ]);
         if (!ignore) {
           setProfile(profileRes.data);
           setDependents(depsRes.data || []);
+          const testList = Array.isArray(testsRes.data)
+            ? testsRes.data
+            : testsRes.data?.results || [];
+          setTests(testList);
+          setHealthSummary(summaryRes.data || null);
           setLoading(false);
         }
       } catch (err) {
@@ -327,6 +336,9 @@ const HealthCardPage = () => {
         <TemporaryAccessModal
           isOpen={isTempAccessOpen}
           onClose={() => setIsTempAccessOpen(false)}
+          profile={profile}
+          tests={tests}
+          healthSummary={healthSummary}
         />
       )}
     </div>

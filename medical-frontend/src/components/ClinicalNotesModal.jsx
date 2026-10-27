@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
+import API from '../api';
 import {
   getClinicalNote,
   saveClinicalNote,
@@ -38,25 +39,21 @@ const EMPTY_FORM = {
  * and signer name. Doctor-role users receive their name auto-prefilled
  * via {@link doctorPrefill}. Saving an entirely empty form deletes the entry.
  *
- * @param {{isOpen: boolean, onClose: Function, test: object|null,
+ * @param {{isOpen: boolean, onClose: Function, test?: object|null, testData?: object|null,
  *          doctorPrefill?: string, onSaved?: Function,
  *          onDeleted?: Function}} props - Modal props.
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Requests closing the modal.
- * @param {object|null} props.test - Test result being annotated.
- * @param {string} [props.doctorPrefill] - Pre-filled signer name for doctors.
- * @param {Function} [props.onSaved] - Called with (testId, storedEntry).
- * @param {Function} [props.onDeleted] - Called with testId when removed.
  * @returns {JSX.Element|null} Clinical-notes modal, or null when closed.
  */
 const ClinicalNotesModal = ({
   isOpen,
   onClose,
   test,
+  testData,
   doctorPrefill = '',
   onSaved,
   onDeleted,
 }) => {
+  const currentTest = test || testData;
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [existingUpdatedAt, setExistingUpdatedAt] = useState('');
   const [hasExisting, setHasExisting] = useState(false);
@@ -64,61 +61,79 @@ const ClinicalNotesModal = ({
   // Load the existing note every time the modal opens for a test.
   // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedKey, setSyncedKey] = useState('closed');
-  const openKey = isOpen && test ? `cn-${test.id}` : 'closed';
+  const openKey = isOpen && currentTest ? `cn-${currentTest.id}` : 'closed';
 
   if (openKey !== syncedKey) {
     setSyncedKey(openKey);
-    if (isOpen && test) {
-      const note = getClinicalNote(test.id);
+    if (isOpen && currentTest) {
+      const note = getClinicalNote(currentTest.id);
       if (note) {
         setFormData({
           fastingHours: note.fastingHours || '',
           medications: note.medications || '',
-          notes: note.notes || '',
+          notes: note.notes || currentTest.notes || '',
           doctorName: note.doctorName || '',
         });
         setExistingUpdatedAt(note.updatedAt || '');
         setHasExisting(true);
       } else {
-        setFormData({ ...EMPTY_FORM, doctorName: doctorPrefill });
+        setFormData({
+          ...EMPTY_FORM,
+          notes: currentTest.notes || '',
+          doctorName: doctorPrefill,
+        });
         setExistingUpdatedAt('');
-        setHasExisting(false);
+        setHasExisting(Boolean(currentTest.notes));
       }
     }
   }
 
-  if (!isOpen || !test) return null;
+  if (!isOpen || !currentTest) return null;
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   /** Persists the note; a null return means the empty form deleted it. */
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
-    const entry = saveClinicalNote(test.id, formData);
+    const entry = saveClinicalNote(currentTest.id, formData);
     setHasExisting(Boolean(entry));
     setExistingUpdatedAt(entry?.updatedAt || '');
 
+    // Synchronize note into the backend test-results record
+    try {
+      await API.patch(`test-results/${currentTest.id}/`, { notes: formData.notes });
+    } catch (err) {
+      console.warn('Backend note sync warning:', err);
+    }
+
     if (entry) {
       toast.success('📝 یادداشت بالینی ذخیره شد.');
-      onSaved?.(test.id, entry);
+      onSaved?.(currentTest.id, entry);
     } else {
       toast.info('یادداشت خالی بود و حذف شد.');
-      onDeleted?.(test.id);
+      onDeleted?.(currentTest.id);
     }
+    onClose?.();
   };
 
   /** Confirm-guarded removal that resets the form back to the doctor prefill. */
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!window.confirm('حذف کامل یادداشت بالینی این آزمایش؟')) return;
-    deleteClinicalNote(test.id);
+    deleteClinicalNote(currentTest.id);
+    try {
+      await API.patch(`test-results/${currentTest.id}/`, { notes: '' });
+    } catch (err) {
+      console.warn('Backend note sync warning:', err);
+    }
     setFormData({ ...EMPTY_FORM, doctorName: doctorPrefill });
     setHasExisting(false);
     setExistingUpdatedAt('');
     toast.success('🗑️ یادداشت حذف شد.');
-    onDeleted?.(test.id);
+    onDeleted?.(currentTest.id);
+    onClose?.();
   };
 
   return (
@@ -133,8 +148,10 @@ const ClinicalNotesModal = ({
 
         <div className="modal-body">
           <p className="cn-test-name">
-            آزمایش: <strong>{test.test_type_name}</strong>
-            {test.patient_name && <> — بیمار: <strong>{test.patient_name}</strong></>}
+            آزمایش: <strong>{currentTest.test_type_name || currentTest.test_name || currentTest.name || 'آزمایش'}</strong>
+            {(currentTest.patient_name || currentTest.patient?.first_name) && (
+              <> — بیمار: <strong>{currentTest.patient_name || `${currentTest.patient?.first_name || ''} ${currentTest.patient?.last_name || ''}`.trim()}</strong></>
+            )}
           </p>
 
           {hasExisting && existingUpdatedAt && (

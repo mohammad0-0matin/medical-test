@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import API from '../api';
+import { toast } from 'react-toastify';
 import './AddTestModal.css';
 
 /** Patient identity (read-only) icon. */
@@ -75,20 +76,17 @@ const CloseGlyph = () => (
 );
 
 /**
- * Edits an existing test result via PUT `test-results/:id/`.
+ * Edits an existing test result via PATCH/PUT `test-results/:id/`.
  * Patient and test type render read-only; remaining fields prefill from
- * `testData` on every open. Server-side validation errors are surfaced
- * as the first field error returned by DRF.
+ * `testData` / `test` on every open.
  *
- * @param {{isOpen: boolean, onClose: Function,
- *          onTestUpdated?: Function, testData: object|null}} props - Modal props.
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Requests closing the modal.
- * @param {Function} [props.onTestUpdated] - Notifies the dashboard to refetch.
- * @param {object|null} props.testData - Test record currently being edited.
+ * @param {{isOpen: boolean, onClose: Function, onTestUpdated?: Function,
+ *          onUpdate?: Function, testData?: object|null, test?: object|null}} props - Modal props.
  * @returns {JSX.Element|null} Edit form modal, or null when closed.
  */
-const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
+const EditTestModal = ({ isOpen, onClose, onTestUpdated, onUpdate, testData, test }) => {
+  const currentTest = testData || test;
+
   const [formData, setFormData] = useState({
     patient: '',
     test_type: '',
@@ -106,36 +104,43 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
   // Prefill the form each time the modal opens for a test.
   // (Render-phase state adjustment pattern instead of useEffect.)
   const [syncedTestId, setSyncedTestId] = useState('closed');
-  const openTestId = isOpen && testData ? `edit-${testData.id}` : 'closed';
+  const openTestId = isOpen && currentTest ? `edit-${currentTest.id}` : 'closed';
 
   if (openTestId !== syncedTestId) {
     setSyncedTestId(openTestId);
-    if (isOpen && testData) {
+    if (isOpen && currentTest) {
       setFormData({
-        patient: testData.patient?.id || '',
-        test_type: testData.test_type || '',
-        result_value: testData.result_value ?? '',
-        result_text: testData.result_text ?? '',
-        lab_min_range: testData.lab_min_range ?? '',
-        lab_max_range: testData.lab_max_range ?? '',
-        test_date: testData.test_date || '',
-        notes: testData.notes || '',
+        patient: typeof currentTest.patient === 'object' ? currentTest.patient?.id : (currentTest.patient || ''),
+        test_type: typeof currentTest.test_type === 'object' ? currentTest.test_type?.id : (currentTest.test_type || ''),
+        result_value: currentTest.result_value ?? '',
+        result_text: currentTest.result_text ?? '',
+        lab_min_range: currentTest.lab_min_range ?? currentTest.min_range ?? '',
+        lab_max_range: currentTest.lab_max_range ?? currentTest.max_range ?? '',
+        test_date: currentTest.test_date || '',
+        notes: currentTest.notes || '',
       });
       setError(null);
     }
   }
 
-  if (!isOpen) return null;
+  if (!isOpen || !currentTest) return null;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
+  const patientDisplayName =
+    currentTest.patient_name ||
+    (currentTest.patient && typeof currentTest.patient === 'object'
+      ? `${currentTest.patient.first_name || ''} ${currentTest.patient.last_name || ''}`.trim()
+      : (currentTest.patient ? `بیمار #${currentTest.patient}` : ''));
+
+  const testTypeDisplayName =
+    currentTest.test_type_name || currentTest.test_name || currentTest.name || 'آزمایش';
+
   /**
-   * Sends the PUT request with coerced numeric fields (IDs parsed to ints,
-   * numeric ranges/result values kept null when left blank) and maps the
-   * first server validation error onto the inline alert.
+   * Sends the PATCH request with coerced numeric fields and updates caller states.
    */
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -144,19 +149,27 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
 
     const payload = {
       ...formData,
-      patient: parseInt(formData.patient),
-      test_type: parseInt(formData.test_type),
-      result_value: formData.result_value !== '' ? parseFloat(formData.result_value) : null,
-      lab_min_range: formData.lab_min_range !== '' ? parseFloat(formData.lab_min_range) : null,
-      lab_max_range: formData.lab_max_range !== '' ? parseFloat(formData.lab_max_range) : null,
+      result_value: formData.result_value !== '' && formData.result_value !== null ? parseFloat(formData.result_value) : null,
+      lab_min_range: formData.lab_min_range !== '' && formData.lab_min_range !== null ? parseFloat(formData.lab_min_range) : null,
+      lab_max_range: formData.lab_max_range !== '' && formData.lab_max_range !== null ? parseFloat(formData.lab_max_range) : null,
     };
 
+    if (formData.patient) {
+      payload.patient = typeof formData.patient === 'object' ? formData.patient.id : parseInt(formData.patient, 10);
+    }
+    if (formData.test_type) {
+      payload.test_type = typeof formData.test_type === 'object' ? formData.test_type.id : parseInt(formData.test_type, 10);
+    }
+
     try {
-      // Update the record via PUT.
-      await API.put(`test-results/${testData.id}/`, payload);
+      // Update record via PATCH
+      const res = await API.patch(`test-results/${currentTest.id}/`, payload);
       setLoading(false);
-      onTestUpdated(); // Refresh the results table in the parent page
-      onClose(); // Close the modal
+      const updatedRecord = res?.data || { ...currentTest, ...payload };
+      toast.success('آزمایش با موفقیت به‌روزرسانی شد');
+      onTestUpdated?.(updatedRecord);
+      onUpdate?.(updatedRecord);
+      onClose();
     } catch (err) {
       setLoading(false);
       if (err.response && err.response.data) {
@@ -193,7 +206,7 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
                   <span className="input-icon"><UserGlyph /></span>
                   <input
                     type="text"
-                    value={`${testData.patient?.first_name ?? ''} ${testData.patient?.last_name ?? ''}`}
+                    value={patientDisplayName}
                     disabled
                     className="form-input"
                   />
@@ -203,7 +216,7 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
                 <label className="form-label">نوع آزمایش:</label>
                 <div className="input-shell">
                   <span className="input-icon"><FlaskGlyph /></span>
-                  <input type="text" value={testData.test_type_name} disabled className="form-input" />
+                  <input type="text" value={testTypeDisplayName} disabled className="form-input" />
                 </div>
               </div>
             </div>
@@ -285,6 +298,18 @@ const EditTestModal = ({ isOpen, onClose, onTestUpdated, testData }) => {
                   className="form-input"
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">توضیحات و یادداشت آزمایش:</label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
+                placeholder="توضیحات اختیاری..."
+                className="form-input form-textarea"
+                rows="2"
+              />
             </div>
 
             <div className="modal-footer">

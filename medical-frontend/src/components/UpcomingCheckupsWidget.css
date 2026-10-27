@@ -1,9 +1,9 @@
 .uc {
   background-color: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
+  border-radius: 16px;
+  padding: 18px 22px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
 }
 
 .uc-head {
@@ -12,7 +12,7 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .uc-title {
@@ -23,65 +23,58 @@
 }
 
 .uc-add-btn {
-  padding: 8px 16px;
+  padding: 7px 14px;
   border: none;
-  border-radius: 9px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #059669, #10b981);
   color: #ffffff;
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 10px 20px -10px rgba(16, 185, 129, 0.6);
+  box-shadow: 0 8px 16px -8px rgba(16, 185, 129, 0.5);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .uc-add-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 26px -10px rgba(16, 185, 129, 0.68);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px -8px rgba(16, 185, 129, 0.65);
 }
 
-/* ---------- Carousel ---------- */
+/* ---------- Responsive Cards Grid (No Mouse Dragging / Full Width) ---------- */
 
 .uc-scroll {
-  display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding: 2px 2px 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  padding: 0;
   list-style: none;
   margin: 0;
-  scroll-snap-type: x proximity;
-}
-
-.uc-scroll::-webkit-scrollbar {
-  height: 8px;
-}
-
-.uc-scroll::-webkit-scrollbar-thumb {
-  background: var(--border-input);
-  border-radius: 9999px;
+  overflow: visible;
 }
 
 /* ---------- Card ---------- */
 
 .uc-card {
-  min-width: 250px;
-  max-width: 290px;
-  scroll-snap-align: start;
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  padding: 14px;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 13px;
-  background-color: var(--bg-input);
-  border-inline-start-width: 3px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 12px;
+  background-color: var(--bg-page);
+  border-inline-start-width: 4px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .uc-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 28px -18px rgba(2, 32, 71, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.08);
 }
 
 .uc-tone-danger { border-inline-start-color: #ef4444; }

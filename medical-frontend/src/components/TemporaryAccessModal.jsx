@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'react-toastify';
+import API from '../api';
 import {
   DURATIONS,
   buildEmergencyPass,
@@ -82,33 +83,83 @@ const truncate = (value, max = 60) => {
  * @param {object|null} [props.healthSummary] - Summary state for allergy/medication extras.
  * @returns {JSX.Element|null} Issue/revoke flow modal, or null when closed.
  */
-const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMap = {}, healthSummary = null }) => {
+const TemporaryAccessModal = ({
+  isOpen,
+  onClose,
+  profile: initialProfile = null,
+  tests: initialTests = null,
+  clinicalNotesMap = {},
+  healthSummary: initialHealthSummary = null,
+}) => {
+  const [fetchedProfile, setFetchedProfile] = useState(null);
+  const [fetchedTests, setFetchedTests] = useState(null);
+  const [fetchedSummary, setFetchedSummary] = useState(null);
+
+  const profile = initialProfile || fetchedProfile;
+  const tests = Array.isArray(initialTests) ? initialTests : (fetchedTests || []);
+  const healthSummary = initialHealthSummary || fetchedSummary;
+
   const [duration, setDuration] = useState('24');
   const [scope, setScope] = useState('all');
   const [pin, setPin] = useState('');
   const [generating, setGenerating] = useState(false);
   const [formError, setFormError] = useState(null);
-  const [generated, setGenerated] = useState(null);
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  // Restore an active pass every time the modal opens.
-  // (Render-phase state adjustment pattern instead of useEffect.)
-  const [syncedOpen, setSyncedOpen] = useState(false);
-  if (isOpen !== syncedOpen) {
-    setSyncedOpen(isOpen);
-    if (isOpen) {
-      const active = getActivePasses();
-      setGenerated(active.length > 0
-        ? { token: active[0].token, jti: active[0].jti, expiresAt: active[0].expiresAt }
-        : null);
-      setFormError(null);
-      setPin('');
-      setDuration('24');
-      setScope('all');
-      setCopied(false);
-    }
-  }
+  // Initialize generated state from any active pass on mount
+  const [generated, setGenerated] = useState(() => {
+    const active = getActivePasses();
+    return active.length > 0
+      ? {
+          token: active[0].token,
+          jti: active[0].jti,
+          expiresAt: active[0].expiresAt,
+          hasPin: Boolean(active[0].hasPin),
+        }
+      : null;
+  });
+
+  // When opened, asynchronously fetch any missing patient data (if not passed as props)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let ignore = false;
+    const loadMissingData = async () => {
+      try {
+        const promises = [];
+        if (!initialProfile) promises.push(API.get('patients/me/').catch(() => null));
+        if (!initialTests) promises.push(API.get('test-results/').catch(() => null));
+        if (!initialHealthSummary) promises.push(API.get('health-summary/').catch(() => null));
+
+        if (promises.length === 0) return;
+        const results = await Promise.all(promises);
+        if (ignore) return;
+
+        let idx = 0;
+        if (!initialProfile) {
+          const res = results[idx++];
+          if (res?.data) setFetchedProfile(res.data);
+        }
+        if (!initialTests) {
+          const res = results[idx++];
+          const list = Array.isArray(res?.data) ? res.data : res?.data?.results || [];
+          setFetchedTests(list);
+        }
+        if (!initialHealthSummary) {
+          const res = results[idx++];
+          if (res?.data) setFetchedSummary(res.data);
+        }
+      } catch {
+        /* ignore fetch errors */
+      }
+    };
+
+    loadMissingData();
+    return () => {
+      ignore = true;
+    };
+  }, [isOpen, initialProfile, initialTests, initialHealthSummary]);
 
   // Countdown timer.
   useEffect(() => {
@@ -119,7 +170,13 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
 
   if (!isOpen) return null;
 
-  const approvedTests = tests.filter((t) => t.status === 'approved');
+  const approvedTests = (Array.isArray(tests) ? tests : []).filter(
+    (t) =>
+      t.status === 'approved' ||
+      (!t.status && t.status !== 'pending' && t.status !== 'rejected') ||
+      t.status === 'normal' ||
+      t.status === 'abnormal'
+  );
 
   const remainingMs = generated ? generated.expiresAt - now : 0;
   const isExpired = generated && remainingMs <= 0;
@@ -150,7 +207,7 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
    * scopes approved tests by the selected range, attaches compacted
    * clinical notes (`cn.{f,m,d,n}`) when available, merges health-summary
    * allergies / active medications into `extras`, hashes the optional PIN,
-   * then persists the record locally (capped at five) before display.
+   * then persists the record locally before display.
    */
   const handleGenerate = async () => {
     if (pin && !/^\d{4}$/.test(pin)) {
@@ -163,12 +220,13 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
 
     try {
       // Attach a clinical-note summary to each test when available.
-      const scopedTests = (scope === 'recent'
+      const sourceTests = scope === 'recent'
         ? [...approvedTests]
-            .sort((a, b) => new Date(b.test_date) - new Date(a.test_date))
+            .sort((a, b) => new Date(b.test_date || b.created_at || 0) - new Date(a.test_date || a.created_at || 0))
             .slice(0, 5)
-        : approvedTests
-      ).map((test) => {
+        : approvedTests;
+
+      const scopedTests = sourceTests.map((test) => {
         const note = clinicalNotesMap?.[test.id];
         return note
           ? {
@@ -190,13 +248,14 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
         pin,
         // Sync allergies and active medications from the health summary.
         extras: {
-          bg: profile?.blood_group || null,
+          bg: profile?.blood_group || profile?.blood_type || null,
           al:
             (healthSummary?.allergies || []).length > 0
               ? healthSummary.allergies
-                  .map((a) => `${a.allergen}${a.severity === 'severe' ? ' (شدید)' : ''}`)
+                  .map((a) => `${a.allergen || a.name || ''}${a.severity === 'severe' ? ' (شدید)' : ''}`)
+                  .filter(Boolean)
                   .join('، ')
-              : null,
+              : (profile?.allergies && profile.allergies !== 'ثبت نشده' ? profile.allergies : null),
           md:
             (healthSummary?.medications || []).filter((m) => m.isActive !== false).length > 0
               ? healthSummary.medications
@@ -207,8 +266,14 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
         },
       });
 
-      saveActivePass({ jti: pass.jti, token: pass.token, expiresAt: pass.expiresAt });
-      setGenerated({ token: pass.token, jti: pass.jti, expiresAt: pass.expiresAt });
+      const passRecord = {
+        jti: pass.jti,
+        token: pass.token,
+        expiresAt: pass.expiresAt,
+        hasPin: pass.hasPin,
+      };
+      saveActivePass(passRecord);
+      setGenerated(passRecord);
       setCopied(false);
       toast.success('⚡ دسترسی اضطراری با موفقیت صادر شد.');
     } catch (err) {
@@ -338,7 +403,16 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
 
               <div className="ta-output">
                 <div className="ta-qr-tile">
-                  <QRCodeSVG value={passUrl} size={188} level="M" marginSize={1} />
+                  {passUrl.length <= 2200 ? (
+                    <QRCodeSVG value={passUrl} size={188} level="L" marginSize={1} />
+                  ) : (
+                    <div className="ta-qr-fallback">
+                      <span className="ta-qr-fallback-icon">📋</span>
+                      <p>
+                        پرونده شامل حجم بالایی از اطلاعات است. لطفاً از دکمه «کپی لینک» در زیر برای اشتراک‌گذاری مستقیم با پزشک استفاده کنید.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className={`ta-countdown ${isExpired ? 'ta-countdown-danger' : ''}`}>
@@ -368,6 +442,14 @@ const TemporaryAccessModal = ({ isOpen, onClose, profile, tests, clinicalNotesMa
               </div>
 
               <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn-cancel"
+                  onClick={() => setGenerated(null)}
+                  title="تنظیم مجدد زمان یا رمز عبور دسترسی"
+                >
+                  ⚡ صدور مجدد
+                </button>
                 <button type="button" className="btn-cancel ta-revoke-btn" onClick={handleRevoke}>
                   لغو فوری دسترسی
                 </button>

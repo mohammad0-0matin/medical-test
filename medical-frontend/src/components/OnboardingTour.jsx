@@ -56,6 +56,14 @@ const roundedRectPath = (x, y, w, h, r) => {
  */
 const OnboardingTour = ({ steps = [], active, onFinish }) => {
   const [index, setIndex] = useState(0);
+  const [prevActive, setPrevActive] = useState(false);
+  if (active && !prevActive) {
+    setPrevActive(true);
+    setIndex(0);
+  } else if (!active && prevActive) {
+    setPrevActive(false);
+  }
+
   const [targetRect, setTargetRect] = useState(null);
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
@@ -70,13 +78,25 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
   useLayoutEffect(() => {
     if (!active) return undefined;
 
+    const findVisibleElement = () => {
+      if (!step?.selector) return null;
+      const candidates = document.querySelectorAll(step.selector);
+      for (const candidate of candidates) {
+        const box = candidate.getBoundingClientRect();
+        if (box.width > 0 && box.height > 0) {
+          return candidate;
+        }
+      }
+      return null;
+    };
+
     const measure = () => {
       setViewport({
         width: window.innerWidth,
         height: window.innerHeight,
       });
 
-      const el = step?.selector ? document.querySelector(step.selector) : null;
+      const el = findVisibleElement();
       if (!el) {
         setTargetRect(null);
         return;
@@ -214,7 +234,7 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
 
       <div className="ot-popover" style={popoverStyle}>
         <header className="ot-pop-head">
-          <span className="ot-step-chip">گام {toFa(index + 1)} از {toFa(steps.length)}</span>
+          <span className="ot-step-chip">گام {index + 1} از {steps.length}</span>
           <button type="button" className="ot-skip" onClick={onFinish}>رد کردن</button>
         </header>
 
@@ -244,9 +264,5 @@ const OnboardingTour = ({ steps = [], active, onFinish }) => {
     document.body
   );
 };
-
-/** Converts Western digits inside any value to Persian digits (step counter). */
-const toFa = (value) =>
-  String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
 export default OnboardingTour;

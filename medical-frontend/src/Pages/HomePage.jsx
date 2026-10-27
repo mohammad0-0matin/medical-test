@@ -41,17 +41,6 @@ const PrescriptionIcon = () => (
   </svg>
 );
 
-/** Icon: Family health records. */
-const FamilyIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <circle cx="9" cy="8" r="3.4" />
-    <path d="M3.5 20v-1.2A4.8 4.8 0 0 1 8.3 14h1.4a4.8 4.8 0 0 1 4.8 4.8V20" />
-    <path d="M16 4.6a3.4 3.4 0 0 1 0 6.8" />
-    <path d="M18.5 14a4.8 4.8 0 0 1 3 4.4V20" />
-  </svg>
-);
-
 /** Icon: Emergency health pass. */
 const EmergencyIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
@@ -83,45 +72,27 @@ const ArrowLeftIcon = () => (
   </svg>
 );
 
-/** Check icon. */
-const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"
-    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-/** Features catalog with friendly, patient-centric copy. */
+/** 4 Essential Pillars — Streamlined & patient-centric. */
 const features = [
   {
     icon: <TrendIcon />,
-    title: 'تشخیص سریع وضعیت نرمال فاکتورها',
-    desc: 'مشاهده فوری وضعیت هر فاکتور آزمایشگاهی با رنگ‌های مشخص و مقایسه دقیق با بازه استاندارد آزمایشگاه، بدون سردرگمی بین برگه‌های متعدد.',
-  },
-  {
-    icon: <TrendIcon />,
-    title: 'نمودار روند انواع آزمایش‌ها در طول زمان',
-    desc: 'ثبت و پیگیری جامع انواع آزمایش‌های خون، بیوشیمی، هورمونی، تیروئید و فاکتورهای تخصصی، با امکان مقایسه روند شاخص‌ها با دوره‌های گذشته.',
+    title: 'پایش نتایج انواع آزمایش‌ها',
+    desc: 'ثبت و پیگیری دقیق آزمایش‌های خونی، بیوشیمی و هورمونی همراه با تشخیص فوری وضعیت طبیعی هر شاخص بدون سردرگمی.',
   },
   {
     icon: <PrescriptionIcon />,
     title: 'مدیریت داروها و نسخه‌های پزشک',
-    desc: 'تمام نسخه‌ها، دستور مصرف و ساعات داروها را در گوشی خود داشته باشید و دیگر نگران گم شدن برگه نسخه یا فراموشی مصرف داروها نباشید.',
-  },
-  {
-    icon: <FamilyIcon />,
-    title: 'پرونده سلامت تمام اعضای خانواده',
-    desc: 'با یک حساب کاربری، سوابق آزمایش‌های فرزندان و والدین سالمند خود را به تفکیک ثبت و مدیریت کنید تا مراقبت از سلامت عزیزانتان آسان‌تر شود.',
+    desc: 'دسترسی همیشگی به دستور مصرف داروها و سوابق تجویزی برای جلوگیری از فراموشی مصرف یا تداخل دارویی.',
   },
   {
     icon: <EmergencyIcon />,
-    title: 'کارت سلامت اضطراری (Emergency Pass)',
-    desc: 'در شرایط حساس اورژانسی، گروه خونی، آلرژی‌های دارویی و بیماری‌های خاص خود را در قالب یک کارت دیجیتال سریع به پزشک یا اورژانس نشان دهید.',
+    title: 'شناسنامه و کارت سلامت هوشیار',
+    desc: 'کارت دیجیتال شامل اطلاعات ضروری، گروه خونی، آلرژی‌ها و دسترسی اضطراری امن برای کادر درمان و اورژانس.',
   },
   {
     icon: <ShareDoctorIcon />,
     title: 'اشتراک‌گذاری امن با پزشک معالج',
-    desc: 'هنگام ویزیت، تمام سوابق چکاپ‌ها و آزمایش‌های پیشین را در چند ثانیه به پزشک نشان دهید، با این اطمینان که کنترل دسترسی‌ها ۱۰۰٪ در دست خودتان است.',
+    desc: 'ارائه سریع سوابق چکاپ‌ها هنگام ویزیت مطب، با این اطمینان که کنترل و لغو دسترسی‌ها ۱۰۰٪ در دست خودتان است.',
   },
 ];
 
@@ -129,38 +100,36 @@ const features = [
 const steps = [
   {
     num: '1',
-    title: 'ثبت‌نام سریع در 1 دقیقه',
-    desc: 'بدون معطلی یا نیاز به مدارک پیچیده، فقط با یک نام کاربری حساب کاربری رایگان خود را بسازید.',
+    title: 'ایجاد حساب در 1 دقیقه',
+    desc: 'ثبت‌نام سریع بدون نیاز به مدارک یا فرم‌های پیچیده.',
   },
   {
     num: '2',
-    title: 'ثبت آزمایش یا نسخه دارویی',
-    desc: 'اعداد برگه آزمایش یا نسخه پزشک را وارد کنید؛ سامانه خودکار نمودارها و وضعیت نرمال را استخراج می‌کند.',
+    title: 'ثبت آزمایش یا نسخه',
+    desc: 'وارد کردن آسان فاکتورهای آزمایشگاهی یا داروهای تجویزی.',
   },
   {
     num: '3',
-    title: 'پایش آسان و آرامش خاطر',
-    desc: 'روند سلامت خود را با نمودارهای شفاف دنبال کنید و سوابق را همیشه در مطب یا منزل همراه داشته باشید.',
+    title: 'پایش و آرامش خاطر',
+    desc: 'مشاهده منظم روند سلامت و همراه داشتن پرونده در هر زمان و مکان.',
   },
 ];
 
 /** Trust stats (Latin digits 0-9). */
 const stats = [
-  { value: '100%', label: 'محرمانگی و امانت‌داری سوابق پزشکی' },
-  { value: '0', label: 'تومان هزینه — استفاده برای همیشه رایگان است' },
-  { value: '1', label: 'دقیقه زمان لازم برای ساخت حساب و شروع کار' },
-  { value: '24/7', label: 'دسترسی همیشگی از هر کجا با موبایل یا کامپیوتر' },
+  { value: '100%', label: 'محرمانگی سوابق پزشکی' },
+  { value: '0 تومان', label: 'استفاده رایگان برای بیماران' },
+  { value: '1 دقیقه', label: 'زمان ساخت حساب و شروع کار' },
+  { value: '24/7', label: 'دسترسی همیشگی از هر دستگاه' },
 ];
 
 /**
- * Modern, calm, engaging public landing page for Salamat Yar.
+ * Calm, streamlined, and uncluttered public landing page for Salamat Yar.
  *
  * Implements DESIGN.md Public Surface requirements:
- * - Clear, persuasive, non-academic patient-friendly Iranian Persian copywriting.
- * - 16-18px body text, 48px control heights (h-12).
- * - Alternating white and muted bands.
- * - Single primary accent (Teal / var(--primary)), soft bg-primary/5 decoration only.
- * - Latin digits (0-9) throughout all text, dates and statistics.
+ * - Generous whitespace, quiet surfaces, single primary accent.
+ * - Minimal, peaceful preview card replacing noisy clinical mockup.
+ * - Latin digits (0-9) throughout all text and statistics.
  * - Strict RTL logical properties and accessible contrast.
  *
  * @returns {JSX.Element} Landing page shell.
@@ -182,7 +151,7 @@ const HomePage = () => {
             <a href="#features">امکانات</a>
             <a href="#workflow">نحوه استفاده</a>
             <a href="#security">امنیت و حریم خصوصی</a>
-            <a href="#about">درباره ما</a>
+            <a href="#about">درباره سامانه</a>
           </nav>
 
           <div className="hp-nav-actions">
@@ -201,17 +170,16 @@ const HomePage = () => {
           <div className="hp-hero-content">
             <div className="hp-badge">
               <span className="hp-badge-dot" />
-              <span>دستیار هوشمند و آسان پرونده سلامت</span>
+              <span>سامانه هوشمند پرونده سلامت</span>
             </div>
 
             <h1 className="hp-hero-title">
-              آزمایش‌های پزشکی شما،{' '}
-              <span className="hp-hero-highlight">یکجا، منظم و همیشه در دسترس</span>
+              مدیریت هوشمند و آسان{' '}
+              <span className="hp-hero-highlight">آزمایش‌های پزشکی شما</span>
             </h1>
 
             <p className="hp-hero-sub">
-              دیگر نگران گم شدن برگه‌های آزمایش یا فراموشی روند درمان نباشید. نتایج انواع آزمایش‌های
-              پزشکی، روند تغییرات فاکتورهای سلامت و نسخه‌های دارویی خود و خانواده‌تان را به سادگی یکجا مدیریت کنید.
+              سوابق انواع آزمایش‌ها، روند شاخص‌های بالینی و نسخه‌های دارویی خود و خانواده‌تان را در فضایی امن، خلوت و همیشه در دسترس داشته باشید.
             </p>
 
             <div className="hp-hero-actions">
@@ -219,92 +187,70 @@ const HomePage = () => {
                 شروع رایگان در 1 دقیقه
                 <span className="hp-btn-arrow"><ArrowLeftIcon /></span>
               </Link>
-              <a href="#features" className="hp-btn hp-btn-outline hp-btn-lg">
-                آشنایی با امکانات
-              </a>
+              <Link to="/login" className="hp-btn hp-btn-outline hp-btn-lg">
+                ورود به حساب کاربری
+              </Link>
             </div>
-
-            <ul className="hp-trust-list">
-              <li>
-                <span className="hp-trust-icon"><CheckIcon /></span>
-                <span>کاملاً رایگان برای بیماران</span>
-              </li>
-              <li>
-                <span className="hp-trust-icon"><CheckIcon /></span>
-                <span>ثبت‌نام سریع بدون فرم‌های پیچیده</span>
-              </li>
-              <li>
-                <span className="hp-trust-icon"><CheckIcon /></span>
-                <span>امنیت و محرمانگی ۱۰۰٪ داده‌ها</span>
-              </li>
-            </ul>
           </div>
 
-          {/* Hero Clinical Mockup Preview */}
+          {/* Hero Minimal Preview Card */}
           <div className="hp-hero-visual" aria-hidden="true">
-            <div className="hp-mockup-card">
-              <div className="hp-mockup-header">
-                <div className="hp-mockup-badge">
-                  <span className="hp-mockup-status-dot" />
-                  <span>برگه آزمایش چکاپ دوره‌ای (خون و بیوشیمی)</span>
-                </div>
-                <span className="hp-mockup-date">24 اردیبهشت 1404</span>
-              </div>
-
-              <div className="hp-mockup-doctor">
-                <span className="hp-mockup-doc-avatar">د.ر</span>
-                <div>
-                  <strong>دکتر مریم رضایی</strong>
-                  <span>متخصص داخلی — بررسی دوره سه‌ماهه</span>
-                </div>
-              </div>
-
-              <div className="hp-mockup-metrics">
-                <div className="hp-metric-row">
-                  <div className="hp-metric-info">
-                    <span className="hp-metric-name">قند خون ناشتا (FBS)</span>
-                    <span className="hp-metric-range">بازه طبیعی: 70 تا 99 mg/dL</span>
-                  </div>
-                  <div className="hp-metric-val-wrap">
-                    <span className="hp-metric-value">94</span>
-                    <span className="hp-status-pill hp-status-normal">عالی و طبیعی ✓</span>
+            <div className="hp-preview-card">
+              <div className="hp-preview-header">
+                <div className="hp-preview-title-row">
+                  <span className="hp-preview-icon">🩺</span>
+                  <div className="hp-preview-titles">
+                    <strong>خلاصه پرونده سلامت</strong>
+                    <span>وضعیت و سوابق جاری</span>
                   </div>
                 </div>
-
-                <div className="hp-metric-row">
-                  <div className="hp-metric-info">
-                    <span className="hp-metric-name">چربی خون (Cholesterol)</span>
-                    <span className="hp-metric-range">بازه طبیعی: کمتر از 200 mg/dL</span>
-                  </div>
-                  <div className="hp-metric-val-wrap">
-                    <span className="hp-metric-value">182</span>
-                    <span className="hp-status-pill hp-status-normal">طبیعی ✓</span>
-                  </div>
-                </div>
-
-                <div className="hp-metric-row hp-metric-row-warn">
-                  <div className="hp-metric-info">
-                    <span className="hp-metric-name">ویتامین د (Vitamin D)</span>
-                    <span className="hp-metric-range">بازه طبیعی: 30 تا 100 ng/mL</span>
-                  </div>
-                  <div className="hp-metric-val-wrap">
-                    <span className="hp-metric-value">21</span>
-                    <span className="hp-status-pill hp-status-warn">نیاز به توجه ⚠️</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hp-mockup-footer">
-                <span className="hp-mockup-pill-subtle">
-                  📈 تحلیل هوشمند: شاخص‌های متابولیک و فاکتورهای عمومی در وضعیت بهینه قرار دارند؛ برای کمبود ویتامین D مکمل تجویزی فعال است.
+                <span className="hp-preview-status-pill">
+                  <span className="hp-preview-dot" />
+                  فعال و معتبر
                 </span>
+              </div>
+
+              <div className="hp-preview-items">
+                <div className="hp-preview-row">
+                  <div className="hp-preview-row-info">
+                    <span className="hp-preview-row-label">آخرین آزمایش پزشکی</span>
+                    <span className="hp-preview-row-sub">چکاپ فاکتورهای خونی — اردیبهشت 1404</span>
+                  </div>
+                  <span className="hp-preview-badge-success">نرمال ✓</span>
+                </div>
+
+                <div className="hp-preview-row">
+                  <div className="hp-preview-row-info">
+                    <span className="hp-preview-row-label">نسخه و داروی جاری</span>
+                    <span className="hp-preview-row-sub">تجویز شده توسط پزشک معالج</span>
+                  </div>
+                  <span className="hp-preview-badge-neutral">1 نسخه فعال</span>
+                </div>
+
+                <div className="hp-preview-row">
+                  <div className="hp-preview-row-info">
+                    <span className="hp-preview-row-label">دسترسی اضطراری پزشک</span>
+                    <span className="hp-preview-row-sub">کارت سلامت هوشیار و رمز موقت</span>
+                  </div>
+                  <span className="hp-preview-badge-teal">آماده صدور</span>
+                </div>
+              </div>
+
+              <div className="hp-preview-footer">
+                <div className="hp-preview-progress-label">
+                  <span>پایش پیوسته فاکتورهای سلامت</span>
+                  <span>100% منظم</span>
+                </div>
+                <div className="hp-preview-progress-track">
+                  <div className="hp-preview-progress-bar" style={{ width: '100%' }} />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* 3. Stats Strip */}
+      {/* 3. Quiet Stats Strip */}
       <section className="hp-stats-band">
         <div className="hp-container">
           <div className="hp-stats-grid">
@@ -318,14 +264,14 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 4. Features Section (Muted Band) */}
+      {/* 4. Features Section (4 Clean Pillars) */}
       <section id="features" className="hp-features-section">
         <div className="hp-container">
           <div className="hp-section-head">
-            <span className="hp-eyebrow">چرا سلامت‌یار؟</span>
-            <h2>تمام ابزارهای مراقبت از سلامتی در یک محیط ساده</h2>
+            <span className="hp-eyebrow">امکانات اصلی</span>
+            <h2>ابزارهای مراقبت از سلامت در یک نگاه</h2>
             <p className="hp-section-sub">
-              طراحی‌شده برای اینکه هر کسی با هر سن و مهارتی بتواند به راحتی از وضعیت سلامتی خود باخبر شود.
+              طراحی‌شده برای پایش آسان، دقیق و بدون پیچیدگی سوابق پزشکی شما و اعضای خانواده.
             </p>
           </div>
 
@@ -343,12 +289,12 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 5. Workflow Section (White Band) */}
+      {/* 5. Workflow Section (3 Simple Steps) */}
       <section id="workflow" className="hp-workflow-section">
         <div className="hp-container">
           <div className="hp-section-head">
             <span className="hp-eyebrow">استفاده آسان</span>
-            <h2>در ۳ گام ساده، پرونده پزشکی خود را منظم کنید</h2>
+            <h2>در 3 گام ساده پرونده خود را منظم کنید</h2>
             <p className="hp-section-sub">
               شروع کار با سلامت‌یار سریع است و نیازی به دانش فنی خاصی ندارد.
             </p>
@@ -366,30 +312,19 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* 6. Security & Privacy Showcase (Muted Band) */}
+      {/* 6. Security & Privacy Showcase */}
       <section id="security" className="hp-security-section">
         <div className="hp-container">
-          <div className="hp-security-box">
-            <div className="hp-security-text">
+          <div className="hp-security-card">
+            <div className="hp-security-icon-wrap">
+              <ShieldCheckIcon />
+            </div>
+            <div className="hp-security-body">
               <span className="hp-eyebrow">امنیت و امانت‌داری</span>
               <h2>اطلاعات پزشکی شما؛ امن، محرمانه و محافظت‌شده</h2>
               <p>
-                پرونده سلامت خصوصی‌ترین اطلاعات هر فرد است. سلامت‌یار با بهره‌گیری از
-                رمزنگاری استاندارد و تفکیک دقیق دسترسی‌ها تضمین می‌کند که داده‌های شما
-                فقط و فقط برای خودتان و افراد مورد اعتمادتان قابل مشاهده باشد.
+                پرونده سلامت خصوصی‌ترین اطلاعات هر فرد است. سلامت‌یار با بهره‌گیری از رمزنگاری استاندارد تضمین می‌کند که داده‌های شما فقط و فقط برای خودتان و با اجازه صریح شما برای پزشک معالج قابل مشاهده باشد. کنترل صدور و لغو دسترسی‌ها همواره در اختیار شماست.
               </p>
-              <ul className="hp-security-list">
-                <li>هیچ داده‌ای بدون اجازه صریح شما به اشتراک گذاشته نمی‌شود.</li>
-                <li>هر زمان اراده کنید، دسترسی پزشک یا اطرافیان را با یک کلیک لغو می‌کنید.</li>
-                <li>تمامی اطلاعات با استانداردهای رسمی پرونده الکترونیک سلامت محافظت می‌شوند.</li>
-              </ul>
-            </div>
-            <div className="hp-security-badge-col">
-              <div className="hp-security-shield">
-                <ShieldCheckIcon />
-                <strong>حفظ ۱۰۰٪ حریم خصوصی</strong>
-                <span>مطابق با اصول امنیت پرونده سلامت</span>
-              </div>
             </div>
           </div>
         </div>
@@ -399,15 +334,15 @@ const HomePage = () => {
       <section className="hp-cta-section">
         <div className="hp-container">
           <div className="hp-cta-card">
-            <h2>آماده‌اید پرونده سلامت خود را همیشه همراه داشته باشید؟</h2>
+            <h2>پرونده سلامت خود را همیشه همراه داشته باشید</h2>
             <p>
-              همین حالا در کمتر از 1 دقیقه به سلامت‌یار بپیوندید و سوابق آزمایشگاهی و دارویی خود را مرتب و مطمئن نگه دارید.
+              همین حالا در کمتر از 1 دقیقه حساب رایگان بسازید و آزمایش‌ها و نسخه‌های دارویی‌تان را منظم کنید.
             </p>
             <div className="hp-cta-actions">
               <Link to="/register" className="hp-btn hp-btn-primary hp-btn-lg">
-                ساخت رایگان حساب کاربری
+                ساخت حساب کاربری رایگان
               </Link>
-              <Link to="/login" className="hp-btn hp-btn-ghost-cta hp-btn-lg">
+              <Link to="/login" className="hp-btn hp-btn-outline hp-btn-lg">
                 ورود به حساب کاربری
               </Link>
             </div>
@@ -426,7 +361,7 @@ const HomePage = () => {
               <span className="hp-brand-name">سلامت‌یار</span>
             </div>
             <p className="hp-footer-about">
-              دستیار هوشمند و همراه شما در مدیریت آزمایش‌های پزشکی و پرونده سلامت؛ ساخته‌شده برای پایش آسان، آرامش خاطر بیماران و ارتباط بهتر با پزشکان معالج.
+              دستیار همراه شما در مدیریت آزمایش‌های پزشکی و پرونده سلامت؛ ساخته‌شده برای پایش آسان، آرامش خاطر بیماران و ارتباط بهتر با پزشکان معالج.
             </p>
           </div>
 

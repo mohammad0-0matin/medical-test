@@ -1,10 +1,18 @@
 /* ==========================================================================
    Printable Prescription Styles (Report/Print Surface per DESIGN.md)
    A4, margins 15-20mm, Grayscale legible, no decorative shadows
+   Scoped strictly without global body pollution.
    ========================================================================== */
 
-.print-prescription-container {
-  display: none;
+.print-prescription-host {
+  position: absolute;
+  left: -99999px;
+  top: -99999px;
+  width: 210mm;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media print {
@@ -13,110 +21,169 @@
     margin: 15mm;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  .print-prescription-container,
-  .print-prescription-container * {
-    visibility: visible;
-  }
-
-  .print-prescription-container {
+  .print-prescription-host {
+    position: static;
+    left: auto;
+    top: auto;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    opacity: 1;
     display: block !important;
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    background: #ffffff !important;
-    color: #111827 !important;
-    font-family: 'Yekan Bakh', Tahoma, Arial, sans-serif !important;
-    direction: rtl;
-    padding: 0;
-    margin: 0;
-    box-shadow: none !important;
-    border: none !important;
-  }
-
-  .print-rx-slip {
-    border: 1.5px solid #111827;
-    padding: 24px;
-    background: #ffffff;
-    page-break-after: avoid;
-  }
-
-  .print-rx-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    border-bottom: 2px solid #111827;
-    padding-bottom: 16px;
-    margin-bottom: 16px;
-  }
-
-  .print-rx-title {
-    font-size: 18pt;
-    font-weight: bold;
-    margin: 0 0 6px;
-  }
-
-  .print-rx-meta-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    font-size: 10.5pt;
-    border-bottom: 1px solid #d1d5db;
-    padding-bottom: 14px;
-    margin-bottom: 16px;
-  }
-
-  .print-rx-meta-row {
-    display: flex;
-    gap: 8px;
-  }
-
-  .print-rx-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-    font-size: 10pt;
-  }
-
-  .print-rx-table th,
-  .print-rx-table td {
-    border: 1px solid #374151;
-    padding: 8px 10px;
-    text-align: right;
-  }
-
-  .print-rx-table th {
-    background-color: #f3f4f6 !important;
-    font-weight: bold;
-    color: #111827;
-  }
-
-  .print-rx-table tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  .print-rx-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-top: 32px;
-    padding-top: 16px;
-    border-top: 1px dashed #6b7280;
-  }
-
-  .print-rx-stamp-box {
-    border: 1px solid #4b5563;
-    width: 140px;
-    height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 9pt;
-    color: #4b5563;
   }
 }
+
+.print-rx-slip {
+  border: 2px solid #111827;
+  padding: 24px;
+  background: #ffffff;
+  color: #111827;
+  font-family: var(--font-sans, 'Yekan Bakh', Tahoma, Arial, sans-serif);
+  font-size: 11pt;
+  font-weight: 500;
+  line-height: 1.6;
+  direction: rtl;
+  page-break-after: avoid;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+.print-rx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #111827;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+}
+
+.print-rx-title {
+  font-size: 18pt;
+  font-weight: 800;
+  color: #111827;
+  margin: 0 0 6px;
+}
+
+.print-rx-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  font-size: 11pt;
+  font-weight: 500;
+  border-bottom: 1.5px solid #9ca3af;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.print-rx-meta-row {
+  display: flex;
+  gap: 8px;
+}
+
+.print-rx-meta-row strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.print-rx-meta-row span {
+  font-weight: 600;
+  color: #111827;
+}
+
+.print-rx-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 10.5pt;
+  font-weight: 500;
+}
+
+.print-rx-table th,
+.print-rx-table td {
+  border: 1px solid #1f2937;
+  padding: 9px 12px;
+  text-align: right;
+  color: #111827;
+}
+
+.print-rx-table th {
+  background-color: #f3f4f6 !important;
+  font-weight: 700;
+  font-size: 10.5pt;
+  color: #111827;
+}
+
+.print-rx-table td {
+  font-weight: 500;
+}
+
+.print-rx-table td strong {
+  font-weight: 700;
+  color: #111827;
+}
+
+.print-rx-instruction {
+  display: block;
+  margin-top: 4px;
+  font-size: 9.5pt;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.print-rx-notes {
+  margin-top: 14px;
+  font-size: 10.5pt;
+  font-weight: 500;
+  color: #111827;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background-color: #f9fafb;
+}
+
+.print-rx-notes strong {
+  font-weight: 700;
+}
+
+.print-rx-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.print-rx-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1.5px dashed #4b5563;
+}
+
+.print-rx-stamp-box {
+  border: 1.5px solid #1f2937;
+  width: 150px;
+  height: 75px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.print-rx-uuid {
+  display: block;
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.print-rx-disclaimer {
+  font-size: 9pt;
+  font-weight: 500;
+  color: #374151;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+

@@ -12,9 +12,6 @@ import {
 import './AddTestModal.css';
 import './PatientChartModal.css';
 
-const toFaDigits = (value) =>
-  String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
-
 /** Modal header close-button glyph. */
 const CloseGlyph = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
@@ -39,46 +36,93 @@ const TrendEmptyGlyph = () => (
  * Points are filtered from `allTests` to the same patient & test type with a
  * numeric value, mapped into chart series and sorted chronologically. The
  * first record's min/max range drives the shaded normal-range ReferenceArea;
- * fewer than two points renders an explanatory empty state instead.
+ * fewer than two points renders an explanatory state instead.
  *
- * @param {{isOpen: boolean, onClose: Function, testData: object|null,
- *          allTests: Array<object>}} props - Modal props.
- * @param {boolean} props.isOpen - Whether the modal is visible.
- * @param {Function} props.onClose - Requests closing the modal.
- * @param {object|null} props.testData - Selected test defining patient/type scope.
- * @param {Array<object>} props.allTests - Full results dataset for trend extraction.
+ * @param {{isOpen: boolean, onClose: Function, testData?: object|null,
+ *          test?: object|null, allTests?: Array<object>}} props - Modal props.
  * @returns {JSX.Element|null} Chart modal, or null when closed.
  */
-const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
+const PatientChartModal = ({ isOpen, onClose, testData, test, allTests = [] }) => {
+  const currentTest = testData || test;
+
   // Filter and sort data points for the chart.
   const chartData = useMemo(() => {
-    if (!isOpen || !testData) return [];
+    if (!isOpen || !currentTest) return [];
 
-    return allTests
-      // 1. Keep only results of the same patient and test type.
-      .filter(
-        (t) =>
-          t.patient?.id === testData.patient?.id &&
-          t.test_type === testData.test_type &&
-          t.result_value !== null // numeric values only
-      )
-      // 2. Map raw records into chart points.
-      .map((t) => ({
-        dateString: new Intl.DateTimeFormat('fa-IR').format(new Date(t.test_date)),
-        rawDate: new Date(t.test_date).getTime(),
-        value: parseFloat(t.result_value),
-        min: t.lab_min_range ? parseFloat(t.lab_min_range) : null,
-        max: t.lab_max_range ? parseFloat(t.lab_max_range) : null,
-      }))
-      // 3. Sort chronologically (oldest first).
+    const currentPatientId = typeof currentTest.patient === 'object' ? currentTest.patient?.id : currentTest.patient;
+    const currentPatientName = currentTest.patient_name ||
+      (currentTest.patient && typeof currentTest.patient === 'object'
+        ? `${currentTest.patient.first_name || ''} ${currentTest.patient.last_name || ''}`.trim()
+        : '');
+
+    const currentTestType = typeof currentTest.test_type === 'object' ? currentTest.test_type?.id : currentTest.test_type;
+    const currentTestTypeName = currentTest.test_type_name || currentTest.test_name || currentTest.name || '';
+
+    let matched = (allTests || []).filter((t) => {
+      const tPatientId = typeof t.patient === 'object' ? t.patient?.id : t.patient;
+      const tPatientName = t.patient_name ||
+        (t.patient && typeof t.patient === 'object'
+          ? `${t.patient.first_name || ''} ${t.patient.last_name || ''}`.trim()
+          : '');
+
+      const samePatient =
+        (currentPatientId && tPatientId && String(currentPatientId) === String(tPatientId)) ||
+        (currentPatientName && tPatientName && currentPatientName === tPatientName) ||
+        (!currentPatientId && !tPatientId);
+
+      const tTestType = typeof t.test_type === 'object' ? t.test_type?.id : t.test_type;
+      const tTestTypeName = t.test_type_name || t.test_name || t.name || '';
+
+      const sameType =
+        (currentTestType && tTestType && String(currentTestType) === String(tTestType)) ||
+        (currentTestTypeName && tTestTypeName && currentTestTypeName === tTestTypeName);
+
+      const hasNumeric = t.result_value !== null && t.result_value !== undefined && t.result_value !== '' && !isNaN(parseFloat(t.result_value));
+      return samePatient && sameType && hasNumeric;
+    });
+
+    // Ensure the currentTest itself is included if it has a numeric result and wasn't already in matched
+    if (currentTest.result_value !== null && currentTest.result_value !== undefined && currentTest.result_value !== '' && !isNaN(parseFloat(currentTest.result_value))) {
+      const alreadyPresent = matched.some((m) => m.id === currentTest.id);
+      if (!alreadyPresent) {
+        matched = [...matched, currentTest];
+      }
+    }
+
+    return matched
+      .map((t) => {
+        const rawDateStr = t.test_date || t.created_at;
+        const d = rawDateStr ? new Date(rawDateStr) : null;
+        const isValidDate = d && !isNaN(d.getTime());
+        const dateString = isValidDate
+          ? new Intl.DateTimeFormat('fa-IR-u-nu-latn').format(d)
+          : (rawDateStr || '—');
+
+        return {
+          dateString,
+          rawDate: isValidDate ? d.getTime() : 0,
+          value: parseFloat(t.result_value),
+          min: t.lab_min_range !== null && t.lab_min_range !== undefined && t.lab_min_range !== '' ? parseFloat(t.lab_min_range) : null,
+          max: t.lab_max_range !== null && t.lab_max_range !== undefined && t.lab_max_range !== '' ? parseFloat(t.lab_max_range) : null,
+        };
+      })
       .sort((a, b) => a.rawDate - b.rawDate);
-  }, [isOpen, testData, allTests]);
+  }, [isOpen, currentTest, allTests]);
 
   // Extract the normal range for the background band.
-  const safeMin = chartData.length > 0 ? chartData[0].min : null;
-  const safeMax = chartData.length > 0 ? chartData[0].max : null;
+  const safeMin = chartData.length > 0 ? chartData[0].min : (currentTest?.lab_min_range ? parseFloat(currentTest.lab_min_range) : null);
+  const safeMax = chartData.length > 0 ? chartData[0].max : (currentTest?.lab_max_range ? parseFloat(currentTest.lab_max_range) : null);
 
-  if (!isOpen || !testData) return null;
+  if (!isOpen || !currentTest) return null;
+
+  const patientDisplayName =
+    currentTest.patient_name ||
+    (currentTest.patient && typeof currentTest.patient === 'object'
+      ? `${currentTest.patient.first_name || ''} ${currentTest.patient.last_name || ''}`.trim()
+      : (currentTest.patient ? `بیمار #${currentTest.patient}` : ''));
+
+  const testTypeDisplayName =
+    currentTest.test_type_name || currentTest.test_name || currentTest.name || 'آزمایش';
 
   return (
     <div className="modal-overlay" dir="rtl">
@@ -92,14 +136,23 @@ const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
 
         <div className="modal-body">
           <p className="pc-subtitle">
-            بیمار: <strong>{testData.patient?.first_name} {testData.patient?.last_name}</strong>
-            <span className="pc-badge">{testData.test_type_name}</span>
+            {patientDisplayName && <>بیمار: <strong>{patientDisplayName}</strong> </>}
+            <span className="pc-badge">{testTypeDisplayName}</span>
           </p>
 
           {chartData.length < 2 ? (
             <div className="pc-empty">
               <TrendEmptyGlyph />
-              برای رسم نمودار، این بیمار باید حداقل ۲ نتیجه عددی ثبت شده از این آزمایش داشته باشد.
+              <p>برای رسم خط روند پیوسته، حداقل ۲ نتیجه عددی از این آزمایش لازم است.</p>
+              {chartData.length === 1 ? (
+                <p style={{ marginTop: '8px', color: 'var(--primary)' }}>
+                  مقدار فعلی: <strong>{chartData[0].value}</strong> (ثبت شده در تاریخ {chartData[0].dateString})
+                </p>
+              ) : (
+                <p style={{ marginTop: '8px', color: 'var(--text-muted)' }}>
+                  هنوز نتیجه عددی معتبری برای این آزمایش ثبت نشده است.
+                </p>
+              )}
             </div>
           ) : (
             <>
@@ -145,7 +198,7 @@ const PatientChartModal = ({ isOpen, onClose, testData, allTests }) => {
                 {safeMin !== null && safeMax !== null ? (
                   <span className="pc-legend-chip">
                     <span className="pc-swatch" />
-                    بازه نرمال: {toFaDigits(safeMin)} تا {toFaDigits(safeMax)}
+                    بازه نرمال: {safeMin} تا {safeMax}
                   </span>
                 ) : (
                   <span className="pc-legend-chip">بازه نرمال ثبت نشده است</span>

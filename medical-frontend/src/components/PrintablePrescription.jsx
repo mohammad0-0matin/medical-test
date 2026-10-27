@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { formatJalaliDate } from '../utils/dateUtils';
 import './PrintablePrescription.css';
 
@@ -6,13 +8,25 @@ import './PrintablePrescription.css';
  * Adheres strictly to Salamat-Yar DESIGN.md (Report/Print Surface):
  * - Clean tabular layout in grayscale
  * - Jalali dates with Latin digits
- * - Responsive print styles triggering window.print()
+ * - Isolated iframe printing via react-to-print
  */
 const PrintablePrescription = ({ prescription }) => {
+  const printRef = useRef(null);
+
+  const triggerPrint = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: `نسخه_پزشک_${prescription?.uuid ? prescription.uuid.slice(0, 8) : 'سلامت‌یار'}`,
+  });
+
   if (!prescription) return null;
 
   const handlePrint = () => {
-    window.print();
+    if (!printRef.current) return;
+    try {
+      triggerPrint();
+    } catch {
+      window.print();
+    }
   };
 
   const doctorDisplayName = prescription.registered_doctor_name
@@ -31,18 +45,18 @@ const PrintablePrescription = ({ prescription }) => {
         🖨️ چاپ نسخه / ذخیره PDF
       </button>
 
-      {/* Hidden container that becomes visible during @media print */}
-      <div className="print-prescription-container" aria-hidden="true">
-        <div className="print-rx-slip">
+      {/* Hidden container that becomes visible during print */}
+      <div className="print-prescription-host" aria-hidden="true">
+        <div ref={printRef} className="print-rx-slip">
           {/* Header */}
           <div className="print-rx-header">
             <div>
               <h1 className="print-rx-title">برگه نسخه درمانی (سلامت‌یار)</h1>
-              <span style={{ fontSize: '10pt', color: '#4b5563' }}>
+              <span className="print-rx-uuid">
                 شناسه پیگیری نسخه: {prescription.uuid}
               </span>
             </div>
-            <div style={{ textAlign: 'left', fontSize: '10pt' }}>
+            <div style={{ textAlign: 'left', fontSize: '10pt', fontWeight: 600, color: '#111827' }}>
               <div><strong>تاریخ صدور:</strong> {formatJalaliDate(prescription.prescribed_date)}</div>
               <div><strong>منبع ثبت:</strong> {prescription.source === 'ai_extracted' ? 'هوش مصنوعی' : 'ثبت پزشک/سامانه'}</div>
             </div>
@@ -60,63 +74,48 @@ const PrintablePrescription = ({ prescription }) => {
               <strong>پزشک صادرکننده:</strong>
               <span>{doctorDisplayName}</span>
             </div>
-            {prescription.external_doctor_license_number && (
-              <div className="print-rx-meta-row">
-                <strong>شماره نظام پزشکی:</strong>
-                <span dir="ltr">{prescription.external_doctor_license_number}</span>
-              </div>
-            )}
-            {prescription.external_doctor_specialty && (
-              <div className="print-rx-meta-row">
-                <strong>تخصص:</strong>
-                <span>{prescription.external_doctor_specialty}</span>
-              </div>
-            )}
-            {prescription.external_doctor_clinic && (
+            {prescription.clinic_name && (
               <div className="print-rx-meta-row">
                 <strong>مرکز درمانی / مطب:</strong>
-                <span>{prescription.external_doctor_clinic}</span>
+                <span>{prescription.clinic_name}</span>
               </div>
             )}
-            {prescription.diagnosis && (
-              <div className="print-rx-meta-row" style={{ gridColumn: 'span 2' }}>
-                <strong>علت مراجعه / تشخیص:</strong>
-                <span>{prescription.diagnosis}</span>
+            {prescription.patient_national_code && (
+              <div className="print-rx-meta-row">
+                <strong>کد ملی بیمار:</strong>
+                <span>{prescription.patient_national_code}</span>
               </div>
             )}
           </div>
 
-          {/* Medication Items Table */}
-          <h2 style={{ fontSize: '11pt', margin: '14px 0 6px', fontWeight: 'bold' }}>
-            اقلام دارویی تجویزشده
-          </h2>
+          {/* Medications Table */}
           <table className="print-rx-table">
             <thead>
               <tr>
-                <th style={{ width: '35px', textAlign: 'center' }}>ردیف</th>
-                <th>نام دارو</th>
-                <th style={{ width: '80px' }}>دوز / قدرت</th>
-                <th style={{ width: '70px' }}>شکل دارو</th>
-                <th>دستور و تناوب مصرف</th>
-                <th style={{ width: '60px' }}>تعداد</th>
-                <th style={{ width: '70px' }}>طول دوره</th>
+                <th style={{ width: '32px' }}>#</th>
+                <th>نام دارو (Generic / Brand)</th>
+                <th>شکل دارویی</th>
+                <th>دوز</th>
+                <th>دستور و فواصل مصرف</th>
+                <th>تعداد</th>
+                <th>طول دوره</th>
               </tr>
             </thead>
             <tbody>
               {prescription.items && prescription.items.length > 0 ? (
-                prescription.items.map((item, index) => (
-                  <tr key={item.id || index}>
-                    <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                prescription.items.map((item, idx) => (
+                  <tr key={item.id || idx}>
+                    <td>{idx + 1}</td>
                     <td>
-                      <strong>{item.drug_name}</strong>
+                      <strong style={{ display: 'block', fontWeight: 700, fontSize: '11pt' }}>{item.drug_name}</strong>
                       {item.instructions && (
-                        <div style={{ fontSize: '8.5pt', color: '#4b5563', marginTop: '3px' }}>
+                        <span className="print-rx-instruction">
                           دستور: {item.instructions}
-                        </div>
+                        </span>
                       )}
                     </td>
-                    <td dir="ltr">{item.strength_dose || '—'}</td>
-                    <td>{item.form || '—'}</td>
+                    <td>{item.dosage_form || '—'}</td>
+                    <td>{item.dosage || '—'}</td>
                     <td>{item.frequency || '—'}</td>
                     <td dir="ltr">{item.quantity || '—'}</td>
                     <td>{item.duration || '—'}</td>
@@ -134,14 +133,14 @@ const PrintablePrescription = ({ prescription }) => {
 
           {/* Notes if present */}
           {prescription.notes && (
-            <div style={{ marginTop: '12px', fontSize: '9.5pt', border: '1px solid #e5e7eb', padding: '8px 12px' }}>
+            <div className="print-rx-notes">
               <strong>توصیه‌ها و یادداشت‌های پزشک:</strong> {prescription.notes}
             </div>
           )}
 
           {/* Footer & Signature Stamp */}
           <div className="print-rx-footer">
-            <div style={{ fontSize: '8.5pt', color: '#6b7280', maxWidth: '340px' }}>
+            <div className="print-rx-disclaimer">
               این برگه به منزله گزارش پرونده نسخه سلامت‌یار صادر گردیده است.
               تاریخ چاپ: {new Intl.DateTimeFormat('fa-IR-u-ca-persian-nu-latn').format(new Date())}
             </div>

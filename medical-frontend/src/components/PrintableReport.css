@@ -1,18 +1,51 @@
+/* ==========================================================================
+   PrintableReport.css — Lab Results A4 Print Document
+   Adheres to DESIGN.md print surface rules:
+   - A4 page dimensions, margins 10-15mm
+   - Grayscale and clean contrast
+   - Page-break controls preventing broken table rows
+   - Latin digits preserved throughout
+   ========================================================================== */
+
 .print-report {
-  display: none;
+  direction: rtl;
+  font-family: 'Yekan Bakh', Tahoma, Arial, sans-serif;
+  color: #0f172a;
+  background-color: #ffffff;
+  box-sizing: border-box;
 }
 
 @media print {
-  .print-report {
-    display: block;
-  }
-
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 12mm 15mm;
   }
 
   body {
-    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-report {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-report table {
+    page-break-inside: auto;
+  }
+
+  .print-report tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-report thead {
+    display: table-header-group;
   }
 }

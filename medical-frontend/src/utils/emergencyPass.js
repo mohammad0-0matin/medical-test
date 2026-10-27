@@ -164,7 +164,7 @@ export const getActivePasses = () => {
  * @returns {void}
  */
 export const saveActivePass = (record) => {
-  const list = [record, ...getActivePasses()].slice(0, 5);
+  const list = [record, ...getActivePasses().filter((p) => p.jti !== record.jti)].slice(0, 5);
   writeJson(ACTIVE_KEY, list);
 };
 
@@ -190,12 +190,26 @@ export const saveActivePass = (record) => {
  *   Health-summary overrides merged into the payload.
  * @returns {Promise<{token:string, jti:string, expiresAt:number, hasPin:boolean}>}
  */
-export const buildEmergencyPass = async ({ profile, tests, durationHours, pin, extras = {} }) => {
+export const buildEmergencyPass = async ({ profile, tests = [], durationHours, pin, extras = {} }) => {
   const issuedAt = Date.now();
   const expiresAt = issuedAt + Number(durationHours) * 3600000;
   const jti = `${issuedAt.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
   const pinHash = pin ? await sha256Hex(`pin:${pin}`) : null;
+
+  // Compact tests: limit to at most 15 most recent tests so QR code and token stay well within safe limits
+  const safeTests = (Array.isArray(tests) ? tests : [])
+    .slice(0, 15)
+    .map((t) => ({
+      tn: t.test_type_name || t.test_name || t.name || t.custom_test_name || 'آزمایش بالینی',
+      rv: t.result_value ?? null,
+      rt: t.result_text || '',
+      mn: t.min_range ?? t.lab_min_range ?? null,
+      mx: t.max_range ?? t.lab_max_range ?? null,
+      dt: t.test_date || '',
+      un: t.unit || t.test_type?.unit || t.custom_unit || '',
+      cn: t.cn || null,
+    }));
 
   const payload = {
     v: 1,
@@ -208,16 +222,7 @@ export const buildEmergencyPass = async ({ profile, tests, durationHours, pin, e
     al: extras.al ?? profile?.allergies ?? null,
     md: extras.md ?? null,
     pinHash,
-    ts: tests.map((t) => ({
-      tn: t.test_type_name || '',
-      rv: t.result_value ?? null,
-      rt: t.result_text || '',
-      mn: t.min_range ?? t.lab_min_range ?? null,
-      mx: t.max_range ?? t.lab_max_range ?? null,
-      dt: t.test_date || '',
-      un: t.unit || '',
-      cn: t.cn || null,
-    })),
+    ts: safeTests,
   };
 
   const token = encodeBase64Url(JSON.stringify(payload));
@@ -280,24 +285,23 @@ export const verifyPin = async (data, pin) => {
 const pad2 = (n) => String(n).padStart(2, '0');
 
 /**
- * Formats remaining milliseconds as a localized `HH:MM:SS` countdown.
+ * Formats remaining milliseconds as a localized `HH:MM:SS` countdown using Latin digits (0-9).
  *
  * @param {number} ms - Remaining milliseconds.
- * @returns {string} Persian-digit countdown string.
+ * @returns {string} Latin-digit countdown string.
  */
 export const formatRemaining = (ms) => {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  return toFaDigits(`${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`);
+  return `${pad2(hours)}:${pad2(minutes)}:${pad2(seconds)}`;
 };
 
 /**
- * Converts Western digits inside any value to Persian digits.
+ * Passthrough for string values with standard Latin digits per AGENTS.md.
  *
  * @param {*} value - Input value.
- * @returns {string} Value with Persian digits.
+ * @returns {string} String value unchanged.
  */
-export const toFaDigits = (value) =>
-  String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+export const toFaDigits = (value) => String(value ?? '');

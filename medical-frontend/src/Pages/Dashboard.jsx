@@ -7,10 +7,9 @@ import UserMenu from '../components/UserMenu';
 import UpcomingCheckupsWidget from '../components/UpcomingCheckupsWidget';
 import HealthSummaryView from '../components/healthSummary/HealthSummaryView';
 import TemporaryAccessModal from '../components/TemporaryAccessModal';
-import Skeleton from '../components/Skeleton';
+import OnboardingTour from '../components/OnboardingTour';
 import { fetchRemindersApi, completeReminderApi, deleteReminderApi } from '../utils/reminderUtils';
 import { getHealthSummaryApi } from '../utils/healthSummaryUtils';
-import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { toast } from 'react-toastify';
 import './Dashboard.css';
 
@@ -23,6 +22,39 @@ const EMPTY_HEALTH_SUMMARY = {
   carePlan: [],
   screenings: [],
 };
+
+const TOUR_STEPS = [
+  {
+    selector: '.app-nav-tabs, .app-mobile-nav',
+    title: 'ناوبری سراسری سامانه',
+    description: 'از طریق این نوار می‌توانید به راحتی به بخش‌های پیشخوان، پرونده آزمایش‌ها، نسخه‌های دارویی، کارت سلامت هوشیار، مدیریت دسترسی‌ها و تقویم مراقبت‌ها دسترسی داشته باشید.',
+  },
+  {
+    selector: '.dash-metrics-grid',
+    title: 'شاخص‌ها و آمارهای کلیدی سلامت',
+    description: 'خلاصه وضعیت پرونده شما شامل تعداد آزمایش‌ها، فاکتورهای نیازمند بررسی، نسخه‌های فعال دارویی، وضعیت کارت سلامت و یادآورهای پزشکی در یک نگاه.',
+  },
+  {
+    selector: '.dash-metric-card-health',
+    title: 'کارت هوشیار و دسترسی پزشک',
+    description: 'با فشردن دکمه «⚡ دسترسی پزشک»، یک کد QR و رمز عبور موقت با اعتبار مشخص برای پزشک معالج یا کادر اورژانس صادر می‌شود.',
+  },
+  {
+    selector: '.dash-reminders-section',
+    title: 'تقویم چکاپ‌ها و یادآورها',
+    description: 'مشاهده نوبت‌های چکاپ دوره‌ای، یادآوری مصرف داروها و پیگیری مراقبت‌های پزشکی در یک چیدمان منظم.',
+  },
+  {
+    selector: '.dash-summary-section',
+    title: 'پرونده سوابق بالینی (PHR)',
+    description: 'ثبت و پایش بیماری‌های مزمن، داروهای مصرفی جاری، آلرژی‌ها و حساسیت‌های دارویی، واکسیناسیون و قابلیت چاپ دوسیه بیمار.',
+  },
+  {
+    selector: '.dash-greeting-actions',
+    title: 'مرکز اعلانات و راهنمای سامانه',
+    description: 'بررسی درخواست‌های دسترسی پزشکان، تنظیمات پروفایل و امکان باز کردن مجدد همین راهنما در هر زمان با زدن دکمه «راهنمای سامانه».',
+  },
+];
 
 /**
  * Executive Central Health Dashboard (route `/dashboard`).
@@ -47,10 +79,11 @@ const Dashboard = () => {
   const [reminders, setReminders] = useState([]);
   const [healthSummary, setHealthSummary] = useState(EMPTY_HEALTH_SUMMARY);
   const [accessRequests, setAccessRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [pendingTests, setPendingTests] = useState([]);
 
-  // Modals
+  // Modals & Tour
   const [isTempAccessOpen, setIsTempAccessOpen] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
 
   const refreshData = async () => {
     try {
@@ -65,13 +98,14 @@ const Dashboard = () => {
     let ignore = false;
     const loadDashboardData = async () => {
       try {
-        const [testsRes, prescRes, profileRes, remindersData, summaryData, inboxRes] = await Promise.all([
+        const [testsRes, prescRes, profileRes, remindersData, summaryData, inboxRes, testInboxRes] = await Promise.all([
           API.get('test-results/').catch(() => ({ data: [] })),
           API.get('prescriptions/').catch(() => ({ data: [] })),
           API.get('patients/me/').catch(() => ({ data: null })),
           fetchRemindersApi().catch(() => []),
           getHealthSummaryApi().catch(() => EMPTY_HEALTH_SUMMARY),
           API.get('access/inbox/').catch(() => ({ data: [] })),
+          API.get('test-results/inbox/').catch(() => ({ data: [] })),
         ]);
 
         if (!ignore) {
@@ -88,7 +122,11 @@ const Dashboard = () => {
           setReminders(remindersData || []);
           setHealthSummary(summaryData || EMPTY_HEALTH_SUMMARY);
           setAccessRequests(inboxRes.data || []);
-          setLoading(false);
+          setPendingTests(Array.isArray(testInboxRes.data) ? testInboxRes.data : testInboxRes.data?.results || []);
+
+          if (profileRes.data?.has_seen_tour === false) {
+            setIsTourActive(true);
+          }
         }
       } catch (err) {
         if (!ignore) {
@@ -98,7 +136,6 @@ const Dashboard = () => {
             return;
           }
           toast.error('خطا در دریافت خلاصه اطلاعات پیشخوان.');
-          setLoading(false);
         }
       }
     };
@@ -108,6 +145,17 @@ const Dashboard = () => {
       ignore = true;
     };
   }, [logout, navigate]);
+
+  // Complete / skip tour and sync with database
+  const finishTour = async () => {
+    setIsTourActive(false);
+    try {
+      await API.patch('patients/me/', { has_seen_tour: true });
+      setProfile((prev) => (prev ? { ...prev, has_seen_tour: true } : prev));
+    } catch (error) {
+      console.error('خطا در ذخیره وضعیت راهنما در دیتابیس:', error);
+    }
+  };
 
   // Accept access request
   const handleAcceptRequest = async (id) => {
@@ -128,6 +176,27 @@ const Dashboard = () => {
       setAccessRequests((prev) => prev.filter((req) => req.id !== id));
     } catch {
       toast.error('خطا در رد درخواست.');
+    }
+  };
+
+  // Review incoming pending test result (approve or reject)
+  const handleReviewTest = async (testId, action) => {
+    try {
+      const res = await API.post(`test-results/${testId}/review/`, { action });
+      if (action === 'approve') {
+        toast.success(res.data?.detail || 'آزمایش با موفقیت تایید و به پرونده اضافه شد.');
+      } else {
+        toast.info(res.data?.detail || 'آزمایش با موفقیت رد شد.');
+      }
+      setPendingTests((prev) => prev.filter((t) => t.id !== testId));
+      // Refresh tests list so approved test appears or rejected test disappears
+      const testsRes = await API.get('test-results/').catch(() => ({ data: [] }));
+      const testList = Array.isArray(testsRes.data)
+        ? testsRes.data
+        : testsRes.data?.results || [];
+      setTests(testList);
+    } catch {
+      toast.error('خطا در تعیین وضعیت آزمایش.');
     }
   };
 
@@ -154,11 +223,6 @@ const Dashboard = () => {
     }
   };
 
-  // Sort tests by date desc and take top 4
-  const recentTests = [...tests]
-    .sort((a, b) => new Date(b.test_date || b.created_at || 0) - new Date(a.test_date || a.created_at || 0))
-    .slice(0, 4);
-
   const abnormalCount = tests.filter((t) => t.is_normal === false || t.status === 'abnormal' || t.is_critical).length;
   const userName = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || user?.username || 'کاربر گرامی';
 
@@ -182,8 +246,20 @@ const Dashboard = () => {
         </div>
 
         <div className="dash-greeting-actions">
+          <button
+            type="button"
+            className="dash-tour-btn"
+            onClick={() => setIsTourActive(true)}
+            title="راهنمای تعاملی سامانه"
+            aria-label="راهنمای تعاملی سامانه"
+          >
+            <span aria-hidden="true">💡</span>
+            <span>راهنمای سامانه</span>
+          </button>
           <NotificationBell
+            pendingTests={pendingTests}
             accessRequests={accessRequests}
+            onReviewTest={handleReviewTest}
             onRespondAccess={(id, action) =>
               action === 'approve' ? handleAcceptRequest(id) : handleRejectRequest(id)
             }
@@ -195,11 +271,55 @@ const Dashboard = () => {
             medicalId={profile?.medical_system_code || profile?.staff_id || ''}
             onOpenProfile={() => navigate('/health-card')}
             onOpenEmergencyPass={() => setIsTempAccessOpen(true)}
+            onOpenTour={() => setIsTourActive(true)}
           />
         </div>
       </header>
 
-      {/* 2. Access Requests Inbox Notification (if any) */}
+      {/* 2a. Pending Tests Approval Banner (when someone records a test for this patient) */}
+      {pendingTests.length > 0 && (
+        <section className="dash-inbox-banner" aria-label="آزمایش‌های در انتظار تأیید شما" style={{ borderColor: 'var(--primary)' }}>
+          <div className="dash-inbox-head">
+            <span className="dash-inbox-badge" style={{ backgroundColor: 'rgba(15, 118, 110, 0.12)', color: 'var(--primary)' }}>
+              🧪 {pendingTests.length} آزمایش در انتظار تأیید شما
+            </span>
+            <Link to="/tests" className="dash-inbox-link">مدیریت همه آزمایش‌ها ←</Link>
+          </div>
+          <div className="dash-inbox-list">
+            {pendingTests.map((t) => (
+              <div key={t.id} className="dash-inbox-item">
+                <div className="dash-inbox-item-info">
+                  <strong>{t.test_type_name || t.test_name || 'آزمایش بالینی'}</strong>
+                  <span>
+                    ثبت شده توسط: <strong>{t.creator_name || 'کاربر دیگر'}</strong>
+                    {t.result_value != null && ` | مقدار: ${t.result_value}`}
+                    {t.result_text && ` | نتیجه: ${t.result_text}`}
+                    {` | تاریخ: ${t.test_date}`}
+                  </span>
+                </div>
+                <div className="dash-inbox-item-actions">
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn-sm dash-btn-primary"
+                    onClick={() => handleReviewTest(t.id, 'approve')}
+                  >
+                    تأیید و ثبت در پرونده
+                  </button>
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn-sm dash-btn-ghost"
+                    onClick={() => handleReviewTest(t.id, 'reject')}
+                  >
+                    رد
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 2b. Access Requests Inbox Notification (if any) */}
       {accessRequests.length > 0 && (
         <section className="dash-inbox-banner" aria-label="درخواست‌های دسترسی جدید">
           <div className="dash-inbox-head">
@@ -292,7 +412,7 @@ const Dashboard = () => {
         </article>
 
         {/* Metric 3: Health Card */}
-        <article className="dash-metric-card">
+        <article className="dash-metric-card dash-metric-card-health">
           <div className="dash-metric-top">
             <span className="dash-metric-icon" aria-hidden="true">🪪</span>
             <span className="dash-metric-title">کارت سلامت هوشیار</span>
@@ -313,7 +433,8 @@ const Dashboard = () => {
               onClick={() => setIsTempAccessOpen(true)}
               title="صدور دسترسی اضطراری پزشک"
             >
-              ⚡ دسترسی پزشک
+              <span aria-hidden="true">⚡</span>
+              <span>دسترسی پزشک</span>
             </button>
           </div>
         </article>
@@ -339,193 +460,32 @@ const Dashboard = () => {
         </article>
       </section>
 
-      {/* 4. Quick Action Shortcuts Hub */}
-      <section className="dash-shortcuts-section" aria-label="دسترسی‌های سریع">
-        <div className="dash-shortcuts-grid">
-          <button
-            type="button"
-            className="dash-shortcut-card dash-shortcut-primary"
-            onClick={() => navigate('/tests/new')}
-          >
-            <span className="dash-shortcut-icon">🧪</span>
-            <div className="dash-shortcut-text">
-              <strong>ثبت آزمایش جدید</strong>
-              <span>ورود دستی یا استخراج خودکار فاکتورها</span>
-            </div>
-            <span className="dash-shortcut-arrow">←</span>
-          </button>
-
-          <button
-            type="button"
-            className="dash-shortcut-card"
-            onClick={() => navigate('/prescriptions/new')}
-          >
-            <span className="dash-shortcut-icon">💊</span>
-            <div className="dash-shortcut-text">
-              <strong>ثبت نسخه پزشک</strong>
-              <span>داروها، دوز مصرفی و ساعات یادآوری</span>
-            </div>
-            <span className="dash-shortcut-arrow">←</span>
-          </button>
-
-          <button
-            type="button"
-            className="dash-shortcut-card"
-            onClick={() => setIsTempAccessOpen(true)}
-          >
-            <span className="dash-shortcut-icon">⚡</span>
-            <div className="dash-shortcut-text">
-              <strong>صدور دسترسی اضطراری</strong>
-              <span>تولید QR و رمز عبور پزشک اورژانس</span>
-            </div>
-            <span className="dash-shortcut-arrow">←</span>
-          </button>
-
-          <button
-            type="button"
-            className="dash-shortcut-card"
-            onClick={() => navigate('/health-card')}
-          >
-            <span className="dash-shortcut-icon">🪪</span>
-            <div className="dash-shortcut-text">
-              <strong>کارت هوشمند سلامت</strong>
-              <span>شناسنامه دیجیتال، چیپ و هولوگرام</span>
-            </div>
-            <span className="dash-shortcut-arrow">←</span>
-          </button>
-        </div>
+      {/* 4. Reminders & Periodic Checkups (Full Width Responsive Grid) */}
+      <section className="dash-reminders-section">
+        <UpcomingCheckupsWidget
+          reminders={reminders}
+          onAddClick={() => navigate('/reminders')}
+          onComplete={handleCompleteReminder}
+          onDelete={handleDeleteReminder}
+        />
       </section>
 
-      {/* 5. Main Content Split: Recent Tests + Widgets */}
-      <div className="dash-content-grid">
-        {/* Column 1: Recent Tests & Vitals Tracker */}
-        <div className="dash-main-col">
-          {/* Recent Tests Widget */}
-          <section className="dash-section-card">
-            <header className="dash-section-header">
-              <div className="dash-section-header-title">
-                <span className="dash-section-icon" aria-hidden="true">🧪</span>
-                <h2>آخرین آزمایش‌های ثبت‌شده</h2>
-              </div>
-              <Link to="/tests" className="dash-section-more-link">
-                مشاهده همه آزمایش‌ها ({tests.length}) ←
-              </Link>
-            </header>
-
-            {loading ? (
-              <div className="dash-loading-wrap">
-                <Skeleton variant="rounded" height={60} style={{ marginBottom: '10px' }} />
-                <Skeleton variant="rounded" height={60} />
-              </div>
-            ) : recentTests.length === 0 ? (
-              <div className="dash-empty-box">
-                <span className="dash-empty-icon">🧪</span>
-                <p>هنوز آزمایشی در پرونده سلامت شما ثبت نشده است.</p>
-                <button
-                  type="button"
-                  className="dash-btn dash-btn-primary"
-                  onClick={() => navigate('/tests/new')}
-                >
-                  + ثبت اولین آزمایش
-                </button>
-              </div>
-            ) : (
-              <div className="dash-recent-tests-list">
-                {recentTests.map((test) => {
-                  const isAbnormal = test.is_normal === false || test.status === 'abnormal' || test.is_critical;
-                  const patientInfo = resolveMedicalIdentity(test);
-
-                  return (
-                    <div
-                      key={test.id}
-                      className={`dash-test-item ${isAbnormal ? 'dash-test-item-warn' : ''}`}
-                      onClick={() => navigate('/tests')}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter') navigate('/tests'); }}
-                    >
-                      <div className="dash-test-item-icon">
-                        {isAbnormal ? '⚠️' : '✓'}
-                      </div>
-                      <div className="dash-test-item-main">
-                        <div className="dash-test-item-title-row">
-                          <strong>{test.test_name || test.name || 'آزمایش بالینی'}</strong>
-                          {isAbnormal ? (
-                            <span className="dash-pill dash-pill-warn">نیاز به بررسی</span>
-                          ) : (
-                            <span className="dash-pill dash-pill-normal">نرمال</span>
-                          )}
-                        </div>
-                        <div className="dash-test-item-meta">
-                          <span>بیمار: {patientInfo.fullName}</span>
-                          <span className="dash-meta-sep">•</span>
-                          <span>آزمایشگاه: {test.lab_name || 'ثبت نشده'}</span>
-                          <span className="dash-meta-sep">•</span>
-                          <span>
-                            {test.test_date || test.created_at ? (
-                              new Date(test.test_date || test.created_at).toLocaleDateString('fa-IR-u-ca-persian-nu-latn')
-                            ) : '—'}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="dash-test-item-arrow">←</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* Vitals & Health Summary View */}
-          <section className="dash-section-card">
-            <header className="dash-section-header">
-              <div className="dash-section-header-title">
-                <span className="dash-section-icon" aria-hidden="true">📈</span>
-                <h2>خلاصه شاخص‌های سلامت و بالینی</h2>
-              </div>
-            </header>
-            <HealthSummaryView
-              profile={profile}
-              reminders={reminders}
-              summary={healthSummary || EMPTY_HEALTH_SUMMARY}
-              onChange={setHealthSummary}
-              onRefresh={refreshData}
-            />
-          </section>
-        </div>
-
-        {/* Column 2: Side Widgets */}
-        <aside className="dash-side-col">
-          {/* Upcoming Checkups Widget */}
-          <section className="dash-side-card">
-            <UpcomingCheckupsWidget
-              reminders={reminders}
-              onAddClick={() => navigate('/reminders')}
-              onComplete={handleCompleteReminder}
-              onDelete={handleDeleteReminder}
-            />
-          </section>
-
-          {/* Smart Card Quick Teaser */}
-          <section className="dash-side-card dash-card-teaser">
-            <header className="dash-teaser-header">
-              <span className="dash-teaser-icon">🪪</span>
-              <div>
-                <strong>کارت سلامت هوشیار شما</strong>
-                <span>شناسنامه دیجیتال و اورژانس</span>
-              </div>
-            </header>
-            <p className="dash-teaser-desc">
-              کارت هوشمند سلامت شامل کد ملی رمزنگاری‌شده، کیوآر کد اصالت و دسترسی اضطراری پزشک معالج است.
-            </p>
-            <div className="dash-teaser-actions">
-              <Link to="/health-card" className="dash-btn dash-btn-primary dash-btn-block">
-                مشاهده کارت هوشمند ←
-              </Link>
-            </div>
-          </section>
-        </aside>
-      </div>
+      {/* 5. Vitals & Clinical Health Summary (PHR) */}
+      <section className="dash-section-card dash-summary-section">
+        <header className="dash-section-header">
+          <div className="dash-section-header-title">
+            <span className="dash-section-icon" aria-hidden="true">📈</span>
+            <h2>خلاصه شاخص‌های سلامت و بالینی</h2>
+          </div>
+        </header>
+        <HealthSummaryView
+          profile={profile}
+          reminders={reminders}
+          summary={healthSummary || EMPTY_HEALTH_SUMMARY}
+          onChange={setHealthSummary}
+          onRefresh={refreshData}
+        />
+      </section>
 
       {/* Emergency Access Modal */}
       {isTempAccessOpen && (
@@ -537,6 +497,13 @@ const Dashboard = () => {
           healthSummary={healthSummary}
         />
       )}
+
+      {/* Interactive Onboarding Tour */}
+      <OnboardingTour
+        steps={TOUR_STEPS}
+        active={isTourActive}
+        onFinish={finishTour}
+      />
     </div>
   );
 };

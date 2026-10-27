@@ -333,8 +333,8 @@ const PrescriptionList = () => {
                     </div>
 
                     {rx.patient_name && (
-                      <p style={{ margin: '0 0 0.35rem', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                        👤 بیمار: <strong style={{ color: 'var(--text-strong)' }}>{rx.patient_name}</strong>
+                      <p style={{ margin: '0 0 0.35rem', fontSize: '0.88rem', fontWeight: 500, color: 'var(--text-body)' }}>
+                        👤 بیمار: <strong style={{ color: 'var(--text-strong)', fontWeight: 700 }}>{rx.patient_name}</strong>
                       </p>
                     )}
 
@@ -372,7 +372,7 @@ const PrescriptionList = () => {
                             </span>
                           ))}
                           {rx.items.length > 4 && (
-                            <span style={{ color: 'var(--primary)', fontSize: '0.75rem', alignSelf: 'center', marginInlineStart: '0.25rem' }}>
+                            <span style={{ color: 'var(--primary)', fontSize: '0.84rem', fontWeight: 600, alignSelf: 'center', marginInlineStart: '0.25rem' }}>
                               +{rx.items.length - 4} قلم دیگر
                             </span>
                           )}
@@ -386,7 +386,7 @@ const PrescriptionList = () => {
                       <button
                         type="button"
                         className="rx-btn rx-btn-ghost"
-                        style={{ minHeight: '36px', padding: '0.25rem 0.6rem', fontSize: '0.8125rem' }}
+                        style={{ minHeight: '36px', padding: '0.25rem 0.65rem', fontSize: '0.86rem', fontWeight: 600 }}
                         onClick={() => handleDownloadScan(rx)}
                         disabled={downloadingUuid === rx.uuid}
                         title="دانلود فایل اسکن نسخه"
@@ -397,7 +397,7 @@ const PrescriptionList = () => {
                     <button
                       type="button"
                       className="rx-btn rx-btn-secondary"
-                      style={{ minHeight: '36px', padding: '0.25rem 0.75rem', fontSize: '0.8125rem' }}
+                      style={{ minHeight: '36px', padding: '0.25rem 0.75rem', fontSize: '0.86rem', fontWeight: 600 }}
                       onClick={() => navigate(`/prescriptions/${rx.uuid}`)}
                     >
                       جزئیات و ویرایش
@@ -405,7 +405,7 @@ const PrescriptionList = () => {
                     <button
                       type="button"
                       className="rx-btn rx-btn-destructive"
-                      style={{ minHeight: '36px', padding: '0.25rem 0.6rem', fontSize: '0.8125rem' }}
+                      style={{ minHeight: '36px', padding: '0.25rem 0.65rem', fontSize: '0.86rem', fontWeight: 600 }}
                       onClick={() => setConfirmDeleteTarget(rx)}
                       aria-label={`حذف نسخه ${doctorDisplayName}`}
                     >

@@ -13,7 +13,6 @@ import MedicalTimeline from '../components/MedicalTimeline';
 import AiHealthAdvisor from '../components/AiHealthAdvisor';
 import Skeleton from '../components/Skeleton';
 import { exportTestsToCsv } from '../utils/exportToCsv';
-import { resolveMedicalIdentity } from '../utils/medicalIdentity';
 import { getAllClinicalNotes, getClinicalNotePreview } from '../utils/clinicalNotesUtils';
 import { useReactToPrint } from 'react-to-print';
 import { toast } from 'react-toastify';
@@ -57,6 +56,7 @@ const TestsPage = () => {
   const [profile, setProfile] = useState(null);
   const [myDependents, setMyDependents] = useState([]);
   const [clinicalNotesMap, setClinicalNotesMap] = useState({});
+  const [pendingApprovalTests, setPendingApprovalTests] = useState([]);
 
   // Modals state
   const [selectedTest, setSelectedTest] = useState(null);
@@ -78,10 +78,23 @@ const TestsPage = () => {
   // Export & Print
   const [isExporting, setIsExporting] = useState(false);
   const printRef = useRef(null);
-  const handlePrintReport = useReactToPrint({
+  const triggerPrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: 'گزارش نتایج آزمایش‌ها - سلامت‌یار',
   });
+
+  const handlePrintReport = () => {
+    if (!tests || tests.length === 0) {
+      toast.info('هیچ آزمایشی برای چاپ در پرونده وجود ندارد.');
+      return;
+    }
+    try {
+      triggerPrint();
+    } catch (err) {
+      console.error('useReactToPrint failed, fallback to native window.print:', err);
+      window.print();
+    }
+  };
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -94,18 +107,23 @@ const TestsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const [testsRes, profileRes, dependentsRes] = await Promise.all([
+      const [testsRes, profileRes, dependentsRes, inboxRes] = await Promise.all([
         API.get('test-results/'),
         API.get('patients/me/').catch(() => ({ data: null })),
         API.get('access/dependents/').catch(() => ({ data: [] })),
+        API.get('test-results/inbox/').catch(() => ({ data: [] })),
       ]);
 
       const testList = Array.isArray(testsRes.data)
         ? testsRes.data
         : testsRes.data?.results || [];
+      const inboxList = Array.isArray(inboxRes.data)
+        ? inboxRes.data
+        : inboxRes.data?.results || [];
       setTests(testList);
       setProfile(profileRes.data);
       setMyDependents(dependentsRes.data || []);
+      setPendingApprovalTests(inboxList);
       setClinicalNotesMap(getAllClinicalNotes());
     } catch {
       setError('خطا در بارگذاری نتایج آزمایش‌ها. لطفاً اتصال اینترنت خود را بررسی کنید.');
@@ -114,23 +132,44 @@ const TestsPage = () => {
     }
   };
 
+  // Review incoming pending test result (approve or reject)
+  const handleReviewPendingTest = async (testId, action) => {
+    try {
+      const res = await API.post(`test-results/${testId}/review/`, { action });
+      if (action === 'approve') {
+        toast.success(res.data?.detail || 'آزمایش با موفقیت تایید و به پرونده اضافه شد.');
+      } else {
+        toast.info(res.data?.detail || 'آزمایش با موفقیت رد شد.');
+      }
+      setPendingApprovalTests((prev) => prev.filter((t) => t.id !== testId));
+      refetchData();
+    } catch {
+      toast.error('خطا در تعیین وضعیت آزمایش.');
+    }
+  };
+
   useEffect(() => {
     let ignore = false;
     const load = async () => {
       try {
-        const [testsRes, profileRes, dependentsRes] = await Promise.all([
+        const [testsRes, profileRes, dependentsRes, inboxRes] = await Promise.all([
           API.get('test-results/'),
           API.get('patients/me/').catch(() => ({ data: null })),
           API.get('access/dependents/').catch(() => ({ data: [] })),
+          API.get('test-results/inbox/').catch(() => ({ data: [] })),
         ]);
 
         if (!ignore) {
           const testList = Array.isArray(testsRes.data)
             ? testsRes.data
             : testsRes.data?.results || [];
+          const inboxList = Array.isArray(inboxRes.data)
+            ? inboxRes.data
+            : inboxRes.data?.results || [];
           setTests(testList);
           setProfile(profileRes.data);
           setMyDependents(dependentsRes.data || []);
+          setPendingApprovalTests(inboxList);
           setClinicalNotesMap(getAllClinicalNotes());
           setLoading(false);
         }
@@ -327,6 +366,58 @@ const TestsPage = () => {
           </button>
         </div>
       </header>
+
+      {/* Pending Tests Approval Banner */}
+      {pendingApprovalTests.length > 0 && (
+        <section className="tests-inbox-banner" aria-label="آزمایش‌های در انتظار تأیید شما">
+          <div className="tests-inbox-header">
+            <span className="tests-inbox-badge-icon" aria-hidden="true">📬</span>
+            <div className="tests-inbox-header-text">
+              <h3 className="tests-inbox-title">
+                {pendingApprovalTests.length} آزمایش در انتظار تأیید شما
+              </h3>
+              <p className="tests-inbox-desc">
+                این آزمایش‌ها توسط دیگران برای شما یا افراد تحت تکفل شما ثبت شده‌اند و پیش از ثبت نهایی در پرونده، نیاز به بررسی و تأیید دارند.
+              </p>
+            </div>
+          </div>
+          <div className="tests-inbox-grid">
+            {pendingApprovalTests.map((t) => (
+              <div key={t.id} className="tests-inbox-card">
+                <div className="tests-inbox-card-content">
+                  <div className="tests-inbox-card-top">
+                    <strong className="tests-inbox-card-title">{t.test_type_name || t.test_name || 'آزمایش بالینی'}</strong>
+                    <span className="tests-inbox-card-date">{t.test_date}</span>
+                  </div>
+                  <div className="tests-inbox-card-meta">
+                    <span>بیمار: <strong>{t.patient_name || 'شما'}</strong></span>
+                    <span>ثبت توسط: <strong>{t.creator_name || 'کاربر دیگر'}</strong></span>
+                    {(t.result_value != null || t.result_text) && (
+                      <span>نتیجه: <strong>{t.result_value ?? t.result_text}</strong></span>
+                    )}
+                  </div>
+                </div>
+                <div className="tests-inbox-card-actions">
+                  <button
+                    type="button"
+                    className="tests-btn-approve"
+                    onClick={() => handleReviewPendingTest(t.id, 'approve')}
+                  >
+                    تأیید و افزودن به پرونده
+                  </button>
+                  <button
+                    type="button"
+                    className="tests-btn-reject"
+                    onClick={() => handleReviewPendingTest(t.id, 'reject')}
+                  >
+                    رد آزمایش
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 2. Toolbar & View Mode Switcher */}
       <section className="tests-toolbar-card">
@@ -529,18 +620,29 @@ const TestsPage = () => {
                   {paginatedTests.map((test, index) => {
                     const rowNumber = (currentPage - 1) * itemsPerPage + index + 1;
                     const isAbnormal = test.is_normal === false || test.status === 'abnormal' || test.is_critical;
-                    const patientIdentity = resolveMedicalIdentity(test);
-                    const notePreview = getClinicalNotePreview(clinicalNotesMap[test.id]);
+                    const resolvedPatientName = test.patient_name ||
+                      (test.patient?.first_name ? `${test.patient.first_name} ${test.patient.last_name}` : '') ||
+                      (test.patient_first_name ? `${test.patient_first_name} ${test.patient_last_name}` : '') ||
+                      (profile?.first_name ? `${profile.first_name} ${profile.last_name}` : 'خودم');
+                    const isSelf = !test.patient ||
+                      (profile && String(test.patient_national_code || test.patient?.national_code || test.patient) === String(profile.national_code || profile.id));
+                    const notePreview = getClinicalNotePreview(clinicalNotesMap[test.id] || test);
+                    const attachmentCount = Array.isArray(test.attachments) ? test.attachments.length : 0;
 
                     return (
                       <tr key={test.id} className={isAbnormal ? 'tests-row-abnormal' : ''}>
                         <td className="tests-td-num">{rowNumber}</td>
                         <td className="tests-td-patient">
-                          <strong>{patientIdentity.fullName}</strong>
-                          {patientIdentity.isSelf ? (
+                          <strong>{resolvedPatientName}</strong>
+                          {isSelf ? (
                             <span className="tests-tag-self">خودم</span>
                           ) : (
                             <span className="tests-tag-dep">تحت تکفل</span>
+                          )}
+                          {test.creator_name && (
+                            <div className="tests-creator-subtext">
+                              ثبت توسط: {test.creator_name}
+                            </div>
                           )}
                         </td>
                         <td className="tests-td-name">
@@ -557,7 +659,11 @@ const TestsPage = () => {
                           )}
                         </td>
                         <td>
-                          {isAbnormal ? (
+                          {test.status === 'pending' ? (
+                            <span className="tests-pill tests-pill-pending" title="در انتظار بررسی و تأیید بیمار">
+                              در انتظار تأیید ⏳
+                            </span>
+                          ) : isAbnormal ? (
                             <span className="tests-pill tests-pill-warn">نیاز به بررسی ⚠️</span>
                           ) : (
                             <span className="tests-pill tests-pill-normal">نرمال ✓</span>
@@ -596,14 +702,14 @@ const TestsPage = () => {
                             </button>
                             <button
                               type="button"
-                              className="tests-icon-btn"
+                              className={`tests-icon-btn ${attachmentCount > 0 ? 'has-attachment' : ''}`}
                               onClick={() => {
                                 setSelectedTest(test);
                                 setIsAttachmentModalOpen(true);
                               }}
-                              title="مشاهده فایل‌های پیوست"
+                              title={attachmentCount > 0 ? `${attachmentCount} فایل پیوست ثبت شده - کلیک برای مشاهده` : 'مشاهده و افزودن فایل پیوست'}
                             >
-                              📎
+                              📎 {attachmentCount > 0 ? attachmentCount : ''}
                             </button>
                           </div>
                         </td>
@@ -667,9 +773,14 @@ const TestsPage = () => {
         )}
       </main>
 
-      {/* Hidden Print Container */}
-      <div style={{ display: 'none' }}>
-        <PrintableReport ref={printRef} tests={filteredTests} />
+      {/* Off-screen Printable Report Host */}
+      <div className="tests-print-host" aria-hidden="true">
+        <PrintableReport
+          ref={printRef}
+          tests={filteredTests.length > 0 ? filteredTests : tests}
+          profile={profile}
+          clinicalNotesMap={clinicalNotesMap}
+        />
       </div>
 
       {/* Modals */}
@@ -677,14 +788,20 @@ const TestsPage = () => {
         <EditTestModal
           isOpen={isEditModalOpen}
           test={selectedTest}
+          testData={selectedTest}
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedTest(null);
           }}
           onUpdate={(updated) => {
-            setTests((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+            setTests((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
             setIsEditModalOpen(false);
             setSelectedTest(null);
+          }}
+          onTestUpdated={(updated) => {
+            if (updated?.id) {
+              setTests((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+            }
           }}
         />
       )}
@@ -692,10 +809,44 @@ const TestsPage = () => {
       {isAttachmentModalOpen && selectedTest && (
         <AttachmentModal
           isOpen={isAttachmentModalOpen}
+          test={selectedTest}
+          testData={selectedTest}
           testId={selectedTest.id}
           onClose={() => {
             setIsAttachmentModalOpen(false);
             setSelectedTest(null);
+          }}
+          onUploadSuccess={(newAttachment, deletedId) => {
+            if (newAttachment) {
+              setSelectedTest((prev) => (prev ? {
+                ...prev,
+                attachments: [...(prev.attachments || []).filter((a) => a.id !== newAttachment.id), newAttachment]
+              } : prev));
+              setTests((prev) =>
+                prev.map((t) => {
+                  if (t.id === selectedTest.id) {
+                    const existing = t.attachments || [];
+                    const filtered = existing.filter((a) => a.id !== newAttachment.id);
+                    return { ...t, attachments: [...filtered, newAttachment] };
+                  }
+                  return t;
+                })
+              );
+            } else if (deletedId) {
+              setSelectedTest((prev) => (prev ? {
+                ...prev,
+                attachments: (prev.attachments || []).filter((a) => a.id !== deletedId)
+              } : prev));
+              setTests((prev) =>
+                prev.map((t) => {
+                  if (t.id === selectedTest.id) {
+                    return { ...t, attachments: (t.attachments || []).filter((a) => a.id !== deletedId) };
+                  }
+                  return t;
+                })
+              );
+            }
+            refetchData();
           }}
         />
       )}
@@ -704,6 +855,7 @@ const TestsPage = () => {
         <PatientChartModal
           isOpen={isChartModalOpen}
           test={selectedTest}
+          testData={selectedTest}
           allTests={tests}
           onClose={() => {
             setIsChartModalOpen(false);
@@ -716,10 +868,28 @@ const TestsPage = () => {
         <ClinicalNotesModal
           isOpen={isNotesModalOpen}
           test={selectedTest}
+          testData={selectedTest}
+          doctorPrefill={profile?.medical_role === 'doctor' ? `دکتر ${profile.first_name} ${profile.last_name}` : ''}
           onClose={() => {
             setIsNotesModalOpen(false);
             setSelectedTest(null);
             setClinicalNotesMap(getAllClinicalNotes());
+          }}
+          onSaved={(testId, entry) => {
+            setClinicalNotesMap((prev) => ({ ...prev, [testId]: entry }));
+            setTests((prev) => prev.map((t) => (t.id === testId ? { ...t, notes: entry.notes } : t)));
+            setIsNotesModalOpen(false);
+            setSelectedTest(null);
+          }}
+          onDeleted={(testId) => {
+            setClinicalNotesMap((prev) => {
+              const next = { ...prev };
+              delete next[testId];
+              return next;
+            });
+            setTests((prev) => prev.map((t) => (t.id === testId ? { ...t, notes: '' } : t)));
+            setIsNotesModalOpen(false);
+            setSelectedTest(null);
           }}
         />
       )}

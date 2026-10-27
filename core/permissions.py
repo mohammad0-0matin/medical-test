@@ -29,14 +29,28 @@ class IsPatientOwnerOrStaff(permissions.BasePermission):
             return True
 
         # 2. Resolve the underlying Patient instance regardless of object type.
-        patient = obj if isinstance(obj, Patient) else getattr(obj, 'patient', None)
+        if isinstance(obj, Patient):
+            patient = obj
+        elif hasattr(obj, 'patient') and obj.patient:
+            patient = obj.patient
+        elif hasattr(obj, 'test_result') and getattr(obj.test_result, 'patient', None):
+            patient = obj.test_result.patient
+        else:
+            patient = None
 
         if patient is not None:
             # 2a. Direct profile owner holds complete authority over their clinical records.
             if patient.user_id == user.id:
                 return True
 
-            # 2b. Check approved delegation grants in UserPatientAccess
+            # 2b. Author of this record or its parent test retains mutation rights
+            creator = getattr(obj, 'created_by', None)
+            if not creator and hasattr(obj, 'test_result'):
+                creator = getattr(obj.test_result, 'created_by', None)
+            if creator and creator == user:
+                return True
+
+            # 2c. Check approved delegation grants in UserPatientAccess
             access_grant = UserPatientAccess.objects.filter(
                 user=user,
                 patient=patient,
@@ -51,11 +65,13 @@ class IsPatientOwnerOrStaff(permissions.BasePermission):
                 return True
 
             # Unsafe methods (PUT, PATCH, DELETE) require write access ('owner' or 'read_write').
-            # Read-only grants (including doctors with read-only access) are strictly rejected.
             return access_grant.access_level in ['owner', 'read_write']
 
         # 3. Fallback for objects without patient FK: author retaining rights
-        if hasattr(obj, 'created_by') and obj.created_by == user:
+        creator = getattr(obj, 'created_by', None)
+        if not creator and hasattr(obj, 'test_result'):
+            creator = getattr(obj.test_result, 'created_by', None)
+        if creator and creator == user:
             return True
 
         return False

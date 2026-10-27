@@ -213,12 +213,6 @@ const EmergencyPassView = () => {
                     <strong>{resolved.data.md}</strong>
                   </div>
                 )}
-                {resolved.data.al && (
-                  <div className="epv-meta-item epv-meta-wide">
-                    <span>حساسیت‌ها / هشدارها</span>
-                    <strong>{resolved.data.al}</strong>
-                  </div>
-                )}
               </div>
             </section>
 

@@ -6,8 +6,7 @@ import {
 import { buildGoogleCalendarUrl, downloadIcs } from '../utils/icsExport';
 import './UpcomingCheckupsWidget.css';
 
-const toLocalFa = (value) =>
-  String(value ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const formatTargetDate = (value) => String(value ?? '');
 
 /** Complete-action check icon. */
 const CheckGlyph = () => (
@@ -108,7 +107,7 @@ const UpcomingCheckupsWidget = ({ reminders = [], onAddClick, onComplete, onDele
                 </header>
 
                 <div className="uc-meta-row">
-                  <span className="uc-date">🗓️ {toLocalFa(reminder.targetDate)}</span>
+                  <span className="uc-date">🗓️ {formatTargetDate(reminder.targetDate)}</span>
                   <span className="uc-freq">🔁 {frequencyLabel(reminder.frequency)}</span>
                 </div>
 

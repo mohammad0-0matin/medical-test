@@ -107,3 +107,78 @@ class MedicalAPITestCase(APITestCase):
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('test_date', response.data)
+
+    def test_non_dependent_test_registration_inbox_and_reject(self):
+        """Registering a test for a non-dependent creates pending status; inbox and reject work."""
+        # 1. Normal user registers a test for patient_2 (other_user) who has no access link
+        self.client.force_authenticate(user=self.normal_user)
+        url = reverse('test-result-list')
+        data = {
+            'patient': self.patient_2.id,
+            'test_type': self.test_type.id,
+            'result_value': 110.0,
+            'test_date': timezone.now().date()
+        }
+        create_res = self.client.post(url, data, format='json')
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
+        test_id = create_res.data['id']
+        self.assertEqual(create_res.data['status'], 'pending')
+
+        # 2. Patient 2 (other_user) checks test-results inbox and sees this test
+        self.client.force_authenticate(user=self.other_user)
+        inbox_url = reverse('test-result-inbox')
+        inbox_res = self.client.get(inbox_url)
+        self.assertEqual(inbox_res.status_code, status.HTTP_200_OK)
+        inbox_ids = [item['id'] for item in inbox_res.data]
+        self.assertIn(test_id, inbox_ids)
+
+        # Patient 2 does not see it in normal list yet (since status is pending)
+        list_res_p2 = self.client.get(url)
+        p2_ids = [res['id'] for res in (list_res_p2.data if isinstance(list_res_p2.data, list) else list_res_p2.data.get('results', []))]
+        self.assertNotIn(test_id, p2_ids)
+
+        # 3. Patient 2 rejects the test: "یا رد کنه و برای هر دو ثبت نشه"
+        review_url = reverse('test-result-review', kwargs={'pk': test_id})
+        reject_res = self.client.post(review_url, {'action': 'reject'}, format='json')
+        self.assertEqual(reject_res.status_code, status.HTTP_200_OK)
+
+        # 4. Confirm neither Patient 2 nor Submitter (normal_user) sees the test in test-results list
+        list_p2_after = self.client.get(url)
+        p2_ids_after = [res['id'] for res in (list_p2_after.data if isinstance(list_p2_after.data, list) else list_p2_after.data.get('results', []))]
+        self.assertNotIn(test_id, p2_ids_after)
+
+        self.client.force_authenticate(user=self.normal_user)
+        list_submitter_after = self.client.get(url)
+        submitter_ids_after = [res['id'] for res in (list_submitter_after.data if isinstance(list_submitter_after.data, list) else list_submitter_after.data.get('results', []))]
+        self.assertNotIn(test_id, submitter_ids_after)
+
+    def test_non_dependent_test_registration_and_approve(self):
+        """Registering a test for a non-dependent and approving makes it visible to both."""
+        self.client.force_authenticate(user=self.normal_user)
+        url = reverse('test-result-list')
+        data = {
+            'patient': self.patient_2.id,
+            'test_type': self.test_type.id,
+            'result_value': 115.0,
+            'test_date': timezone.now().date()
+        }
+        create_res = self.client.post(url, data, format='json')
+        self.assertEqual(create_res.status_code, status.HTTP_201_CREATED)
+        test_id = create_res.data['id']
+        self.assertEqual(create_res.data['status'], 'pending')
+
+        # Patient 2 approves it
+        self.client.force_authenticate(user=self.other_user)
+        review_url = reverse('test-result-review', kwargs={'pk': test_id})
+        approve_res = self.client.post(review_url, {'action': 'approve'}, format='json')
+        self.assertEqual(approve_res.status_code, status.HTTP_200_OK)
+
+        # Both patient 2 and normal_user can see the approved test in the list
+        list_p2 = self.client.get(url)
+        p2_ids = [res['id'] for res in (list_p2.data if isinstance(list_p2.data, list) else list_p2.data.get('results', []))]
+        self.assertIn(test_id, p2_ids)
+
+        self.client.force_authenticate(user=self.normal_user)
+        list_submitter = self.client.get(url)
+        submitter_ids = [res['id'] for res in (list_submitter.data if isinstance(list_submitter.data, list) else list_submitter.data.get('results', []))]
+        self.assertIn(test_id, submitter_ids)

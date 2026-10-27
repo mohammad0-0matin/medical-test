@@ -58,27 +58,59 @@ export const getAllClinicalNotes = () => readAll();
  * @param {string|number} testId - Test result ID.
  * @returns {object|null} Note entry or null when absent.
  */
-export const getClinicalNote = (testId) => readAll()[testId] || null;
+export const getClinicalNote = (testIdOrObj) => {
+  if (!testIdOrObj) return null;
+  const id = typeof testIdOrObj === 'object' ? testIdOrObj.id : testIdOrObj;
+  return readAll()[id] || null;
+};
 
 /**
  * Checks whether a meaningful note exists for a test result.
  *
- * @param {string|number} testId - Test result ID.
+ * @param {string|number|object} testOrId - Test ID, test object, or note entry.
  * @returns {boolean}
  */
-export const hasClinicalNote = (testId) => hasContent(readAll()[testId]);
+export const hasClinicalNote = (testOrId) => {
+  if (!testOrId) return false;
+  if (typeof testOrId === 'object') {
+    if (hasContent(testOrId)) return true;
+    if (testOrId.id) {
+      return hasContent(readAll()[testOrId.id]) || Boolean(String(testOrId.notes || '').trim());
+    }
+    return false;
+  }
+  return hasContent(readAll()[testOrId]);
+};
 
 /**
- * Builds a single-line preview (for tooltips / printed reports).
+ * Builds a single-line preview (for tooltips / printed reports / table badges).
  * Composes fasting state, medications, interpretation and doctor name,
  * truncated to `maxLength` characters with an ellipsis suffix.
  *
- * @param {string|number} testId - Test result ID.
+ * @param {string|number|object} testOrIdOrNote - Test ID, note object, or test object.
  * @param {number} [maxLength=90] - Maximum preview length.
  * @returns {string} Preview text or an empty string when no note exists.
  */
-export const getClinicalNotePreview = (testId, maxLength = 90) => {
-  const note = readAll()[testId];
+export const getClinicalNotePreview = (testOrIdOrNote, maxLength = 90) => {
+  if (!testOrIdOrNote) return '';
+
+  let note = null;
+  if (typeof testOrIdOrNote === 'object') {
+    // If it is already a note entry with fields
+    if ('fastingHours' in testOrIdOrNote || 'doctorName' in testOrIdOrNote || 'medications' in testOrIdOrNote) {
+      note = testOrIdOrNote;
+    } else if (testOrIdOrNote.id) {
+      note = readAll()[testOrIdOrNote.id];
+      if (!hasContent(note) && testOrIdOrNote.notes) {
+        note = { notes: testOrIdOrNote.notes };
+      }
+    } else if (testOrIdOrNote.notes) {
+      note = { notes: testOrIdOrNote.notes };
+    }
+  } else {
+    note = readAll()[testOrIdOrNote];
+  }
+
   if (!hasContent(note)) return '';
 
   const parts = [];
@@ -143,7 +175,7 @@ export const formatNoteTimestamp = (isoString) => {
   if (!isoString) return '';
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) return '';
-  return new Intl.DateTimeFormat('fa-IR', {
+  return new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

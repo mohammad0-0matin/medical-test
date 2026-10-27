@@ -215,17 +215,20 @@ class TestResultViewSet(ModelViewSet):
     def get_queryset(self):
         """Scope results to submitter audit logs and approved patient records.
 
-        Submitters retain visibility over all records they personally authored
-        (including those marked as ``rejected``), while patient profile owners
-        and approved access grantees only see tests in the ``approved`` state.
+        Submitters retain visibility over tests they personally authored (as long
+        as not rejected). Patients and approved delegates only observe confirmed (approved) tests.
+        Rejected tests are completely excluded so that "برای هر دو ثبت نشه".
 
-        :returns: A distinct ``TestResult`` queryset with related patient and
-            test type entities pre-fetched.
+        :returns: A distinct ``TestResult`` queryset with related patient,
+            test type, and created_by entities pre-fetched.
         """
         user = self.request.user
-        base_queryset = TestResult.objects.select_related('patient', 'test_type')
+        base_queryset = TestResult.objects.select_related('patient', 'test_type', 'created_by')
 
-        # 1. Submitter retains audit visibility over all authored entries.
+        # Completely exclude rejected tests: "برای هر دو ثبت نشه"
+        base_queryset = base_queryset.exclude(status='rejected')
+
+        # 1. Submitter retains audit visibility over active authored entries.
         created_by_user = Q(created_by=user)
 
         # 2. Patients and approved delegates only observe confirmed tests.
@@ -244,10 +247,11 @@ class TestResultViewSet(ModelViewSet):
     def perform_create(self, serializer):
         """Assign attribution and set the initial review status.
 
-        The submitting user is always recorded in ``created_by``. Results
-        saved onto the user's own profile are auto-approved; results saved
-        onto somebody else's profile stay ``pending`` until that owner
-        reviews them through the ``review`` action.
+        The submitting user is always recorded in ``created_by``.
+        Results saved onto the user's own profile, or for a patient where an
+        approved guardianship/dependent access exists in either direction, are auto-approved.
+        Results saved for anyone else (where neither party is guardian/dependent of the other)
+        stay ``pending`` until reviewed by the recipient through the inbox.
 
         :param serializer: The write serializer holding validated data.
         """
@@ -265,33 +269,60 @@ class TestResultViewSet(ModelViewSet):
             except Patient.DoesNotExist:
                 pass
 
-        # When a patient was supplied, check whether it is the user's own profile.
-        if patient and patient.user_id == user.id:
+        if not patient:
+            serializer.save(created_by=user, status='approved')
+            return
+
+        # 1. Check whether it is the user's own profile.
+        is_own_profile = (patient.user_id == user.id)
+
+        # 2. Check if patient is user's dependent (user holds approved access to patient)
+        is_user_guardian = UserPatientAccess.objects.filter(
+            user=user,
+            patient=patient,
+            status='approved'
+        ).exists()
+
+        # 3. Check if user is patient's dependent (patient holds approved access to user)
+        user_profile = getattr(user, 'patient_profile', None)
+        is_patient_guardian = False
+        if user_profile and patient.user:
+            is_patient_guardian = UserPatientAccess.objects.filter(
+                user=patient.user,
+                patient=user_profile,
+                status='approved'
+            ).exists()
+
+        # If own profile, or approved dependent in either direction, or staff -> auto-approved
+        if is_own_profile or is_user_guardian or is_patient_guardian or user.is_staff:
             serializer.save(created_by=user, status='approved')
         else:
+            # Neither under user's custody nor user under patient's custody -> pending confirmation
             serializer.save(created_by=user, status='pending')
+
     @action(detail=False, methods=['get'], url_path='inbox')
     def inbox(self, request):
-        """List results on the caller's own profile still awaiting review.
+        """List results on the caller's own profile or approved dependents still awaiting review.
 
         :returns: 200 with ``TestResultReadSerializer`` data for every
-            ``pending`` result attached to the caller's patient profile.
+            ``pending`` result attached to the caller's patient profile or approved dependents.
         """
         user = request.user
-        # Find results that belong to this user's profile but are still pending.
         pending_tests = TestResult.objects.filter(
-            patient__user=user,
+            Q(patient__user=user) |
+            Q(patient__user_accesses__user=user, patient__user_accesses__status='approved'),
             status='pending'
-        ).select_related('created_by', 'test_type')
+        ).select_related('patient', 'created_by', 'test_type').prefetch_related('attachments').distinct()
         serializer = TestResultReadSerializer(pending_tests, many=True)
         return Response(serializer.data)
+
     @action(detail=True, methods=['post'], url_path='review')
     def review(self, request, pk=None):
         """Approve or reject a test result submitted to the caller's profile.
 
-        Applies a soft status transition to prevent physical deletion and
-        maintain clinical audit history. Only the profile owner holding the
-        underlying patient record may perform this action.
+        Applies a soft status transition to maintain clinical audit history.
+        Only the profile owner holding the underlying patient record or an approved
+        guardian may perform this action.
 
         :param pk: Primary key of the target ``TestResult`` to review.
         :returns:
@@ -303,8 +334,15 @@ class TestResultViewSet(ModelViewSet):
         test_result = get_object_or_404(TestResult, pk=pk)
         action_type = request.data.get('action')
 
-        # Security lock: the target record must belong directly to the caller.
-        if test_result.patient.user_id != request.user.id:
+        # Security lock: the target record must belong directly to the caller OR caller is guardian
+        is_owner = test_result.patient and test_result.patient.user_id == request.user.id
+        is_guardian = test_result.patient and UserPatientAccess.objects.filter(
+            user=request.user,
+            patient=test_result.patient,
+            status='approved'
+        ).exists()
+
+        if not (is_owner or is_guardian or request.user.is_staff):
             return Response(
                 {"detail": "شما اجازه تغییر وضعیت این آزمایش را ندارید."}, 
                 status=status.HTTP_403_FORBIDDEN
@@ -317,8 +355,9 @@ class TestResultViewSet(ModelViewSet):
 
         elif action_type == 'reject':
             test_result.status = 'rejected'
-            test_result.save(update_fields=['status'])
-            return Response({"detail": "آزمایش رد شد و از دید پرونده شما خارج گردید."})
+            test_result.is_archived = True
+            test_result.save(update_fields=['status', 'is_archived'])
+            return Response({"detail": "آزمایش با موفقیت رد شد و برای هیچ‌کدام ثبت نشد."})
         
         return Response({"detail": "عملیات نامعتبر است."}, status=status.HTTP_400_BAD_REQUEST)
 class AttachmentViewSet(ModelViewSet):
@@ -331,20 +370,62 @@ class AttachmentViewSet(ModelViewSet):
 
     serializer_class = AttachmentSerializer
     permission_classes = [IsAuthenticated, IsPatientOwnerOrStaff]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['test_result']
+    ordering_fields = ['uploaded_at']
+    ordering = ['-uploaded_at']
 
     def get_queryset(self):
         """Scope attachments to the caller's own and approved-shared records.
 
         :returns: Staff see every attachment; regular users see only
-            attachments whose parent test result belongs to a patient they
-            hold an access row for.
+            attachments whose parent test result belongs to an accessible patient
+            or was authored by the user.
         """
         user = self.request.user
         if user.is_staff:
-            return Attachment.objects.all()
+            return Attachment.objects.all().select_related('test_result', 'test_result__patient')
 
-        allowed_patient_ids = UserPatientAccess.objects.filter(user=user).values_list('patient_id', flat=True)
-        return Attachment.objects.filter(test_result__patient_id__in=allowed_patient_ids)
+        # 1. Tests created by the user (e.g. physician audit or self-submit)
+        created_by_user = Q(test_result__created_by=user)
+
+        # 2. Tests on patient profiles owned by the user or shared with approved access
+        accessible_as_patient = (
+            Q(test_result__patient__user=user) |
+            Q(test_result__patient__user_accesses__user=user, test_result__patient__user_accesses__status='approved')
+        ) & Q(test_result__status='approved')
+
+        qs = Attachment.objects.filter(created_by_user | accessible_as_patient).select_related(
+            'test_result', 'test_result__patient'
+        ).distinct()
+
+        # Support explicit test_result filtering directly from query_params
+        query_params = getattr(self.request, 'query_params', getattr(self.request, 'GET', {}))
+        test_result_param = query_params.get('test_result')
+        if test_result_param:
+            qs = qs.filter(test_result_id=test_result_param)
+
+        return qs
+
+    def perform_create(self, serializer):
+        """Validate user authorization on the target test_result before saving."""
+        user = self.request.user
+        test_result = serializer.validated_data.get('test_result')
+
+        if not user.is_staff and test_result:
+            is_owner = test_result.patient and test_result.patient.user_id == user.id
+            is_creator = test_result.created_by_id == user.id
+            has_approved_grant = UserPatientAccess.objects.filter(
+                user=user,
+                patient=test_result.patient,
+                status='approved'
+            ).exists()
+
+            if not (is_owner or is_creator or has_approved_grant):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied('شما دسترسی لازم برای افزودن پیوست به این آزمایش را ندارید.')
+
+        serializer.save()
 
 
 # class AddDependentView(APIView):
